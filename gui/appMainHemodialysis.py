@@ -995,8 +995,8 @@ class HemodialysisHMI(QMainWindow):
         header_container.setStyleSheet("background: #EBEBEB;")
 
         header_layout = QHBoxLayout(header_container)
-        header_layout.setContentsMargins(2, 2, 2, 2)
-        header_layout.setSpacing(1)
+        header_layout.setContentsMargins(8, 2, 8, 2)
+        header_layout.setSpacing(8)
 
         #logo 1
         
@@ -1007,16 +1007,12 @@ class HemodialysisHMI(QMainWindow):
         self.logo1 = logo1
         header_layout.addWidget(logo1)
 
-
         self.status_label = QLabel("RECONECTANDO")
         self.status_label.setObjectName("header_status_label")
-        self.status_label.setFixedSize(260, 120)
-        self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setStyleSheet(self._build_header_label_style("#2bbd37"))
-        header_layout.addWidget(self.status_label)
 
-        self.treatment_mode_selected = QLabel("")
         self.current_process_status = QLabel("PROCESO: --")
+        self.treatment_mode_selected = QLabel("HD")
         self.remaining_time_display = QLabel(
             "<div style='text-align:center;'>"
             "<span style='font-size:25px;'>T. RESTANTE</span><br>"
@@ -1035,10 +1031,30 @@ class HemodialysisHMI(QMainWindow):
         self.remaining_time_display.setStyleSheet(self._build_header_label_style("#06298a"))
         self.date_time_label.setStyleSheet(self._build_header_label_style("#06298a"))
 
-        for lbl in [self.current_process_status, self.treatment_mode_selected, self.remaining_time_display, self.date_time_label]:
-            lbl.setFixedSize(330, 120)
+        header_pieces = [
+            ("header_frame_status", self.status_label, 260),
+            ("header_frame_process", self.current_process_status, 300),
+            ("header_frame_treatment", self.treatment_mode_selected, 250),
+            ("header_frame_remaining", self.remaining_time_display, 280),
+            ("header_frame_datetime", self.date_time_label, 280),
+        ]
+        self.header_piece_frames = []
+        for frame_name, lbl, piece_width in header_pieces:
+            piece_frame = QFrame()
+            piece_frame.setObjectName(frame_name)
+            piece_frame.setFixedSize(piece_width, 120)
+            piece_frame.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            piece_frame.setStyleSheet("QFrame { background: transparent; border: none; }")
+            piece_layout = QVBoxLayout(piece_frame)
+            piece_layout.setContentsMargins(0, 0, 0, 0)
+            piece_layout.setSpacing(0)
+            lbl.setFixedSize(piece_width, 120)
+            lbl.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
             lbl.setAlignment(Qt.AlignCenter)
-            header_layout.addWidget(lbl)
+            piece_layout.addWidget(lbl)
+            self.header_piece_frames.append(piece_frame)
+            header_layout.addWidget(piece_frame)
+
         header_layout.addStretch()
 
         # Logo 2
@@ -2956,9 +2972,16 @@ class HemodialysisHMI(QMainWindow):
 
 
     def refresh_treatment_selected(self):
-        mode_code = int(self.current_values.get("treatmentModeSelection", 0)) 
-        mode_text = self._treatment_map.get(mode_code, "Desconocido") 
-        self.treatment_mode_selected.setText(mode_text.upper()) 
+        short_mode_map = {
+            0: "HD",
+            1: "HDF",
+            2: "UF",
+            3: "Desinfección",
+        }
+        mode_code = int(self.current_values.get("treatmentModeSelection", 0))
+        mode_text = short_mode_map.get(mode_code, "HD")
+        self.treatment_mode_selected.setText(mode_text)
+        self.treatment_mode_selected.setAlignment(Qt.AlignCenter)
         self.treatment_mode_selected.setStyleSheet(self._build_header_label_style("#1d4ed8"))
 
     def update_remaining_time_header(self, remaining_str: str):
