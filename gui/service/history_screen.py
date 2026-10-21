@@ -328,7 +328,11 @@ class HistoryScreen(QWidget):
                 border-radius: 10px;
             }
             QPushButton:hover { background: #0f766e; }
-        """)
+            QPushButton:disabled {
+                background: #94a3b8;
+                color: #e2e8f0;
+            }
+""")
         self.btn_view_report.setStyleSheet(f"""
             QPushButton {{
                 background: {accent};
@@ -436,6 +440,12 @@ class HistoryScreen(QWidget):
             self.cleanings = getattr(self.parent_window, 'cleaning_history', [])
 
         self.update_table()
+        self._update_live_report_button()
+
+    def _update_live_report_button(self):
+        phase = getattr(getattr(self.parent_window, "state", None), "current_phase", None)
+        en_curso = phase is not None and phase.name in ("RUNNING", "PAUSED")
+        self.btn_live_report.setEnabled(en_curso)
 
     def on_filter_changed(self, text):
         self.current_filter = text

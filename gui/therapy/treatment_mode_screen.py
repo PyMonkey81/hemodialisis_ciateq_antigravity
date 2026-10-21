@@ -98,12 +98,12 @@ class TreatmentModeScreen(QWidget):
 
         main_layout.addStretch(1)
 
-        # Botón Volver
-        self.btn_back = QPushButton("← Volver a Diálisis")
-        self.btn_back.setFixedSize(260, 64)
-        if self.parent_window and hasattr(self.parent_window, "show_dialysis_screen"):
-            self.btn_back.clicked.connect(self.parent_window.show_dialysis_screen)
-        main_layout.addWidget(self.btn_back, alignment=Qt.AlignRight)
+        # # Botón Volver
+        # self.btn_back = QPushButton("← Volver a Diálisis")
+        # self.btn_back.setFixedSize(260, 64)
+        # if self.parent_window and hasattr(self.parent_window, "show_dialysis_screen"):
+        #     self.btn_back.clicked.connect(self.parent_window.show_dialysis_screen)
+        # main_layout.addWidget(self.btn_back, alignment=Qt.AlignRight)
 
     def apply_theme_styles(self, theme_name: str | None = None):
         tokens = ThemeManager.get_tokens(theme_name)
@@ -154,17 +154,17 @@ class TreatmentModeScreen(QWidget):
         for btn, _, _ in self.mode_buttons_info:
             btn.setStyleSheet(self.style_mode_checked if btn.isChecked() else self.style_mode_unchecked)
 
-        self.btn_back.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {tokens['danger']};
-                color: #FFFFFF;
-                font-size: 20px;
-                font-weight: bold;
-                border-radius: 12px;
-                border: none;
-            }}
-            QPushButton:hover {{ background-color: #B91C1C; }}
-        """)
+        # self.btn_back.setStyleSheet(f"""
+        #     QPushButton {{
+        #         background-color: {tokens['danger']};
+        #         color: #FFFFFF;
+        #         font-size: 20px;
+        #         font-weight: bold;
+        #         border-radius: 12px;
+        #         border: none;
+        #     }}
+        #     QPushButton:hover {{ background-color: #B91C1C; }}
+        # """)
 
     def _on_mode_toggled(self, button: QPushButton, tag: str, value: float, checked: bool):
         if checked:

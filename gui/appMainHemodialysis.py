@@ -1006,6 +1006,7 @@ class HemodialysisHMI(QMainWindow):
         logo1.setPixmap(QPixmap(resource_path("resources/images/logo_ciateq__.png")).scaled(180, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         self.logo1 = logo1
         header_layout.addWidget(logo1)
+        header_layout.addStretch(1)
 
         self.status_label = QLabel("RECONECTANDO")
         self.status_label.setObjectName("header_status_label")
@@ -1055,7 +1056,7 @@ class HemodialysisHMI(QMainWindow):
             self.header_piece_frames.append(piece_frame)
             header_layout.addWidget(piece_frame)
 
-        header_layout.addStretch()
+        # header_layout.addStretch()
 
         # Logo 2
 
@@ -1064,6 +1065,7 @@ class HemodialysisHMI(QMainWindow):
         logo2.setAlignment(Qt.AlignCenter)
         logo2.setPixmap(QPixmap(resource_path("resources/images/Logo_secihti_.png")).scaled(180, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         self.logo2 = logo2
+        header_layout.addStretch(1)
         header_layout.addWidget(logo2)
 
         self.main_layout.addWidget(header_container, 0, 0, 1, 6)

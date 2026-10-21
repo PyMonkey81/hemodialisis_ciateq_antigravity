@@ -421,35 +421,36 @@ class DialysisScreen(QWidget):
         self.uf_title.setObjectName("card_title")
         uf_layout.addWidget(self.uf_title)
 
-        ufr_layout = QHBoxLayout()
-        ufr_v = QVBoxLayout()
-        ufr_v.setSpacing(4)
-        lbl_uf_cap = QLabel("TASA DE ULTRAFILTRACIÓN")
-        self.themed_sublabels.append(lbl_uf_cap)
-        ufr_v.addWidget(lbl_uf_cap)
-
-        ufr_value_row = QHBoxLayout()
-        ufr_value_row.setSpacing(6)
-        self.uf_rate_val = QLabel("0.60")
-        self.uf_rate_val.setObjectName("val_large_cyan")
-        uf_rate_unit = QLabel("L/hora")
-        self.themed_unit_labels.append(uf_rate_unit)
-        ufr_value_row.addWidget(self.uf_rate_val)
-        ufr_value_row.addWidget(uf_rate_unit)
-        ufr_value_row.addStretch()
-        ufr_v.addLayout(ufr_value_row)
-        ufr_layout.addLayout(ufr_v)
-        ufr_layout.addStretch()
-        uf_layout.addLayout(ufr_layout)
-
         meta_layout = QHBoxLayout()
-        meta_label = QLabel("Objetivo Total UF:")
-        self.themed_sublabels.append(meta_label)
-        meta_layout.addWidget(meta_label)
-        self.uf_goal_val = QLabel("2.50 L")
+        meta_v = QVBoxLayout()
+        meta_v.setSpacing(4)
+        lbl_meta_cap = QLabel("OBJETIVO TOTAL UF")
+        self.themed_sublabels.append(lbl_meta_cap)
+        meta_v.addWidget(lbl_meta_cap)
+
+        meta_value_row = QHBoxLayout()
+        meta_value_row.setSpacing(6)
+        self.uf_goal_val = QLabel("0.00")
+        self.uf_goal_val.setObjectName("val_large_cyan")
+        uf_goal_unit = QLabel("L")
+        self.themed_unit_labels.append(uf_goal_unit)
+        meta_value_row.addWidget(self.uf_goal_val)
+        meta_value_row.addWidget(uf_goal_unit)
+        meta_value_row.addStretch()
+        meta_v.addLayout(meta_value_row)
+        meta_layout.addLayout(meta_v)
         meta_layout.addStretch()
-        meta_layout.addWidget(self.uf_goal_val)
         uf_layout.addLayout(meta_layout)
+        
+        ufr_layout = QHBoxLayout()
+        ufr_label = QLabel("Tasa de UF:")
+        self.themed_sublabels.append(ufr_label)
+        ufr_layout.addWidget(ufr_label)
+        self.uf_rate_val = QLabel("0.00 L/hora")
+        self.ufr_val = self.uf_rate_val
+        ufr_layout.addStretch()
+        ufr_layout.addWidget(self.uf_rate_val)
+        uf_layout.addLayout(ufr_layout)
 
         rem_layout = QHBoxLayout()
         rem_label = QLabel("UF Removida:")
@@ -460,14 +461,14 @@ class DialysisScreen(QWidget):
         rem_layout.addWidget(self.uf_rem_val)
         uf_layout.addLayout(rem_layout)
 
-        pulse_layout = QHBoxLayout()
-        pulse_label = QLabel("Pulsos UF (temp):")
-        self.themed_sublabels.append(pulse_label)
-        pulse_layout.addWidget(pulse_label)
-        self.uf_pulse_val = QLabel("0")
-        pulse_layout.addStretch()
-        pulse_layout.addWidget(self.uf_pulse_val)
-        uf_layout.addLayout(pulse_layout)
+        # pulse_layout = QHBoxLayout()
+        # pulse_label = QLabel("Pulsos UF (temp):")
+        # self.themed_sublabels.append(pulse_label)
+        # pulse_layout.addWidget(pulse_label)
+        # self.uf_pulse_val = QLabel("0")
+        # pulse_layout.addStretch()
+        # pulse_layout.addWidget(self.uf_pulse_val)
+        # uf_layout.addLayout(pulse_layout)
 
         ktv_layout = QHBoxLayout()
         ktv_label = QLabel("Kt/V Acumulado:")
@@ -638,7 +639,7 @@ class DialysisScreen(QWidget):
         self.temp_value.setStyleSheet(
             f"color: {tokens['val_temp']}; font-family: {mono}; font-size: 48px; font-weight: bold; border: none;"
         )
-        self.uf_rate_val.setStyleSheet(
+        self.uf_goal_val.setStyleSheet(
             f"color: {tokens['val_uf']}; font-family: {mono}; font-size: 48px; font-weight: bold; border: none;"
         )
 
@@ -652,12 +653,12 @@ class DialysisScreen(QWidget):
         val_secondary_style = (
             f"color: {tokens['val_venous']}; font-weight: bold; font-family: {mono}; font-size: 25px; border: none;"
         )
-        for v_lbl in (self.cond_val, self.dfr_val_label, self.tmp_val, self.uf_goal_val, self.uf_rem_val, self.ktv_val):
+        for v_lbl in (self.cond_val, self.dfr_val_label, self.tmp_val, self.uf_rate_val, self.uf_rem_val, self.ktv_val):
             v_lbl.setStyleSheet(val_secondary_style)
 
-        self.uf_pulse_val.setStyleSheet(
-            f"color: {tokens['warning']}; font-weight: bold; font-family: {mono}; font-size: 24px; border: none;"
-        )
+        # self.uf_pulse_val.setStyleSheet(
+        #     f"color: {tokens['warning']}; font-weight: bold; font-family: {mono}; font-size: 24px; border: none;"
+        # )
 
         self.nibp_value.setStyleSheet(
             f"color: {tokens['val_vital_bp']}; font-weight: bold; font-size: 22px; font-family: {mono}; border: none;"
@@ -697,7 +698,7 @@ class DialysisScreen(QWidget):
 
         uf_rate_val = self.current_values.get("ultraFilterPumpSpeed", 0.0)
         uf_rate = float(uf_rate_val) if uf_rate_val is not None else 0.0
-        self.uf_rate_val.setText(f"{uf_rate:.2f}")
+        self.uf_rate_val.setText(f"{uf_rate:.2f} L/hora")
 
         hep_hours_val = self.current_values.get("heparineTherapyHours", 0.0)
         hep_minutes_val = self.current_values.get("heparineTherapyMinutes", 0.0)
@@ -706,15 +707,15 @@ class DialysisScreen(QWidget):
         therapy_duration_hours = uf_therapy_hours + (uf_therapy_minutes / 60.0)
 
         uf_goal = uf_rate * therapy_duration_hours
-        self.uf_goal_val.setText(f"{uf_goal:.2f} L")
+        self.uf_goal_val.setText(f"{uf_goal:.2f}")
 
         cycle_count_val = self.current_values.get("ultraFilterCycleCount", 0.0)
         uf_pulse_count = float(cycle_count_val) if cycle_count_val is not None else 0.0
         uf_removed = litros_removidos(int(uf_pulse_count))
         self.uf_rem_val.setText(f"{uf_removed:.2f} L")
 
-        pulse_display = int(uf_pulse_count) if uf_pulse_count is not None else 0
-        self.uf_pulse_val.setText(str(pulse_display))
+        # pulse_display = int(uf_pulse_count) if uf_pulse_count is not None else 0
+        # self.uf_pulse_val.setText(str(pulse_display))
 
         venous_pressure_val = self.current_values.get("bloodVenousPressureData", 0.0)
         arterial_pressure_val = self.current_values.get("bloodArteryPressureData", 0.0)
@@ -752,6 +753,15 @@ class DialysisScreen(QWidget):
 
         if hasattr(self, 'parent_window') and hasattr(self.parent_window, 'state'):
             self.update_state(self.parent_window.state.current_phase)
+
+    def _uf_removed_liters(self) -> float:
+        cycle_count_val = self.current_values.get("ultraFilterCycleCount", 0.0)
+        try:
+            pulses = int(float(cycle_count_val)) if cycle_count_val is not None else 0
+        except (TypeError, ValueError):
+            pulses = 0
+        return float(litros_removidos(pulses))
+
 
     def _time_to_decimal_hours(self, time_str: str) -> float:
         try:

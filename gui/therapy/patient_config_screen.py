@@ -9,9 +9,11 @@ Incluye datos antropométricos y datos clínicos de la hoja de enfermería / nef
 """
 
 
+
+
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QComboBox, QPushButton, QMessageBox, QFormLayout,
+    QComboBox, QPushButton, QMessageBox, QFormLayout,QGridLayout,
     QGroupBox, QListWidget, QSizePolicy, QScrollArea
 )
 from PySide6.QtCore import Qt
@@ -145,70 +147,185 @@ class PatientConfigScreen(QWidget):
         for p in test_patients:
             self.patients_db[p["patient_id"]] = p
 
-    def setup_ui(self):
-        # 1. Layout principal de la pantalla, que contendrá el QScrollArea
-        main_window_layout = QVBoxLayout(self)
-        main_window_layout.setContentsMargins(0, 0, 0, 0)
-        main_window_layout.setSpacing(0)
+    # def setup_ui(self):
+    #     # 1. Layout principal de la pantalla, que contendrá el QScrollArea
+    #     main_window_layout = QVBoxLayout(self)
+    #     main_window_layout.setContentsMargins(0, 0, 0, 0)
+    #     main_window_layout.setSpacing(0)
 
-        # 2. Creamos el QScrollArea
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(True)
+    #     # 2. Creamos el QScrollArea
+    #     self.scroll_area = QScrollArea()
+    #     self.scroll_area.setWidgetResizable(True)
         
-        # 3. Creamos un QWidget contenedor para todo el contenido desplazable
-        self.content_widget = QWidget()
-        content_layout = QVBoxLayout(self.content_widget)
-        content_layout.setContentsMargins(40, 24, 40, 24)
-        content_layout.setSpacing(18)
+    #     # 3. Creamos un QWidget contenedor para todo el contenido desplazable
+    #     self.content_widget = QWidget()
+    #     content_layout = QVBoxLayout(self.content_widget)
+    #     content_layout.setContentsMargins(40, 24, 40, 24)
+    #     content_layout.setSpacing(18)
         
-        # Título
+    #     # Título
+    #     self.lbl_title = QLabel("Expediente y Configuración Clínica del Paciente")
+    #     self.lbl_title.setAlignment(Qt.AlignCenter)
+    #     content_layout.addWidget(self.lbl_title)
+
+    #     # Selector de paciente
+    #     self.selector_group = QGroupBox("Seleccionar o registrar paciente")
+    #     selector_layout = QVBoxLayout()
+    #     selector_layout.setContentsMargins(20, 24, 20, 20)
+    #     selector_layout.setSpacing(15)
+
+    #     self.patient_list = QListWidget()
+    #     self.patient_list.setMinimumHeight(180)
+    #     self.patient_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+    #     self._refresh_patient_list()
+    #     self.patient_list.itemClicked.connect(self._load_selected_patient)
+    #     selector_layout.addWidget(self.patient_list)
+
+    #     btn_layout_selector = QHBoxLayout()
+    #     btn_layout_selector.setSpacing(15)
+
+    #     self.btn_new = QPushButton("Nuevo Paciente")
+    #     self.btn_new.setFixedHeight(60)
+    #     self.btn_new.clicked.connect(self._open_new_patient_dialog)
+    #     btn_layout_selector.addWidget(self.btn_new)
+    
+    #     # === NUEVO BOTÓN ELIMINAR ===
+    #     self.btn_delete = QPushButton("Eliminar Paciente")
+    #     self.btn_delete.setFixedHeight(60)
+    #     self.btn_delete.clicked.connect(self._delete_selected_patient)
+    #     self.btn_delete.setEnabled(False)  # Solo se habilita cuando hay selección
+    #     btn_layout_selector.addWidget(self.btn_delete)
+
+    #     selector_layout.addLayout(btn_layout_selector)
+    #     self.selector_group.setLayout(selector_layout)
+    #     content_layout.addWidget(self.selector_group)
+
+    #     # Formulario de datos del paciente
+    #     self.form_group = QGroupBox("Datos Clínicos, Antropométricos y Prescripción Base")
+    #     self.form_layout = QFormLayout()
+    #     self.form_layout.setLabelAlignment(Qt.AlignRight)
+    #     self.form_layout.setFormAlignment(Qt.AlignLeft)
+    #     self.form_layout.setContentsMargins(20, 24, 20, 20)
+    #     self.form_layout.setSpacing(12)
+
+    #     self.fields = {}
+
+    #     def add_field(label_text, key, default="", validator=None, input_mode='numeric'):
+    #         label = QLabel(label_text)
+    #         self._form_labels.append(label)
+    #         if key == "gender":
+    #             widget = QComboBox()
+    #             widget.addItems(["", "Masculino (M)", "Femenino (F)"])
+    #         elif key == "access_type":
+    #             widget = QComboBox()
+    #             widget.addItems([
+    #                 "Fístula AV (FAV)",
+    #                 "Catéter Perm-Cath",
+    #                 "Catéter Temporal (Mahurkar)",
+    #                 "Injerto Vascular (PTFE)",
+    #             ])
+    #         elif key == "blood_type":
+    #             widget = QComboBox()
+    #             widget.addItems(["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-", "No especificado"])
+    #         else:
+    #             widget = QLineEdit(default)
+    #             if validator:
+    #                 widget.setValidator(validator)
+    #             widget.setReadOnly(True)
+
+    #         self.form_layout.addRow(label, widget)
+    #         self.fields[key] = widget
+
+    #         # Conectar clic para abrir input táctil (excepto combos)
+    #         if not isinstance(widget, QComboBox):
+    #             widget.mousePressEvent = lambda e, k=key, w=widget, m=input_mode: \
+    #                 self.open_touch_input(k, w, mode=m)
+
+    #     add_field("ID Paciente:", "patient_id", input_mode='text')
+    #     add_field("Nombre completo:", "patient_name", input_mode='text')
+    #     add_field("N.S.S. / Registro:", "nss", input_mode='text')
+    #     add_field("Género:", "gender")
+    #     add_field("Edad (años):", "age", validator=QIntValidator(18, 100))
+    #     add_field("Altura (cm):", "height_cm", validator=QDoubleValidator(100.0, 250.0, 1))
+    #     add_field("Peso seco (kg):", "dry_weight_kg", validator=QDoubleValidator(30.0, 150.0, 1))
+    #     add_field("Peso pre-diálisis (kg):", "pre_dialysis_weight_kg", validator=QDoubleValidator(30.0, 200.0, 1))
+    #     add_field("Acceso Vascular:", "access_type")
+    #     add_field("Grupo y Rh:", "blood_type")
+    #     add_field("Filtro / Dializador:", "dialyzer", default="F8HPS (1.8 m²)", input_mode='text')
+    #     add_field("Diagnóstico médico:", "diagnosis", default="ERC Estadio 5", input_mode='text')
+    #     add_field("Médico Nefrólogo:", "physician", input_mode='text')
+    #     add_field("Alergias:", "allergies", default="Ninguna conocida", input_mode='text')
+
+    #     logger.debug("Campos del formulario creados: " + ", ".join(self.fields.keys()))
+    #     self.form_group.setLayout(self.form_layout)
+    #     self.form_group.hide() # Inicialmente oculto
+    #     content_layout.addWidget(self.form_group)
+
+    #     # Botón guardar y stretch al final
+    #     btn_layout = QHBoxLayout()
+    #     self.btn_save = QPushButton("Guardar y Seleccionar")
+    #     self.btn_save.setFixedSize(320, 70)
+    #     self.btn_save.clicked.connect(self._save_patient)
+    #     self.btn_save.setEnabled(False) # Deshabilitado hasta que se seleccione/cree un paciente
+    #     btn_layout.addStretch()
+    #     btn_layout.addWidget(self.btn_save)
+    #     content_layout.addLayout(btn_layout)
+    #     content_layout.addStretch()
+
+    #     self.scroll_area.setWidget(self.content_widget)
+    #     main_window_layout.addWidget(self.scroll_area)
+
+    #     self._apply_theme_styles()
+
+    def setup_ui(self):
+        root = QVBoxLayout(self)
+        root.setContentsMargins(12, 6, 12, 6)
+        root.setSpacing(8)
+
         self.lbl_title = QLabel("Expediente y Configuración Clínica del Paciente")
         self.lbl_title.setAlignment(Qt.AlignCenter)
-        content_layout.addWidget(self.lbl_title)
+        root.addWidget(self.lbl_title)
 
-        # Selector de paciente
         self.selector_group = QGroupBox("Seleccionar o registrar paciente")
         selector_layout = QVBoxLayout()
-        selector_layout.setContentsMargins(20, 24, 20, 20)
-        selector_layout.setSpacing(15)
+        selector_layout.setContentsMargins(12, 16, 12, 10)
+        selector_layout.setSpacing(8)
 
         self.patient_list = QListWidget()
-        self.patient_list.setMinimumHeight(180)
-        self.patient_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.patient_list.setFixedHeight(200)
+        self.patient_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._refresh_patient_list()
         self.patient_list.itemClicked.connect(self._load_selected_patient)
         selector_layout.addWidget(self.patient_list)
 
         btn_layout_selector = QHBoxLayout()
-        btn_layout_selector.setSpacing(15)
-
+        btn_layout_selector.setSpacing(12)
         self.btn_new = QPushButton("Nuevo Paciente")
-        self.btn_new.setFixedHeight(60)
+        self.btn_new.setFixedSize(210,48)
         self.btn_new.clicked.connect(self._open_new_patient_dialog)
-        btn_layout_selector.addWidget(self.btn_new)
-    
-        # === NUEVO BOTÓN ELIMINAR ===
         self.btn_delete = QPushButton("Eliminar Paciente")
-        self.btn_delete.setFixedHeight(60)
+        self.btn_delete.setFixedSize(210,48)
         self.btn_delete.clicked.connect(self._delete_selected_patient)
-        self.btn_delete.setEnabled(False)  # Solo se habilita cuando hay selección
+        self.btn_delete.setEnabled(False)
+        btn_layout_selector.addStretch()
+        btn_layout_selector.addWidget(self.btn_new)
         btn_layout_selector.addWidget(self.btn_delete)
-
+        
         selector_layout.addLayout(btn_layout_selector)
         self.selector_group.setLayout(selector_layout)
-        content_layout.addWidget(self.selector_group)
+        root.addWidget(self.selector_group)
 
-        # Formulario de datos del paciente
         self.form_group = QGroupBox("Datos Clínicos, Antropométricos y Prescripción Base")
-        self.form_layout = QFormLayout()
-        self.form_layout.setLabelAlignment(Qt.AlignRight)
-        self.form_layout.setFormAlignment(Qt.AlignLeft)
-        self.form_layout.setContentsMargins(20, 24, 20, 20)
-        self.form_layout.setSpacing(12)
+        grid = QGridLayout()
+        grid.setContentsMargins(12, 16, 12, 10)
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(6)
+        for col in range(4):
+            grid.setColumnStretch(col, 1)
 
         self.fields = {}
 
-        def add_field(label_text, key, default="", validator=None, input_mode='numeric'):
+        def make_field(label_text, key, default="", validator=None, input_mode="numeric"):
             label = QLabel(label_text)
             self._form_labels.append(label)
             if key == "gender":
@@ -230,53 +347,67 @@ class PatientConfigScreen(QWidget):
                 if validator:
                     widget.setValidator(validator)
                 widget.setReadOnly(True)
-
-            self.form_layout.addRow(label, widget)
+                widget.mousePressEvent = lambda e, k=key, w=widget, m=input_mode: self.open_touch_input(k, w, mode=m)
+            widget.setFixedHeight(40)
             self.fields[key] = widget
+            box = QWidget()
+            row = QHBoxLayout(box)
+            row.setContentsMargins(0, 0, 0, 0)
+            row.setSpacing(6)
+            row.addWidget(label)
+            row.addWidget(widget, 1)
+            return box
 
-            # Conectar clic para abrir input táctil (excepto combos)
-            if not isinstance(widget, QComboBox):
-                widget.mousePressEvent = lambda e, k=key, w=widget, m=input_mode: \
-                    self.open_touch_input(k, w, mode=m)
+        grid.addWidget(make_field("ID:", "patient_id", input_mode="text"), 0, 0)
+        grid.addWidget(make_field("N.S.S.:", "nss", input_mode="text"), 0, 1)
+        grid.addWidget(make_field("Género:", "gender"), 0, 2)
+        grid.addWidget(make_field("Edad:", "age", validator=QIntValidator(18, 100)), 0, 3)
 
-        add_field("ID Paciente:", "patient_id", input_mode='text')
-        add_field("Nombre completo:", "patient_name", input_mode='text')
-        add_field("N.S.S. / Registro:", "nss", input_mode='text')
-        add_field("Género:", "gender")
-        add_field("Edad (años):", "age", validator=QIntValidator(18, 100))
-        add_field("Altura (cm):", "height_cm", validator=QDoubleValidator(100.0, 250.0, 1))
-        add_field("Peso seco (kg):", "dry_weight_kg", validator=QDoubleValidator(30.0, 150.0, 1))
-        add_field("Peso pre-diálisis (kg):", "pre_dialysis_weight_kg", validator=QDoubleValidator(30.0, 200.0, 1))
-        add_field("Acceso Vascular:", "access_type")
-        add_field("Grupo y Rh:", "blood_type")
-        add_field("Filtro / Dializador:", "dialyzer", default="F8HPS (1.8 m²)", input_mode='text')
-        add_field("Diagnóstico médico:", "diagnosis", default="ERC Estadio 5", input_mode='text')
-        add_field("Médico Nefrólogo:", "physician", input_mode='text')
-        add_field("Alergias:", "allergies", default="Ninguna conocida", input_mode='text')
+        grid.addWidget(make_field("Nombre:", "patient_name", input_mode="text"), 1, 0, 1, 2)
+        grid.addWidget(make_field("Altura (cm):", "height_cm", validator=QDoubleValidator(100.0, 250.0, 1)), 1, 2)
+        grid.addWidget(make_field("Peso seco (kg):", "dry_weight_kg", validator=QDoubleValidator(30.0, 150.0, 1)), 1, 3)
 
-        logger.debug("Campos del formulario creados: " + ", ".join(self.fields.keys()))
-        self.form_group.setLayout(self.form_layout)
-        self.form_group.hide() # Inicialmente oculto
-        content_layout.addWidget(self.form_group)
+        grid.addWidget(make_field("Peso pre (kg):", "pre_dialysis_weight_kg", validator=QDoubleValidator(30.0, 200.0, 1)), 2, 0)
+        grid.addWidget(make_field("Acceso:", "access_type"), 2, 1)
+        grid.addWidget(make_field("Grupo:", "blood_type"), 2, 2)
+        grid.addWidget(make_field("Filtro:", "dialyzer", default="F8HPS (1.8 m²)", input_mode="text"), 2, 3)
 
-        # Botón guardar y stretch al final
+        grid.addWidget(make_field("Diagnóstico:", "diagnosis", default="ERC Estadio 5", input_mode="text"), 3, 0, 1, 2)
+        grid.addWidget(make_field("Médico:", "physician", input_mode="text"), 3, 2, 1, 2)
+        grid.addWidget(make_field("Alergias:", "allergies", default="Ninguna conocida", input_mode="text"), 4, 0, 1, 4)
+
+        self.form_group.setLayout(grid)
+        root.addWidget(self.form_group)
+
         btn_layout = QHBoxLayout()
         self.btn_save = QPushButton("Guardar y Seleccionar")
-        self.btn_save.setFixedSize(320, 70)
+        self.btn_save.setFixedSize(320, 52)
         self.btn_save.clicked.connect(self._save_patient)
-        self.btn_save.setEnabled(False) # Deshabilitado hasta que se seleccione/cree un paciente
+        self.btn_save.setEnabled(False)
         btn_layout.addStretch()
         btn_layout.addWidget(self.btn_save)
-        content_layout.addLayout(btn_layout)
-        content_layout.addStretch()
-
-        self.scroll_area.setWidget(self.content_widget)
-        main_window_layout.addWidget(self.scroll_area)
+        btn_layout.addStretch()
+        root.addLayout(btn_layout)
+        root.addStretch()
 
         self._apply_theme_styles()
-
+        self._clear_form()
+        self._set_form_editable(False)
+    
     def _on_theme_changed(self, _theme_name: str):
         self._apply_theme_styles()
+
+    def _set_form_editable(self, enabled: bool):
+        for widget in self.fields.values():
+            widget.setEnabled(enabled)
+        self.btn_save.setEnabled(enabled)
+
+    def _clear_form(self):
+        for widget in self.fields.values():
+            if isinstance(widget, QComboBox):
+                widget.setCurrentIndex(-1)
+            else:
+                widget.setText("")
 
     def _apply_theme_styles(self):
         t = ThemeManager.get_tokens()
@@ -290,25 +421,7 @@ class PatientConfigScreen(QWidget):
         accent = t.get("accent", "#2563eb")
         accent_soft = t.get("accent_soft", "#e0e7ff")
 
-        self.setStyleSheet(f"background-color: {bg_primary}; border-radius: 15px;")
-        self.content_widget.setStyleSheet(f"background-color: {bg_primary};")
-        self.scroll_area.setStyleSheet(f"""
-            QScrollArea {{ border: none; background: transparent; }}
-            QScrollBar:vertical {{
-                border: none;
-                background: {bg_alt};
-                width: 34px;
-                margin: 0px;
-                border-radius: 14px;
-            }}
-            QScrollBar::handle:vertical {{
-                background: {t.get('border_strong', '#8a8a9c')};
-                min-height: 60px;
-                border-radius: 14px;
-            }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0px; }}
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{ background: none; }}
-        """)
+        self.setStyleSheet(f"background-color: {bg_primary}; border-radius: 15px;")   
         self.lbl_title.setStyleSheet(f"font-size: 34px; font-weight: 800; color: {text_primary};")
 
         group_style = f"""
@@ -319,7 +432,8 @@ class PatientConfigScreen(QWidget):
                 background-color: {bg_card};
                 border: 2px solid {border};
                 border-radius: 12px;
-                margin-top: 16px;
+                margin-top: 18 px;
+                padding-top: 18 px;
             }}
             QGroupBox::title {{
                 subcontrol-origin: margin;
@@ -361,10 +475,10 @@ class PatientConfigScreen(QWidget):
             lbl.setStyleSheet(f"font-size: 22px; color: {text_secondary}; font-weight: 600;")
 
         for w in self.fields.values():
-            w.setStyleSheet(
-                f"font-size: 22px; padding: 8px; color: {text_primary}; "
-                f"background-color: {bg_input}; border: 1px solid {border}; border-radius: 8px;"
-            )
+            w.setStyleSheet(f"QLineEdit, QComboBox {{ font-size: 18px; padding: 4px; color: {text_primary}; "
+                            f"background-color: {bg_input}; border: 1px solid {border}; border-radius: 8px; }}"
+                            "QLineEdit:disabled, QComboBox:disabled {"
+                            "background-color: #e2e8f0; color: #94a3b8; }")
 
         self.btn_new.setStyleSheet("""
             QPushButton {
@@ -495,9 +609,10 @@ class PatientConfigScreen(QWidget):
                 self._refresh_patient_list()
 
                 # Limpiar formulario
-                self.form_group.hide()
-                self.btn_save.setEnabled(False)
+                self._clear_form()
+                self._set_form_editable(False)
                 self.btn_delete.setEnabled(False)
+                self.btn_save.setEnabled(False)
 
                 self.show_success_message(f"Paciente {pid} eliminado correctamente.", 2000)
                 logger.info(f"Paciente eliminado: {pid} - {patient_name}")
@@ -521,9 +636,11 @@ class PatientConfigScreen(QWidget):
         patient = self.patients_db.get(pid)
         if patient:
             self._populate_form(patient)
-            self.form_group.show()
+            # self.form_group.show()
+            self._set_form_editable(True)
+            self.btn_delete.setEnabled(True)
             self.btn_save.setEnabled(True)
-            self.btn_delete.setEnabled(True)   # ← Nueva línea
+            
 
     def _open_new_patient_dialog(self):
 

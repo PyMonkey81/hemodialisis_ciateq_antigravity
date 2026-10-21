@@ -31,12 +31,19 @@
     },
     "P004": {
         "patient_id": "P004",
-        "patient_name": "FER RODRIGUEZ LOJERO",
+        "patient_nss": "",
         "patient_gender": 2,
         "patient_age": 60,
+        "patient_name": "FER RODRIGUEZ LOJERO",
         "patient_height_cm": 170.0,
         "patient_dry_weight_kg": 70.0,
         "patient_pre_weight_kg": 73.0,
+        "patient_access_type": "Fístula AV (FAV)",
+        "patient_blood_type": "O+",
+        "patient_dialyzer": "",
+        "patient_diagnosis": "",
+        "patient_physician": "",
+        "patient_allergies": "",
         "uf_goal_liters": 3.0
     },
     "P005": {
