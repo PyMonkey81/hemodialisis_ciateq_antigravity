@@ -116,6 +116,10 @@ from gui.therapy.heparin_config_screenV2 import (
 from gui.therapy.nibp_config_screen import NibpConfigScreen
 from gui.therapy.nibp_history_screen import NibpHistoryScreen
 from core.nibp_pressure_history import NibpPressureHistory
+from core.therapy_session_tracker import TherapySessionTracker
+from utilities.therapy_report_generator import TherapyReportGenerator
+from gui.theme_manager import ThemeManager
+from gui.service.theme_config_screen import ThemeConfigScreen
 from logic.heparin_time import reference_minutes, clamp_heparin_time, was_clamped
 from pathlib import Path
 
@@ -618,10 +622,14 @@ class HemodialysisHMI(QMainWindow):
 
         self.KTVScreen = KTVScreen(parent=self, values_dict=self.current_values) # Pantalla de cálculo de Kt/V en tiempo real, con gráficos y todo el rollo.
 
-        # === HISTORIAL DE PRESIÓN ARTERIAL NIBP ===
+        # === HISTORIAL DE PRESIÓN ARTERIAL NIBP Y RASTREADOR DE SESIÓN CLÍNICA ===
         self.nibp_pressure_history = NibpPressureHistory()
         self.nibp_history_screen = NibpHistoryScreen(parent=self, history=self.nibp_pressure_history)
         self._nibp_measure_is_manual = False  # Flag para marcar si la próxima medición es manual
+        self._last_spo2_value = None
+        self.session_tracker = TherapySessionTracker()
+        self.nibp.spo2_updated.connect(self._on_spo2_updated_for_tracker)
+        self.theme_config_screen = ThemeConfigScreen(parent=self)
 
         # Add all screens to stacked widget (order matters)
         self.screen_stack.addWidget(self._main_screen)                 # 0 - Home
@@ -649,6 +657,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.addWidget(self.KTVScreen)                    # 21
         self.screen_stack.addWidget(self.nibp_screen)                  # 22
         self.screen_stack.addWidget(self.nibp_history_screen)          # 23
+        self.screen_stack.addWidget(self.theme_config_screen)          # 24
 
 
         # self.master_timer.timeout.connect(self.KTVScreen.on_master_tick)
@@ -681,6 +690,11 @@ class HemodialysisHMI(QMainWindow):
         self.left_content.hide()
         self.left_container.setStyleSheet("background: transparent")
         self.right_container.setStyleSheet("background: transparent")
+        try:
+            ThemeManager.instance().theme_changed.connect(self._apply_main_shell_theme)
+            self._apply_main_shell_theme(ThemeManager.instance().current_theme_name)
+        except Exception as e:
+            logger.warning(f"No se pudo conectar ThemeManager al shell principal: {e}")
 
     
     def _on_state_changed(self, phase: TreatmentPhase, reason: str):
@@ -777,6 +791,8 @@ class HemodialysisHMI(QMainWindow):
         self.is_treatment_running = True
         self.therapy_start_time = start_time
         self._heparin_auto_stop_latched = False
+        if hasattr(self, "session_tracker"):
+            self.session_tracker.start_session(self.current_values)
          # Iniciar logger, bioz, etc. (ya lo tenés en start_treatment)
         self.ktv_controller.reset_on_treatment_start() # Reiniciar estado del KtvController
         self.KTVScreen.reset_screen_data() # Limpiar la pantalla KTV para el nuevo tratamiento
@@ -799,6 +815,18 @@ class HemodialysisHMI(QMainWindow):
         # Cerrar el último tramo de Kt/V antes de guardar el reporte.
         # El proyectado no sustituye al entregado.
         self.ktv_controller.finalize_delivered_dose()
+        # 0. Capturar snapshot final y registrar sesión con reporte clínico antes de limpiar KTVScreen
+        try:
+            if hasattr(self, "session_tracker") and self.session_tracker.active:
+                uf_rem_l = self.dialysis_screen._uf_removed_liters() if hasattr(self, "dialysis_screen") else 0.0
+                self.session_tracker.finish_session(
+                    self.current_values,
+                    elapsed_s=float(self.treatment_controller.get_elapsed_seconds()),
+                    uf_removed_liters=uf_rem_l,
+                )
+            self.register_treatment_session()
+        except Exception as e:
+            logger.error(f"Error generando reporte clínico al finalizar tratamiento: {e}")
         # 1. Guardar reporte Kt/V PRIMERO, antes de abortar (abort → reset_screen_data limpia ktv_records)
         self.KTVScreen.save_final_report()
         # 2. Abortar medición en curso (puede disparar reset_screen_data, ya sin datos)
@@ -962,6 +990,7 @@ class HemodialysisHMI(QMainWindow):
         # ============================ Header (1920 × 177) ========================================
         #==========================================================================================
         header_container = QWidget()
+        self.header_container = header_container
         header_container.setFixedHeight(150)
         header_container.setStyleSheet("background: #EBEBEB;")
 
@@ -972,7 +1001,10 @@ class HemodialysisHMI(QMainWindow):
         #logo 1
         
         logo1 = QLabel()
+        logo1.setObjectName("header_logo_left")
+        logo1.setAlignment(Qt.AlignCenter)
         logo1.setPixmap(QPixmap(resource_path("resources/images/logo_ciateq__.png")).scaled(180, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.logo1 = logo1
         header_layout.addWidget(logo1)
 
 
@@ -1012,7 +1044,10 @@ class HemodialysisHMI(QMainWindow):
         # Logo 2
 
         logo2 = QLabel()
+        logo2.setObjectName("header_logo_right")
+        logo2.setAlignment(Qt.AlignCenter)
         logo2.setPixmap(QPixmap(resource_path("resources/images/Logo_secihti_.png")).scaled(180, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self.logo2 = logo2
         header_layout.addWidget(logo2)
 
         self.main_layout.addWidget(header_container, 0, 0, 1, 6)
@@ -1424,6 +1459,130 @@ class HemodialysisHMI(QMainWindow):
         self.left_content.show()
         self.right_content.show()
         self._highlight_active_nav_button("Servicio")
+
+    def show_theme_config_screen(self):
+        self.screen_stack.setCurrentWidget(self.theme_config_screen)
+        self.left_content.show()
+        self.right_content.show()
+        self._highlight_active_nav_button("Servicio")
+
+    def _apply_main_shell_theme(self, _theme_name: str = ""):
+        """Actualiza dinámicamente los colores del contenedor principal, header, barra de navegación y tarjetas."""
+        t = ThemeManager.get_tokens()
+        bg_primary = t.get("bg_primary", "#FCFCFC")
+        bg_header = t.get("bg_header", "#EBEBEB")
+        bg_nav = t.get("bg_nav", "#FCFCFC")
+        bg_card = t.get("bg_card", "#ffffff")
+        text_primary = t.get("text_primary", "#0f172a")
+        text_secondary = t.get("text_secondary", "#334155")
+        border = t.get("border", "#cbd5e1")
+        border_strong = t.get("border_strong", "#77787D")
+        nav_btn_bg = t.get("nav_btn_bg", "#06298a")
+        nav_btn_active = t.get("nav_btn_active", "#3b82f6")
+        nav_btn_disabled = t.get("nav_btn_disabled", "#334155")
+        header_pill = t.get("header_pill_bg", "#06298a")
+
+        self.BTN_ENABLED_DEFAULT_STYLE = (
+            f"QPushButton {{ background: {nav_btn_bg}; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; "
+            f"font-weight: bold; font-size: 30px; border-radius: 10px; }}"
+            f"QPushButton:pressed {{ background: {nav_btn_active}; }}"
+        )
+        self.BTN_ACTIVE_STYLE = (
+            f"QPushButton {{ background: {nav_btn_active}; color: white; font-family: 'Segoe UI', Arial, sans-serif; "
+            f"font-weight: bold; font-size: 30px; border-radius: 10px; border: 2px solid #93c5fd;}}"
+            f"QPushButton:pressed {{ background: {nav_btn_bg}; }}"
+        )
+        self.BTN_DISABLED_STYLE = (
+            f"QPushButton {{ background: {nav_btn_disabled}; color: #94a3b8; font-family: 'Segoe UI', Arial, sans-serif; "
+            f"font-weight: bold; font-size: 30px; border-radius: 10px; }}"
+        )
+
+        cw = self.centralWidget()
+        if cw is not None:
+            cw.setStyleSheet(f"QWidget#main_central_widget {{ background: {bg_primary}; }}")
+
+        if hasattr(self, "header_container") and self.header_container is not None:
+            self.header_container.setStyleSheet(f"background: {bg_header}; border-bottom: 1px solid {border};")
+
+        logo_bg = "#F8FAFC" if bool(t.get("is_dark", False)) else "transparent"
+        logo_border = f"1px solid {border}" if bool(t.get("is_dark", False)) else "none"
+        logo_style = (
+            f"QLabel {{ background-color: {logo_bg}; border: {logo_border}; "
+            f"border-radius: 10px; padding: 4px 8px; }}"
+        )
+        for logo_attr in ("logo1", "logo2"):
+            logo_lbl = getattr(self, logo_attr, None)
+            if logo_lbl is not None:
+                logo_lbl.setStyleSheet(logo_style)
+
+        for lbl_attr in ("treatment_mode_selected", "remaining_time_display", "date_time_label"):
+            lbl = getattr(self, lbl_attr, None)
+            if lbl is not None:
+                lbl.setStyleSheet(self._build_header_label_style(header_pill))
+
+        if hasattr(self, "nav_bar") and self.nav_bar is not None:
+            self.nav_bar.setStyleSheet(f"background: {bg_nav}; border-top: 1px solid {border};")
+
+        if hasattr(self, "screen_stack") and self.screen_stack is not None:
+            self.screen_stack.setStyleSheet(f"""
+                QStackedWidget#main_screen_stack, 
+                QStackedWidget#main_screen_stack > QWidget {{
+                    background-color: {bg_primary};
+                }}
+                QFrame#card, QFrame#graph_card, QGroupBox#card {{
+                    background-color: {bg_card};
+                    border: 2px solid {border};
+                    border-radius: 14px;
+                }}
+                QLabel {{
+                    color: {text_secondary};
+                    background-color: transparent;
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    font-size: 22px;
+                }}
+                QLabel#card_title {{
+                    color: {text_primary};
+                    font-size: 20px;
+                    font-weight: bold;
+                    background: transparent;
+                    border: none;
+                    border-bottom: 2px solid {border_strong};
+                    padding-bottom: 8px;
+                    margin-bottom: 8px;
+                }}
+                QLabel#val_large {{
+                    color: #ef4444;
+                    font-family: 'Consolas', monospace;
+                    font-size: 52px;
+                    font-weight: bold;
+                }}
+                QLabel#val_large_yellow {{
+                    color: #eab308;
+                    font-family: 'Consolas', monospace;
+                    font-size: 52px;
+                    font-weight: bold;
+                }}
+                QLabel#val_large_green {{
+                    color: {t.get('val_green', '#15803d')};
+                    font-family: 'Consolas', monospace;
+                    font-size: 52px;
+                    font-weight: bold;
+                }}
+                QLabel#val_large_cyan {{
+                    color: {t.get('val_cyan', '#0369a1')};
+                    font-family: 'Consolas', monospace;
+                    font-size: 52px;
+                    font-weight: bold;
+                }}
+                QPushButton {{
+                    padding: 4px 10px;
+                }}
+            """)
+            stack_palette = self.screen_stack.palette()
+            stack_palette.setColor(self.screen_stack.backgroundRole(), QColor(bg_primary))
+            self.screen_stack.setPalette(stack_palette)
+
+        self._refresh_navigation_bar()
 
     def show_alarms_screen(self):
         self.screen_stack.setCurrentWidget(self.alarms_screen)
@@ -2001,6 +2160,14 @@ class HemodialysisHMI(QMainWindow):
                 if self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.IDLE):
                     self.treatment_controller.update_therapy_times()
 
+                if self.state.current_phase == TreatmentPhase.RUNNING and hasattr(self, "session_tracker"):
+                    uf_rem_l = self.dialysis_screen._uf_removed_liters() if hasattr(self, "dialysis_screen") else 0.0
+                    self.session_tracker.on_therapy_tick(
+                        self.current_values,
+                        float(self.treatment_controller.get_elapsed_seconds()),
+                        uf_removed_liters=uf_rem_l,
+                    )
+
                 self._check_nibp_auto_measurement()
 
                 self._apply_conductivity_profile_from_state()
@@ -2129,7 +2296,8 @@ class HemodialysisHMI(QMainWindow):
             self.manual_mode_screen, self.test_panel_screen,
             self.calibration_screen, self.network_config_screen,
             self.comm_port_screen, self.maintenance_screen,
-            self._cleanning_config_screen, self.alarm_service_screen_config
+            self._cleanning_config_screen, self.alarm_service_screen_config,
+            self.theme_config_screen
         }
 
         if current in mapping:
@@ -2424,7 +2592,7 @@ class HemodialysisHMI(QMainWindow):
         # --- NUEVA LÓGICA DE PROTECCIÓN ---
         current_widget = self.screen_stack.currentWidget()
         # Definimos las pantallas donde NO queremos que el sistema nos saque automáticamente
-        service_screens = [self.comm_port_screen, self.options_screen, self.maintenance_screen, self.network_config_screen]
+        service_screens = [self.comm_port_screen, self.options_screen, self.maintenance_screen, self.network_config_screen, self.theme_config_screen]
         is_in_service_area = current_widget in service_screens
         # ----------------------------------
 
@@ -2832,6 +3000,9 @@ class HemodialysisHMI(QMainWindow):
                 # Es una alarma NUEVA que se acaba de activar -> añadir
                 self.active_alarms.append((name, value, level))
                 self.buzzer_silenced_by_user = False # Resetear silencio por NUEVA alarma
+                if hasattr(self, "session_tracker"):
+                    el_s = float(self.treatment_controller.get_elapsed_seconds()) if hasattr(self, "treatment_controller") else 0.0
+                    self.session_tracker.record_alarm(f"{name} ({value:.1f})", elapsed_s=el_s, severity=level)
             else:
                 # La alarma ya estaba activa, solo actualizar su estado (valor/nivel)
                 self.active_alarms[found_idx] = (name, value, level)
@@ -3474,17 +3645,43 @@ class HemodialysisHMI(QMainWindow):
         origen = "manual" if self._nibp_measure_is_manual else "auto"
         self._nibp_measure_is_manual = False  # Reset para la próxima medición
         
-        # Agregar al historial (spo2 será None por ahora)
+        # Agregar al historial con último SpO2 válido si existe
         self.nibp_pressure_history.add_measurement(
             sys=sys_mmhg,
             dia=dia_mmhg,
             map_mmhg=map_mmhg,
             hr=hr_bpm,
             elapsed_s=elapsed_s,
-            spo2=None,
+            spo2=getattr(self, "_last_spo2_value", None),
             origen=origen
         )
-        logger.info(f"[NIBP History] Medición registrada: origen={origen}, elapsed_s={elapsed_s}")
+        if hasattr(self, "session_tracker"):
+            uf_rem_l = self.dialysis_screen._uf_removed_liters() if hasattr(self, "dialysis_screen") else 0.0
+            self.session_tracker.on_nibp_measurement(
+                sys_mmhg=sys_mmhg,
+                dia_mmhg=dia_mmhg,
+                map_mmhg=map_mmhg,
+                hr_bpm=hr_bpm,
+                origen=origen,
+                current_values=self.current_values,
+                elapsed_s=elapsed_s,
+                uf_removed_liters=uf_rem_l,
+            )
+        logger.info(f"[NIBP History] Medición registrada: origen={origen}, elapsed_s={elapsed_s}, spo2={getattr(self, '_last_spo2_value', None)}")
+
+    def _on_spo2_updated_for_tracker(self, data: dict):
+        if not isinstance(data, dict):
+            return
+        val = data.get("spo2")
+        if val is not None:
+            try:
+                ival = int(val)
+                if 50 <= ival <= 100:
+                    self._last_spo2_value = ival
+                    if hasattr(self, "session_tracker"):
+                        self.session_tracker.update_spo2(ival)
+            except (TypeError, ValueError):
+                pass
 
     def _on_nibp_settings_applied(self, config: dict):
         """Aplica patient_mode/method/start_pressure/spo2 al módulo; el ciclo queda en manual (otro ticket)."""
@@ -3577,15 +3774,46 @@ class HemodialysisHMI(QMainWindow):
                 duration_seconds = elapsed
         duration_minutes = round(duration_seconds / 60)
         
+        # Construir y respaldar el Reporte Clínico Integral (PDF + JSON + CSV)
+        report_bundle = {}
+        report_data = {}
+        try:
+            report_data = self.build_current_clinical_report(
+                completion_status="Completada",
+                start_time_str=self.current_treatment_start.toString("HH:mm:ss"),
+                end_time_str=end_time.toString("HH:mm:ss"),
+                override_elapsed_s=float(duration_seconds),
+            )
+            report_bundle = TherapyReportGenerator.save_session_report_bundle(report_data)
+        except Exception as e:
+            logger.error(f"Error guardando bundle de reporte clínico: {e}")
+
+        p_info = report_data.get("patient", {}) if isinstance(report_data, dict) else {}
+        rx_info = report_data.get("prescription", {}) if isinstance(report_data, dict) else {}
+        ad_info = report_data.get("adequacy", {}) if isinstance(report_data, dict) else {}
+        hemo_info = report_data.get("hemodynamics", {}) if isinstance(report_data, dict) else {}
+
         record = {
             "fecha": self.current_treatment_start.toString("yyyy-MM-dd"),
             "hora_inicio": self.current_treatment_start.toString("HH:mm:ss"),
             "hora_fin": end_time.toString("HH:mm:ss"),
-            "tipo_tratamiento": self._treatment_map.get(
-                int(self.current_values.get("treatmentModeSelection", 0)), "Desconocido"
+            "patient_id": p_info.get("id", self.current_values.get("patient_id", "S/ID")),
+            "paciente": p_info.get("name", self.current_values.get("patient_name", "Sin registrar")),
+            "tipo_tratamiento": rx_info.get(
+                "modality",
+                self._treatment_map.get(int(self.current_values.get("treatmentModeSelection", 0)), "Hemodiálisis")
             ),
             "duracion_minutos": duration_minutes,
             "duracion_hhmm": f"{duration_minutes//60:02d}:{duration_minutes%60:02d}",
+            "uf_meta_l": rx_info.get("uf_goal_liters", 0.0),
+            "uf_lograda_l": rx_info.get("uf_achieved_liters", 0.0),
+            "ktv_final": ad_info.get("ktv_final", 0.0),
+            "sangre_procesada_l": ad_info.get("blood_processed_liters", 0.0),
+            "pa_final": hemo_info.get("pa_final", "—"),
+            "report_id": report_bundle.get("report_id", ""),
+            "report_pdf_path": report_bundle.get("pdf_path", ""),
+            "report_json_path": report_bundle.get("json_path", ""),
+            "report_csv_path": report_bundle.get("csv_path", ""),
             "timestamp_registro": QDateTime.currentDateTime().toString("yyyy-MM-dd HH:mm:ss")
         }
         
@@ -3602,6 +3830,44 @@ class HemodialysisHMI(QMainWindow):
         
         logger.info(f"✅ Tratamiento registrado: {record['fecha']} {record['hora_inicio']} ({record['duracion_hhmm']})")
         self.current_treatment_start = None
+
+    def build_current_clinical_report(
+        self,
+        completion_status: str = "En curso / Vista previa",
+        start_time_str: str = None,
+        end_time_str: str = None,
+        override_elapsed_s: float = None,
+    ) -> dict:
+        """Construye el diccionario completo del reporte clínico de la sesión actual."""
+        elapsed_s = (
+            override_elapsed_s
+            if override_elapsed_s is not None
+            else (float(self.treatment_controller.get_elapsed_seconds()) if hasattr(self, "treatment_controller") else 0.0)
+        )
+        uf_rem_l = self.dialysis_screen._uf_removed_liters() if hasattr(self, "dialysis_screen") else 0.0
+        ktv_hist = getattr(self.KTVScreen, "ktv_records", []) if hasattr(self, "KTVScreen") else []
+
+        uf_prof_name = "Lineal (Sin perfil)"
+        if hasattr(self, "is_uf_profile_active") and self.is_uf_profile_active():
+            uf_prof_name = f"Perfil {self.uf_profile.profile_type.value}"
+
+        na_prof_name = "Constante (Sin perfil)"
+        if hasattr(self, "is_conductivity_profile_active") and self.is_conductivity_profile_active():
+            na_prof_name = f"Perfil {self.conductivity_profile.profile_type.value}"
+
+        return TherapyReportGenerator.build_session_report(
+            current_values=self.current_values,
+            tracker=getattr(self, "session_tracker", None),
+            nibp_history=getattr(self, "nibp_pressure_history", None),
+            ktv_history=ktv_hist,
+            elapsed_seconds=elapsed_s,
+            uf_removed_liters=uf_rem_l,
+            uf_profile_name=uf_prof_name,
+            na_profile_name=na_prof_name,
+            completion_status=completion_status,
+            start_time_str=start_time_str,
+            end_time_str=end_time_str,
+        )
 
 
     def finish_cleaning_session(self, active_duration_seconds: float):

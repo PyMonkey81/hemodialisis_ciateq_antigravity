@@ -154,21 +154,7 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
 
-    dark_palette = QPalette()
-    dark_palette.setColor(QPalette.Window, QColor("#1e1e1e"))
-    dark_palette.setColor(QPalette.WindowText, Qt.white)
-    dark_palette.setColor(QPalette.Base, QColor("#2b2b2b"))
-    dark_palette.setColor(QPalette.AlternateBase, QColor("#353535"))
-    dark_palette.setColor(QPalette.ToolTipBase, QColor("#2b2b2b"))
-    dark_palette.setColor(QPalette.ToolTipText, Qt.white)
-    dark_palette.setColor(QPalette.Text, Qt.white)
-    dark_palette.setColor(QPalette.Button, QColor("#4CAF50"))
-    dark_palette.setColor(QPalette.ButtonText, Qt.white)
-    app.setPalette(dark_palette)
-
     theme_manager = ThemeManager(app)
-    theme_manager.apply_theme("dark")
-    theme_manager.apply_font(theme_manager.current_font_family, 16)
 
     try:
         main_window = ScaledHemodialysisHMI()

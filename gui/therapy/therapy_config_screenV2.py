@@ -63,8 +63,13 @@ class TherapyConfigScreen(QWidget):
         self.write_hold_off = {}
         self.toggle_hold_off = {}
         self.status_code = 0.0
+        self._field_labels = []
         
         self.setup_ui()
+        try:
+            ThemeManager.instance().theme_changed.connect(self._on_theme_changed)
+        except Exception:
+            pass
 
 
 
@@ -81,9 +86,9 @@ class TherapyConfigScreen(QWidget):
 
         label_font_size = typo.get("section_label", {}).get("size", 26)
         label_min_height = typo.get("section_label", {}).get("min_height", 50)
-        input_font_size = typo.get("input", {}).get("size", 24)
-        input_font_family = typo.get("input", {}).get("family", 'Consolas, "Courier New", monospace')
-        button_font_size = typo.get("button", {}).get("size", 20)
+        self.input_font_size = typo.get("input", {}).get("size", 24)
+        self.input_font_family = typo.get("input", {}).get("family", 'Consolas, "Courier New", monospace')
+        self.button_font_size = typo.get("button", {}).get("size", 20)
         title_font_size = typo.get("title", {}).get("size", 42)
 
         self.style_enabled = """
@@ -92,7 +97,7 @@ class TherapyConfigScreen(QWidget):
         """.format(
             enabled_bg=colors.get("button_enabled_bg", "#39ec21"),
             button_text=colors.get("button_text", "#ffffff"),
-            button_size=button_font_size,
+            button_size=self.button_font_size,
             button_border=colors.get("button_border", "#06298a"),
             pressed_bg=colors.get("button_pressed_bg", "#334155"),
         )
@@ -102,7 +107,7 @@ class TherapyConfigScreen(QWidget):
         """.format(
             disabled_bg=colors.get("button_disabled_bg", "#334155"),
             disabled_text=colors.get("button_disabled_text", "#94a3b8"),
-            button_size=button_font_size,
+            button_size=self.button_font_size,
             button_border=colors.get("button_border", "#06298a"),
         )
 
@@ -112,7 +117,7 @@ class TherapyConfigScreen(QWidget):
         """.format(
             stop_bg=colors.get("button_stop_bg", "#DD2911"),
             button_text=colors.get("button_text", "#ffffff"),
-            button_size=button_font_size,
+            button_size=self.button_font_size,
             button_border=colors.get("button_border", "#06298a"),
             pressed_bg=colors.get("button_pressed_bg", "#334155"),
         )
@@ -121,57 +126,6 @@ class TherapyConfigScreen(QWidget):
         main_layout = QGridLayout(self)
         main_layout.setSpacing(16)
         main_layout.setContentsMargins(18, 18, 18, 18)
-
-        label_style = "font-family: 'Segoe UI', Arial, sans-serif; font-size: 26px; color: #334155; font-weight: 600;"
-
-
-        input_style = f"""
-            ClickableLineEdit {{
-                font-family: {input_font_family};
-                font-size: {input_font_size}px;
-                color: #000000;
-                background: {colors.get("input_bg", "#e2e8f0")};
-                border: 2px solid {colors.get("input_border", "#64748b")};
-                border-radius: 8px;
-                padding: 5px;
-                min-width: 120px;
-            }}
-            ClickableLineEdit:focus {{
-                border: 2px solid #3b82f6;
-                background: #ffffff;
-            }}
-        """
-
-        self.profile_btn_style = """
-            QPushButton {
-                background: #0f172a;
-                color: #ffffff;
-                font-weight: bold;
-                font-size: 20px;
-                border-radius: 12px;
-                border: 2px solid #06298a;
-                min-height: 48px;
-                padding: 4px 12px;
-            }
-            QPushButton:pressed {
-                background: #334155;
-            }
-        """
-        self.profile_btn_active_style = """
-            QPushButton {
-                background: #16a34a;
-                color: #ffffff;
-                font-weight: bold;
-                font-size: 20px;
-                border-radius: 12px;
-                border: 2px solid #14532d;
-                min-height: 48px;
-                padding: 4px 12px;
-            }
-            QPushButton:pressed {
-                background: #15803d;
-            }
-        """
 
         # ===================== CARD 1: Bomba de Sangre =====================
         blood_card = QFrame()
@@ -265,7 +219,7 @@ class TherapyConfigScreen(QWidget):
         for label_text, widget, tag, numpad_title in fields:
             row = QHBoxLayout()
             lbl = QLabel(label_text)
-            lbl.setStyleSheet(label_style)
+            self._field_labels.append(lbl)
             row.addWidget(lbl)
 
             # Conexiones
@@ -288,7 +242,6 @@ class TherapyConfigScreen(QWidget):
 
             widget.setFixedSize(130, 52)
             widget.setAlignment(Qt.AlignCenter)
-            widget.setStyleSheet(input_style)
             widget.setReadOnly(True)
 
             row.addWidget(widget)
@@ -299,7 +252,6 @@ class TherapyConfigScreen(QWidget):
                 profile_row.addStretch(1)
                 self.btn_conductivity_profile = PushbuttonEvent("Perfil de Conductividad", self)
                 self.btn_conductivity_profile.setFixedWidth(320)
-                self.btn_conductivity_profile.setStyleSheet(self.profile_btn_style)
                 self.btn_conductivity_profile.pressed.connect(self._on_open_conductivity_profile)
                 profile_row.addWidget(self.btn_conductivity_profile)
                 params_layout.addLayout(profile_row)
@@ -309,7 +261,6 @@ class TherapyConfigScreen(QWidget):
                 uf_profile_row.addStretch(1)
                 self.btn_uf_profile = PushbuttonEvent("Perfil UF", self)
                 self.btn_uf_profile.setFixedWidth(320)
-                self.btn_uf_profile.setStyleSheet(self.profile_btn_style)
                 self.btn_uf_profile.pressed.connect(self._on_open_uf_profile)
                 uf_profile_row.addWidget(self.btn_uf_profile)
                 params_layout.addLayout(uf_profile_row)
@@ -324,26 +275,99 @@ class TherapyConfigScreen(QWidget):
         main_layout.setRowStretch(0, 1)
         main_layout.setRowStretch(1, 1)
 
-        # Estilo general
-        self.setStyleSheet("""
-            QWidget { background-color: transparent; }
-            QFrame#card {
-                background-color: #ffffff;
-                border: 1px solid #cbd5e1;
-                border-radius: 14px;
+        self._apply_theme_styles()
+
+    def _on_theme_changed(self, _theme_name: str):
+        self._apply_theme_styles()
+
+    def _apply_theme_styles(self):
+        t = ThemeManager.get_tokens()
+        bg_card = t.get("bg_card", "#ffffff")
+        bg_input = t.get("bg_input", "#e2e8f0")
+        text_primary = t.get("text_primary", "#0f172a")
+        text_secondary = t.get("text_secondary", "#334155")
+        border = t.get("border", "#cbd5e1")
+        border_strong = t.get("border_strong", "#64748b")
+        accent = t.get("accent", "#3b82f6")
+        btn_bg = t.get("btn_primary_bg", "#0f172a")
+
+        label_style = f"font-family: 'Segoe UI', Arial, sans-serif; font-size: 26px; color: {text_secondary}; font-weight: 600;"
+        for lbl in self._field_labels:
+            lbl.setStyleSheet(label_style)
+
+        input_style = f"""
+            ClickableLineEdit {{
+                font-family: {self.input_font_family};
+                font-size: {self.input_font_size}px;
+                color: {text_primary};
+                background: {bg_input};
+                border: 2px solid {border_strong};
+                border-radius: 8px;
+                padding: 5px;
+                min-width: 120px;
+            }}
+            ClickableLineEdit:focus {{
+                border: 2px solid {accent};
+                background: {bg_card};
+            }}
+        """
+        for widget in [self.input_blood_flow, self.input_dialysate_flow,
+                       self.lbl_input_UF, self.input_temperature, self.input_conductivity,
+                       self.input_duration]:
+            widget.setStyleSheet(input_style)
+
+        self.profile_btn_style = f"""
+            QPushButton {{
+                background: {btn_bg};
+                color: #ffffff;
+                font-weight: bold;
+                font-size: 20px;
+                border-radius: 12px;
+                border: 2px solid {accent};
+                min-height: 48px;
+                padding: 4px 12px;
+            }}
+            QPushButton:pressed {{
+                background: {accent};
+            }}
+        """
+        self.profile_btn_active_style = """
+            QPushButton {
+                background: #16a34a;
+                color: #ffffff;
+                font-weight: bold;
+                font-size: 20px;
+                border-radius: 12px;
+                border: 2px solid #14532d;
+                min-height: 48px;
+                padding: 4px 12px;
             }
-            QLabel#card_title {
+            QPushButton:pressed {
+                background: #15803d;
+            }
+        """
+        self._refresh_conductivity_profile_button()
+        self._refresh_uf_profile_button()
+
+        self.setStyleSheet(f"""
+            QWidget {{ background-color: transparent; }}
+            QFrame#card {{
+                background-color: {bg_card};
+                border: 1px solid {border};
+                border-radius: 14px;
+            }}
+            QLabel#card_title {{
                 font-family: 'Segoe UI', Arial, sans-serif;
-                color: #0f172a;
+                color: {text_primary};
                 font-size: 28px;
                 font-weight: bold;
-                border-bottom: 1px solid #e2e8f0;
+                border-bottom: 1px solid {border};
                 padding-bottom: 10px;
                 margin-bottom: 12px;
-            }
-            QFrame#card QLabel {
+            }}
+            QFrame#card QLabel {{
                 font-family: 'Segoe UI', Arial, sans-serif;
-            }
+            }}
         """)
 
 
@@ -556,6 +580,7 @@ class TherapyConfigScreen(QWidget):
 
 
 
+
     def _handle_cb_flow_input(self):
         """
         Maneja el input del usuario:
@@ -757,5 +782,3 @@ class TherapyConfigScreen(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         self.setFocus()
-
-    

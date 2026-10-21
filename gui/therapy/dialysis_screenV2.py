@@ -1,56 +1,22 @@
-
-
 # gui/therapy/dialysis_screenV2.py
 
 """
-Pantalla principal de monitorización y control de la terapia de diálisis.
-
-Este módulo define la clase `DialysisScreen`, que sirve como el panel de control central
-durante una sesión de tratamiento. Proporciona una interfaz rica en datos para que el
-personal clínico supervise el progreso de la terapia y tome acciones inmediatas.
-
-Componentes Principales:
-------------------------
-1. **Visualización Gráfica (PyQtGraph):**
-   - Muestra gráficas en tiempo real de la Presión Venosa y Arterial.
-   - Mantiene un historial de datos (`deque`) para visualizar tendencias.
-
-2. **Panel de Control (Botones):**
-   - Gestión del ciclo de vida del tratamiento: Iniciar, Pausar, Detener.
-   - Gestión del ciclo de cebado (Priming): Iniciar/Detener.
-   - Acceso rápido a submenús: Configuración de Terapia, Paciente.
-   - Acciones directas: Aplicación de bolo de heparina.
-
-3. **Monitores de Parámetros (SimpleValueDisplay):**
-   - Visualización numérica de variables críticas (Presiones, Conductividad, Flujos, Temperatura).
-   - Cálculo y visualización de métricas derivadas como PTM (Presión Transmembrana) y Kt/V.
-   - Temporizadores de tiempo transcurrido y restante de la terapia.
-
-4. **Lógica de Estado:**
-   - Métodos para habilitar/deshabilitar controles según el estado de la máquina (recibido desde `Main`).
-   - Actualización periódica de valores (`update_values`) provenientes del controlador central.
-
-Dependencias:
--------------
-- `PySide6`: Elementos de UI.
-- `pyqtgraph`: Graficación de alto rendimiento.
-- `gui.components.ui_components`: Widgets personalizados reutilizables.
-- `logic.calculos`: Fórmulas médicas (PTM).
+Pantalla principal de monitorización y control de la terapia de diálisis,
+modernizada visualmente y compatible con el sistema de temas dinámicos.
 """
 
-
 from PySide6.QtWidgets import *
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QRectF
 from PySide6.QtGui import QColor, QFont, QPainter, QPen, QPainterPath
 import pyqtgraph as pg
 import numpy as np
 from collections import deque
 from gui.components.ui_components import LabeledParameterWidget, LabeledTimeInput
+from gui.theme_manager import ThemeManager
 from core.state_manager import TreatmentPhase
 import logging
+
 logger = logging.getLogger(__name__)
-
-
 
 try:
     from logic.calculos import calculo_ptm
@@ -74,14 +40,16 @@ class PressureWaveformWidget(QWidget):
         self.max_points = 300
         self.arterial_history = deque([-120.0] * self.max_points, maxlen=self.max_points)
         self.venous_history = deque([110.0] * self.max_points, maxlen=self.max_points)
-        
-        # Colores idénticos al primer código
-        self.bg_color = QColor("#fcfcfc")    # Fondo claro para resaltar la rejilla
-        self.grid_color = QColor("#64748b")  # Rejilla
-        self.art_color = QColor("#ef4444")   # Rojo brillante (Arterial)
-        self.ven_color = QColor("#0059ff")   # Azul brillante (Venosa)
-        self.panel_bg = QColor("#2d3e58")    # Fondo del panel de valores
-        
+
+        self.bg_color = QColor("#fcfcfc")
+        self.grid_color = QColor("#64748b")
+        self.art_color = QColor("#ef4444")
+        self.ven_color = QColor("#0284c7")
+        self.panel_bg = QColor("#2d3e58")
+
+        tm = ThemeManager.instance()
+        tm.theme_changed.connect(lambda _t: self.update())
+
     def add_values(self, arterial, venous):
         self.arterial_history.append(arterial)
         self.venous_history.append(venous)
@@ -91,36 +59,44 @@ class PressureWaveformWidget(QWidget):
         if self.width() < 100 or self.height() < 100:
             return
 
+        tokens = ThemeManager.get_tokens()
+        self.bg_color = QColor(tokens["plot_bg"])
+        self.grid_color = QColor(tokens["plot_grid"])
+        self.art_color = QColor(tokens["val_blood"])
+        self.ven_color = QColor(tokens["val_venous"])
+        axis_color = QColor(tokens["plot_axis"])
+
         painter = QPainter(self)
         try:
             painter.setRenderHint(QPainter.Antialiasing)
 
             width = self.width()
             height = self.height()
-            graph_width = max(1, width - 85)
+            right_panel_w = 155
+            graph_width = max(1, width - right_panel_w - 10)
 
-            # 1. Dibujar fondo total
-            painter.fillRect(0, 0, width, height, self.bg_color)
+            # 1. Dibujar fondo total redondeado
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(self.bg_color)
+            painter.drawRoundedRect(0, 0, width, height, 10, 10)
 
             # 2. Dibujar rejilla (Grid)
             grid_pen = QPen(self.grid_color, 1, Qt.DashLine)
             painter.setPen(grid_pen)
 
             def to_y(val):
-                # Si val no es número, saltarlo (retornar None)
                 if val is None or not isinstance(val, (int, float)):
                     return None
-                # Mapeo de presión [-300, 300] mmHg a coordenadas del widget
                 val_clamped = max(-300.0, min(300.0, val))
                 percentage = (val_clamped + 300.0) / 600.0
                 return int(height - 15 - percentage * (height - 30))
 
-            # Líneas de presión de referencia
             for val in [-200, -100, 0, 100, 200]:
                 y_pos = to_y(val)
                 if y_pos is not None:
-                    painter.drawLine(0, y_pos, width, y_pos)
-                    painter.setPen(QPen(QColor("#334155"), 1))
+                    painter.drawLine(0, y_pos, graph_width, y_pos)
+                    painter.setPen(QPen(axis_color, 1))
+                    painter.setFont(QFont("Consolas", 10, QFont.Bold))
                     painter.drawText(8, y_pos - 4, f"{val} mmHg")
                     painter.setPen(grid_pen)
 
@@ -128,7 +104,7 @@ class PressureWaveformWidget(QWidget):
                 x_pos = int((step / 6) * graph_width)
                 painter.drawLine(x_pos, 12, x_pos, height - 12)
 
-            # 3. Dibujar las trayectorias de las ondas
+            # 3. Dibujar trayectorias de ondas con trazo más nítido (2.5 px)
             art_path = QPainterPath()
             if len(self.arterial_history) > 1:
                 first_valid = None
@@ -146,7 +122,7 @@ class PressureWaveformWidget(QWidget):
                                 if y is not None:
                                     x = int((i / (self.max_points - 1)) * graph_width)
                                     art_path.lineTo(x, y)
-            painter.setPen(QPen(self.art_color, 2))
+            painter.setPen(QPen(self.art_color, 2.5))
             painter.drawPath(art_path)
 
             ven_path = QPainterPath()
@@ -166,82 +142,91 @@ class PressureWaveformWidget(QWidget):
                                 if y is not None:
                                     x = int((i / (self.max_points - 1)) * graph_width)
                                     ven_path.lineTo(x, y)
-            painter.setPen(QPen(self.ven_color, 2))
+            painter.setPen(QPen(self.ven_color, 2.5))
             painter.drawPath(ven_path)
 
-            # 4. Panel de leyendas derecho
-            right_panel_x = width - 160
+            # 4. Panel de leyendas derecho estilo tarjeta clínica
+            right_panel_x = width - right_panel_w
+            panel_rect = QRectF(float(right_panel_x), 6.0, float(right_panel_w - 6), float(height - 12))
+            painter.setPen(QPen(QColor(tokens["border_card"]), 1.5))
+            painter.setBrush(QColor(tokens["bg_card_alt"]))
+            painter.drawRoundedRect(panel_rect, 10.0, 10.0)
 
             curr_art = self.arterial_history[-1]
-            painter.setFont(QFont("Consolas", 16, QFont.Bold))
+            painter.setFont(QFont("Segoe UI", 13, QFont.Bold))
             painter.setPen(QPen(self.art_color))
-            painter.drawText(right_panel_x + 5, 35, "ART (mmHg)")
-            # Solo mostrar si es número
+            painter.drawText(right_panel_x + 12, 34, "● ART (mmHg)")
+            painter.setFont(QFont("Consolas", 22, QFont.Bold))
             if curr_art is not None and isinstance(curr_art, (int, float)):
-                painter.drawText(right_panel_x + 5, 55, f"{int(curr_art):+4d}")
+                painter.drawText(right_panel_x + 12, 68, f"{int(curr_art):+4d}")
             else:
-                painter.drawText(right_panel_x + 5, 55, "   -- ")
+                painter.drawText(right_panel_x + 12, 68, "  --")
 
             curr_ven = self.venous_history[-1]
+            painter.setFont(QFont("Segoe UI", 13, QFont.Bold))
             painter.setPen(QPen(self.ven_color))
-            painter.drawText(right_panel_x + 5, height // 2 + 45, "VEN (mmHg)")
-            # Solo mostrar si es número
+            painter.drawText(right_panel_x + 12, height // 2 + 28, "● VEN (mmHg)")
+            painter.setFont(QFont("Consolas", 22, QFont.Bold))
             if curr_ven is not None and isinstance(curr_ven, (int, float)):
-                painter.drawText(right_panel_x + 5, height // 2 + 65, f"{int(curr_ven):+4d}")
+                painter.drawText(right_panel_x + 12, height // 2 + 62, f"{int(curr_ven):+4d}")
             else:
-                painter.drawText(right_panel_x + 5, height // 2 + 65, "   -- ")
+                painter.drawText(right_panel_x + 12, height // 2 + 62, "  --")
         finally:
             painter.end()
 
+
 class SimpleValueDisplay(QWidget):
     """
-    Widget compuesto para mostrar un parámetro clínico de forma estandarizada.
-    
-    Combina una etiqueta (nombre del parámetro y unidad) y un valor numérico grande.
-    Permite cambiar el color de fondo para resaltar parámetros críticos.
-    
-    Args:
-        label_text (str): Nombre del parámetro (ej. "Presión Art.").
-        initial_value (str): Valor inicial a mostrar.
-        units (str): Unidades de medida (ej. "mmHg").
-        is_critical (bool): Si es True, el fondo será amarillo claro para destacar; 
-                            si es False, será blanco.
+    Widget compuesto para mostrar un parámetro clínico o temporizador de forma estandarizada.
     """
+
     def __init__(self, label_text: str, initial_value: str = "0.0", units: str = "", is_critical: bool = False):
         super().__init__()
-        self.setFixedHeight(100)
+        self.is_critical = is_critical
+        self.setFixedHeight(92)
 
         self.frame = QFrame()
-        background_color = "#fff1b8" if is_critical else "#f8fafc"
-
-        self.frame.setStyleSheet(f"""
-            QFrame {{
-                background-color: {background_color};
-                border: 1px solid #cbd5e1;
-                border-radius: 12px;
-            }}
-        """)
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.addWidget(self.frame)
 
         frame_layout = QVBoxLayout(self.frame)
-        frame_layout.setContentsMargins(10, 10, 10, 10)
-        frame_layout.setSpacing(6)
+        frame_layout.setContentsMargins(10, 8, 10, 8)
+        frame_layout.setSpacing(4)
 
         tag_text = f"{label_text} ({units})" if units else label_text
 
         self.label_tag_units = QLabel(tag_text)
         self.label_tag_units.setAlignment(Qt.AlignCenter)
-        self.label_tag_units.setStyleSheet("border: none; color: #334155; font-weight: 600; font-size: 18px;")
 
         self.label_value = QLabel(initial_value)
         self.label_value.setAlignment(Qt.AlignCenter)
-        self.label_value.setStyleSheet("border: none; color: #0078d7; font-weight: bold; font-size: 38px;") 
 
         frame_layout.addWidget(self.label_tag_units)
         frame_layout.addWidget(self.label_value)
+
+        tm = ThemeManager.instance()
+        tm.theme_changed.connect(self.apply_theme_styles)
+        self.apply_theme_styles(tm.current_theme_name)
+
+    def apply_theme_styles(self, theme_name: str | None = None):
+        tokens = ThemeManager.get_tokens(theme_name)
+        bg = "#FEF08A" if self.is_critical and not tokens.get("is_dark") else tokens["bg_card_alt"]
+        self.frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {bg};
+                border: 1.5px solid {tokens['border_card']};
+                border-radius: 12px;
+            }}
+        """)
+        self.label_tag_units.setStyleSheet(
+            f"border: none; color: {tokens['text_secondary']}; font-weight: 700; font-size: 16px;"
+        )
+        self.label_value.setStyleSheet(
+            f"border: none; color: {tokens['primary']}; font-family: Consolas, monospace; "
+            f"font-weight: bold; font-size: 34px;"
+        )
 
     def set_value(self, value):
         if isinstance(value, (int, float)):
@@ -251,25 +236,23 @@ class SimpleValueDisplay(QWidget):
         self.label_value.setText(text)
 
     def set_time_value(self, time_str: str):
-        """Método específico para mostrar tiempo en formato HH:MM:SS"""
         self.label_value.setText(time_str)
 
 
 class DialysisScreen(QWidget):
-    
+
     request_boolean_change = Signal(str, bool)
 
     def __init__(self, parent=None, values_dict=None):
         super().__init__(parent)
-        self.parent_window = parent  # Referencia a HemodialysisHMI
+        self.parent_window = parent
         self.current_values = values_dict if values_dict is not None else {}
+        self.themed_sublabels: list[QLabel] = []
+        self.themed_unit_labels: list[QLabel] = []
+        self._last_air_bubble_state = 0.0
 
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)        
-
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setAutoFillBackground(True)
-        palette = self.palette()
-        palette.setColor(self.backgroundRole(), QColor("#edf3f9"))
-        self.setPalette(palette)
 
         # Historial para gráficas
         self.history_length = 600
@@ -277,56 +260,54 @@ class DialysisScreen(QWidget):
         self.venous_pressure_history = deque(nan_array, maxlen=self.history_length)
         self.arterial_pressure_history = deque(nan_array, maxlen=self.history_length)
         self.time_axis = np.arange(-self.history_length + 1, 1, dtype=np.float32)
-        
-        self.setup_ui()
-    
 
+        self.setup_ui()
+
+        tm = ThemeManager.instance()
+        tm.theme_changed.connect(self.apply_theme_styles)
+        self.apply_theme_styles(tm.current_theme_name)
 
     def setup_ui(self):
         layout = QGridLayout(self)
-        layout.setSpacing(16)
-        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(14)
+        layout.setContentsMargins(16, 14, 16, 14)
 
-        # Estructura principal:
-        # Fila 0: cards (ocupan todo el ancho)
-        # Fila 1: izquierda botones, derecha gráfica
         layout.setRowStretch(0, 2)
         layout.setRowStretch(1, 1)
         layout.setColumnStretch(0, 1)
         layout.setColumnStretch(1, 1)
 
-
-# panel de parametros 4 columna dos renglones o cards 
         grid_params = QGridLayout()
         grid_params.setSpacing(14)
         grid_params.setRowStretch(0, 1)
         for column in range(4):
             grid_params.setColumnStretch(column, 1)
 
-        #  circuito de sangre 
-        blood_card = QFrame()
-        blood_card.setObjectName("card")
-        blood_card.setMinimumHeight(300)
-        blood_layout = QVBoxLayout(blood_card)
-        blood_layout.setContentsMargins(16, 16, 16, 16)
-        blood_layout.setSpacing(14)
+        # ==================== CARD 1: CIRCUITO DE SANGRE ====================
+        self.blood_card = QFrame()
+        self.blood_card.setObjectName("card")
+        self.blood_card.setMinimumHeight(295)
+        blood_layout = QVBoxLayout(self.blood_card)
+        blood_layout.setContentsMargins(16, 14, 16, 14)
+        blood_layout.setSpacing(10)
 
-        blood_title = QLabel("CIRCUITO DE SANGRE")
-        blood_title.setObjectName("card_title")
-        blood_layout.addWidget(blood_title)
+        self.blood_title = QLabel("CIRCUITO DE SANGRE")
+        self.blood_title.setObjectName("card_title")
+        blood_layout.addWidget(self.blood_title)
 
-        #flujo de sangre (BFR) control 
         bfr_layout = QHBoxLayout()
-        bfr_layout.setSpacing(8)
         bfr_v = QVBoxLayout()
-        bfr_v.setSpacing(6)
-        bfr_v.addWidget(QLabel("FLUJO DE SANGRE (BFR)"))
+        bfr_v.setSpacing(4)
+        lbl_bfr_cap = QLabel("FLUJO DE SANGRE (Qb)")
+        self.themed_sublabels.append(lbl_bfr_cap)
+        bfr_v.addWidget(lbl_bfr_cap)
+
         bfr_value_row = QHBoxLayout()
         bfr_value_row.setSpacing(6)
         self.bfr_value = QLabel("0")
         self.bfr_value.setObjectName("val_large")
         bfr_unit = QLabel("mL/min")
-        bfr_unit.setStyleSheet("font-size: 26px; color: #475569; font-weight: 600;")
+        self.themed_unit_labels.append(bfr_unit)
         bfr_value_row.addWidget(self.bfr_value)
         bfr_value_row.addWidget(bfr_unit)
         bfr_value_row.addStretch()
@@ -335,57 +316,53 @@ class DialysisScreen(QWidget):
         bfr_layout.addStretch()
         blood_layout.addLayout(bfr_layout)
 
-        # Presion arterial 
         art_p_layout = QHBoxLayout()
-        art_p_label = QLabel("ART:")
-        art_p_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
+        art_p_label = QLabel("Presión Art.:")
+        self.themed_sublabels.append(art_p_label)
         art_p_layout.addWidget(art_p_label)
         self.art_p_value = QLabel("-120 mmHg")
-        self.art_p_value.setStyleSheet("color: #dc2626; font-weight: bold; font-family: monospace; font-size: 28px;")
         art_p_layout.addStretch()
         art_p_layout.addWidget(self.art_p_value)
         blood_layout.addLayout(art_p_layout)
 
-        #presion venosa
         ven_p_layout = QHBoxLayout()
-        ven_p_label = QLabel("VEN:")
-        ven_p_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
+        ven_p_label = QLabel("Presión Ven.:")
+        self.themed_sublabels.append(ven_p_label)
         ven_p_layout.addWidget(ven_p_label)
         self.ven_p_value = QLabel("-80 mmHg")
-        self.ven_p_value.setStyleSheet("color: #0078d7; font-weight: bold; font-family: monospace; font-size: 28px;")
         ven_p_layout.addStretch()
         ven_p_layout.addWidget(self.ven_p_value)
         blood_layout.addLayout(ven_p_layout)
 
-        # Detector de burbujas / aire (LED Indicator)
-        air_layout = QHBoxLayout()        
+        air_layout = QHBoxLayout()
         self.air_indicator = QLabel("DETECTOR DE AIRE")
         self.air_indicator.setAlignment(Qt.AlignCenter)
-        self.air_indicator.setFixedHeight(42)
+        self.air_indicator.setFixedHeight(40)
         self.air_indicator.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.air_indicator.setStyleSheet("background-color: #86efac; color: #FFFFFF; font-weight: bold; border-radius: 8px; font-size: 28px;")
-        # air_layout.addStretch()
         air_layout.addWidget(self.air_indicator)
         blood_layout.addLayout(air_layout)
 
-        grid_params.addWidget(blood_card, 0, 0)
+        grid_params.addWidget(self.blood_card, 0, 0)
 
-        # Card de circuito de dializado
-        dialysate_card = QFrame()
-        dialysate_card.setObjectName("card")
-        dialysate_card.setMinimumHeight(300)
-        dialysate_layout = QVBoxLayout(dialysate_card)
-        dialysate_layout.setContentsMargins(16, 16, 16, 16)
-        dialysate_layout.setSpacing(14)
+        # ==================== CARD 2: CIRCUITO DIALIZADOR ====================
+        self.dialysate_card = QFrame()
+        self.dialysate_card.setObjectName("card")
+        self.dialysate_card.setMinimumHeight(295)
+        dialysate_layout = QVBoxLayout(self.dialysate_card)
+        dialysate_layout.setContentsMargins(16, 14, 16, 14)
+        dialysate_layout.setSpacing(10)
 
-        dialysate_title = QLabel("CIRCUITO DIALIZADOR")
-        dialysate_title.setObjectName("card_title")
-        dialysate_layout.addWidget(dialysate_title)
+        self.dialysate_title = QLabel("CIRCUITO DIALIZADOR")
+        self.dialysate_title.setObjectName("card_title")
+        dialysate_layout.addWidget(self.dialysate_title)
 
-        # temperatura del dializado
         temp_layout = QHBoxLayout()
         temp_v = QVBoxLayout()
-        temp_v.addWidget(QLabel("TEMPERATURA DIALIZADO"))
+        temp_v.setSpacing(4)
+        lbl_temp_cap = QLabel("TEMPERATURA DIALIZADO")
+        self.themed_sublabels.append(lbl_temp_cap)
+        temp_v.addWidget(lbl_temp_cap)
+
         temp_value_row = QHBoxLayout()
         temp_value_row.setSpacing(6)
         self.temp_value = QLabel("0.0")
@@ -393,7 +370,7 @@ class DialysisScreen(QWidget):
         self.temp_value.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.temp_value.setFixedWidth(140)
         temp_unit = QLabel("°C")
-        temp_unit.setStyleSheet("font-size: 22px; color: #475569; font-weight: 600;")
+        self.themed_unit_labels.append(temp_unit)
         temp_value_row.addWidget(self.temp_value)
         temp_value_row.addWidget(temp_unit)
         temp_value_row.addStretch()
@@ -401,319 +378,350 @@ class DialysisScreen(QWidget):
         temp_layout.addLayout(temp_v)
         dialysate_layout.addLayout(temp_layout)
 
-
-        # Conductividad del Dializado
         cond_layout = QHBoxLayout()
-        cond_label = QLabel("Cond.:")
-        cond_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
+        cond_label = QLabel("Conductividad:")
+        self.themed_sublabels.append(cond_label)
         cond_layout.addWidget(cond_label)
         self.cond_val = QLabel("14.1 mS/cm")
-        self.cond_val.setStyleSheet("color: #0078d7; font-weight: bold; font-size: 28px; font-family: monospace;")
         self.cond_val.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        # self.cond_val.setFixedWidth(160)
         cond_layout.addStretch()
         cond_layout.addWidget(self.cond_val)
         dialysate_layout.addLayout(cond_layout)
 
-        # Flujo de Dializado (DFR)
         dfr_layout = QHBoxLayout()
-        dfr_label = QLabel("F. Dializado:")
-        dfr_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
+        dfr_label = QLabel("Flujo Dializado:")
+        self.themed_sublabels.append(dfr_label)
         dfr_layout.addWidget(dfr_label)
         self.dfr_val_label = QLabel("500 mL/min")
-        self.dfr_val_label.setStyleSheet("color: #0078d7; font-weight: bold; font-size: 28px;")
         dfr_layout.addStretch()
         dfr_layout.addWidget(self.dfr_val_label)
         dialysate_layout.addLayout(dfr_layout)
 
-        # Presión Transmembrana (TMP)
         tmp_layout = QHBoxLayout()
         tmp_label = QLabel("PTM:")
-        tmp_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
+        self.themed_sublabels.append(tmp_label)
         tmp_layout.addWidget(tmp_label)
         self.tmp_val = QLabel("85 mmHg")
-        self.tmp_val.setStyleSheet("color: #0078d7; font-weight: bold; font-size: 28px; font-family: monospace;")
         self.tmp_val.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        # self.tmp_val.setFixedWidth(160)
         tmp_layout.addStretch()
         tmp_layout.addWidget(self.tmp_val)
         dialysate_layout.addLayout(tmp_layout)
 
-        grid_params.addWidget(dialysate_card, 0, 1)
+        grid_params.addWidget(self.dialysate_card, 0, 1)
 
-        # Ultrafiltracion card 
-        uf_card = QFrame()
-        uf_card.setObjectName("card")
-        uf_card.setMinimumHeight(300)
-        uf_layout = QVBoxLayout(uf_card)
-        uf_layout.setContentsMargins(16, 16, 16, 16)
-        uf_layout.setSpacing(14)
-        
-        uf_title = QLabel("ULTRAFILTRACIÓN (UF)")
-        uf_title.setObjectName("card_title")
-        uf_layout.addWidget(uf_title)
+        # ==================== CARD 3: ULTRAFILTRACIÓN ====================
+        self.uf_card = QFrame()
+        self.uf_card.setObjectName("card")
+        self.uf_card.setMinimumHeight(295)
+        uf_layout = QVBoxLayout(self.uf_card)
+        uf_layout.setContentsMargins(16, 14, 16, 14)
+        uf_layout.setSpacing(10)
+
+        self.uf_title = QLabel("ULTRAFILTRACIÓN (UF)")
+        self.uf_title.setObjectName("card_title")
+        uf_layout.addWidget(self.uf_title)
 
         ufr_layout = QHBoxLayout()
         ufr_v = QVBoxLayout()
-        ufr_v.setSpacing(6)
-        ufr_v.addWidget(QLabel("TASA DE ULTRAFILTRACIÓN (UF)"))
+        ufr_v.setSpacing(4)
+        lbl_uf_cap = QLabel("TASA DE ULTRAFILTRACIÓN")
+        self.themed_sublabels.append(lbl_uf_cap)
+        ufr_v.addWidget(lbl_uf_cap)
+
         ufr_value_row = QHBoxLayout()
         ufr_value_row.setSpacing(6)
         self.uf_rate_val = QLabel("0.60")
         self.uf_rate_val.setObjectName("val_large_cyan")
         uf_rate_unit = QLabel("L/hora")
-        uf_rate_unit.setStyleSheet("font-size: 22px; color: #475569; font-weight: 600;")
+        self.themed_unit_labels.append(uf_rate_unit)
         ufr_value_row.addWidget(self.uf_rate_val)
         ufr_value_row.addWidget(uf_rate_unit)
         ufr_value_row.addStretch()
         ufr_v.addLayout(ufr_value_row)
-        
         ufr_layout.addLayout(ufr_v)
         ufr_layout.addStretch()
         uf_layout.addLayout(ufr_layout)
-   
-        # Meta y Extraído
+
         meta_layout = QHBoxLayout()
         meta_label = QLabel("Objetivo Total UF:")
-        meta_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
+        self.themed_sublabels.append(meta_label)
         meta_layout.addWidget(meta_label)
         self.uf_goal_val = QLabel("2.50 L")
-        self.uf_goal_val.setStyleSheet("color: #0078d7; font-weight: bold; font-size: 28px;")
         meta_layout.addStretch()
         meta_layout.addWidget(self.uf_goal_val)
         uf_layout.addLayout(meta_layout)
 
         rem_layout = QHBoxLayout()
         rem_label = QLabel("UF Removida:")
-        rem_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
+        self.themed_sublabels.append(rem_label)
         rem_layout.addWidget(rem_label)
         self.uf_rem_val = QLabel("0.00 L")
-        self.uf_rem_val.setStyleSheet("color: #0078d7; font-weight: bold; font-size: 28px;")
         rem_layout.addStretch()
         rem_layout.addWidget(self.uf_rem_val)
         uf_layout.addLayout(rem_layout)
 
-        # TEMPORAL: Indicador de pulsos crudos del firmware. Quitar al cerrar el contrato de esta versión.
         pulse_layout = QHBoxLayout()
         pulse_label = QLabel("Pulsos UF (temp):")
-        pulse_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
+        self.themed_sublabels.append(pulse_label)
         pulse_layout.addWidget(pulse_label)
         self.uf_pulse_val = QLabel("0")
-        self.uf_pulse_val.setStyleSheet("color: #b45309; font-weight: bold; font-size: 28px; min-width: 180px; text-align: right;")
         pulse_layout.addStretch()
         pulse_layout.addWidget(self.uf_pulse_val)
         uf_layout.addLayout(pulse_layout)
 
         ktv_layout = QHBoxLayout()
         ktv_label = QLabel("Kt/V Acumulado:")
-        ktv_label.setStyleSheet("font-size: 24px; color: #334155; font-weight: 600;")
+        self.themed_sublabels.append(ktv_label)
         ktv_layout.addWidget(ktv_label)
         self.ktv_val = QLabel("0.00")
-        self.ktv_val.setStyleSheet("color: #0078d7; font-weight: bold; font-size: 28px;")
         ktv_layout.addStretch()
         ktv_layout.addWidget(self.ktv_val)
         uf_layout.addLayout(ktv_layout)
 
-        grid_params.addWidget(uf_card, 0, 2)
+        grid_params.addWidget(self.uf_card, 0, 2)
 
-
-        # --- Columna 4: Paciente y Tiempo ---
+        # ==================== COLUMNA 4: SIGNOS VITALES Y TIEMPO ====================
         columna_4_layout = QVBoxLayout()
         columna_4_layout.setSpacing(10)
 
-        # ── Card de Signos Vitales (NUEVA) ──
-        vitals_card = QFrame()
-        vitals_card.setObjectName("card")
-        vitals_card.setMinimumHeight(230)
-        vitals_layout = QVBoxLayout(vitals_card)
-        vitals_layout.setContentsMargins(12, 12, 12, 12)
-        vitals_layout.setSpacing(8)
+        self.vitals_card = QFrame()
+        self.vitals_card.setObjectName("card")
+        self.vitals_card.setMinimumHeight(215)
+        vitals_layout = QVBoxLayout(self.vitals_card)
+        vitals_layout.setContentsMargins(14, 12, 14, 12)
+        vitals_layout.setSpacing(6)
 
-        vitals_title = QLabel("SIGNOS VITALES")
-        vitals_title.setObjectName("card_title")
-        vitals_layout.addWidget(vitals_title)
+        self.vitals_title = QLabel("SIGNOS VITALES")
+        self.vitals_title.setObjectName("card_title")
+        vitals_layout.addWidget(self.vitals_title)
 
-        # Presión Arterial (NIBP)
         nibp_layout = QHBoxLayout()
-        nibp_layout.addWidget(QLabel("P.A. (NIBP):"))
+        lbl_nibp = QLabel("P.A. (NIBP):")
+        self.themed_sublabels.append(lbl_nibp)
+        nibp_layout.addWidget(lbl_nibp)
         self.nibp_value = QLabel("-- / --")
-        self.nibp_value.setStyleSheet("color: #047857; font-weight: bold; font-size: 22px; font-family: monospace;")
         nibp_layout.addStretch()
         nibp_layout.addWidget(self.nibp_value)
         vitals_layout.addLayout(nibp_layout)
 
-        # Frecuencia Cardiaca (FC)
         hr_layout = QHBoxLayout()
-        hr_layout.addWidget(QLabel("FC:"))
+        lbl_hr = QLabel("FC:")
+        self.themed_sublabels.append(lbl_hr)
+        hr_layout.addWidget(lbl_hr)
         self.hr_value = QLabel("--")
-        self.hr_value.setStyleSheet("color: #dc2626; font-weight: bold; font-size: 22px; font-family: monospace;")
         hr_layout.addStretch()
         hr_layout.addWidget(self.hr_value)
-        hr_unit = QLabel("lpm")
-        hr_unit.setStyleSheet("color: #64748b; font-size: 14px; margin-left: 4px;")
-        hr_layout.addWidget(hr_unit)
+        self.hr_unit = QLabel("lpm")
+        hr_layout.addWidget(self.hr_unit)
         vitals_layout.addLayout(hr_layout)
 
-        # Saturación de Oxígeno (SpO2)
         spo2_layout = QHBoxLayout()
-        spo2_layout.addWidget(QLabel("Saturación (SpO2):"))
+        lbl_spo2 = QLabel("SpO2:")
+        self.themed_sublabels.append(lbl_spo2)
+        spo2_layout.addWidget(lbl_spo2)
         self.spo2_value = QLabel("-- %")
-        self.spo2_value.setStyleSheet("color: #0369a1; font-weight: bold; font-size: 22px; font-family: monospace;")
         spo2_layout.addStretch()
         spo2_layout.addWidget(self.spo2_value)
         vitals_layout.addLayout(spo2_layout)
 
         self.spo2_status_label = QLabel("")
-        self.spo2_status_label.setStyleSheet("color: #64748b; font-size: 14px;")
         vitals_layout.addWidget(self.spo2_status_label)
 
-        # TEMPORAL: acceso rápido a la pantalla del NIBP mientras se define
-        # su lugar definitivo en la barra de navegación. No eliminar sin ticket.
         self.btn_nibp_screen = QPushButton("Baumanómetro…")
-        self.btn_nibp_screen.setFixedHeight(40)
-        self.btn_nibp_screen.setStyleSheet("""
-            QPushButton {
-                background-color: #06298a;
-                color: #ffffff;
-                font-size: 16px;
-                font-weight: bold;
-                border-radius: 8px;
-                padding: 4px 10px;
-            }
-            QPushButton:hover { background-color: #1e293b; }
-        """)
+        self.btn_nibp_screen.setFixedHeight(38)
         self.btn_nibp_screen.clicked.connect(self.show_nibp_config_screen)
         vitals_layout.addWidget(self.btn_nibp_screen)
 
-        # ── Card de Tiempos (Rediseñada) ──
-        time_card = QFrame()
-        time_card.setObjectName("card")
-        time_card.setMinimumHeight(100) 
-        time_layout = QVBoxLayout(time_card)
-        time_layout.setContentsMargins(10, 10, 10, 10)
-        time_layout.setSpacing(8)
+        self.time_card = QFrame()
+        self.time_card.setObjectName("card")
+        self.time_card.setMinimumHeight(96)
+        time_layout = QVBoxLayout(self.time_card)
+        time_layout.setContentsMargins(10, 8, 10, 8)
+        time_layout.setSpacing(6)
 
-        # Usamos versiones más compactas de SimpleValueDisplay o labels directos
         self.remaining_time_display = SimpleValueDisplay("T. Restante", "00:00", "")
         self.elapsed_time_display = SimpleValueDisplay("T. Terapia", "00:00", "")
-        
-        # OJO: Para que quepan bien, tendrías que quitar el setFixedHeight(132) 
-        # del SimpleValueDisplay o hacerlo más pequeño (ej. 80px)
-        # self.remaining_time_display.setFixedHeight(85)
-        self.elapsed_time_display.setFixedHeight(85)
-
-        # self.remaining_time_display ahora se muestra en el header principal.
-        # Se deja comentado por si se requiere restaurarlo en esta tarjeta.
-        # time_layout.addWidget(self.remaining_time_display)
+        self.elapsed_time_display.setFixedHeight(80)
         time_layout.addWidget(self.elapsed_time_display)
 
-        # Agregamos ambas al layout vertical de la columna 4
-        columna_4_layout.addWidget(vitals_card, 2)
-        columna_4_layout.addWidget(time_card, 1)
-
-        # Añadimos el layout vertical al grid general de parámetros
+        columna_4_layout.addWidget(self.vitals_card, 2)
+        columna_4_layout.addWidget(self.time_card, 1)
         grid_params.addLayout(columna_4_layout, 0, 3)
 
-
         layout.addLayout(grid_params, 0, 0, 1, 2)
-        
-        # ── Área Gráfica ──
+
+        # ==================== ÁREA GRÁFICA ====================
         self.pressure_plot = PressureWaveformWidget()
-        self.pressure_plot.setMinimumHeight(320)
-        graph_container = QFrame()
-        graph_container.setObjectName("graph_card")
-        graph_layout = QVBoxLayout(graph_container)
+        self.pressure_plot.setMinimumHeight(310)
+        self.graph_container = QFrame()
+        self.graph_container.setObjectName("graph_card")
+        graph_layout = QVBoxLayout(self.graph_container)
         graph_layout.setContentsMargins(10, 10, 10, 10)
         graph_layout.addWidget(self.pressure_plot)
+        layout.addWidget(self.graph_container, 1, 1, 1, 1)
 
-        layout.addWidget(graph_container, 1, 1, 1, 1)
+        # ==================== BOTONES DE CONTROL ====================
+        self.buttons_container = QFrame()
+        self.buttons_container.setMinimumWidth(400)
+        self.buttons_container.setObjectName("card")
 
-        # ── Botones de Control ──
-        buttons_container = QFrame()
-        buttons_container.setMinimumWidth(400)
-        buttons_container.setStyleSheet("background: #ffffff; border-radius: 14px; border: 1px solid #cbd5e1;")
-
-        buttons_layout = QGridLayout(buttons_container)
+        buttons_layout = QGridLayout(self.buttons_container)
         buttons_layout.setSpacing(10)
         buttons_layout.setContentsMargins(14, 14, 14, 14)
         for i in range(3):
             buttons_layout.setColumnStretch(i, 1)
 
-        self.action_buttons = {} # guardar referencias de botones
+        self.action_buttons = {}
 
         button_config = [
-            ("INICIAR", "#39ec21", self.parent_window.start_treatment),
-            ("PAUSAR", "#FFC400", self.parent_window.pause_treatment),
-            ("DETENER", "#DD2911", self.parent_window.stop_treatment),
-            ("MENÚ TERAPIA", "#06298a", self.show_therapy_config),
-            ("MENÚ PACIENTE", "#06298a", self.show_patient_config),
-            ("HEPARINA", "#06298a", self.show_heparin_config_screen),
-            ("INICIAR CEBADO", "#06298a", self.parent_window.start_priming),
-            ("DETENER CEBADO", "#06298a", self.parent_window.stop_priming),
-            ("Kt/V", "#06298a", self.parent_window.show_ktv_screen),       
+            ("INICIAR", "#16a34a", getattr(self.parent_window, "start_treatment", lambda: None)),
+            ("PAUSAR", "#f59e0b", getattr(self.parent_window, "pause_treatment", lambda: None)),
+            ("DETENER", "#dc2626", getattr(self.parent_window, "stop_treatment", lambda: None)),
+            ("MENÚ TERAPIA", "nav", self.show_therapy_config),
+            ("MENÚ PACIENTE", "nav", self.show_patient_config),
+            ("HEPARINA", "nav", self.show_heparin_config_screen),
+            ("INICIAR CEBADO", "nav", getattr(self.parent_window, "start_priming", lambda: None)),
+            ("DETENER CEBADO", "nav", getattr(self.parent_window, "stop_priming", lambda: None)),
+            ("Kt/V", "nav", getattr(self.parent_window, "show_ktv_screen", lambda: None)),
         ]
 
-        for i, (text, color, callback) in enumerate(button_config):
+        for i, (text, color_role, callback) in enumerate(button_config):
             btn = QPushButton(text)
-            btn.setFixedHeight(80)
+            btn.setFixedHeight(78)
             btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-            btn.setStyleSheet(self._button_style(color))
+            btn.setProperty("color_role", color_role)
             btn.clicked.connect(callback)
-            self.action_buttons[text] = btn # === Guardar el botón en el diccionario ===
+            self.action_buttons[text] = btn
             row = i // 3
             col = i % 3
-            buttons_layout.addWidget(btn, row, col)            
-     
-        layout.addWidget(buttons_container, 1, 0, 1, 1)
+            buttons_layout.addWidget(btn, row, col)
 
-        
+        layout.addWidget(self.buttons_container, 1, 0, 1, 1)
 
-         
+    def apply_theme_styles(self, theme_name: str | None = None):
+        tokens = ThemeManager.get_tokens(theme_name)
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), QColor(tokens["bg_main"]))
+        self.setPalette(palette)
+        self.setStyleSheet(f"DialysisScreen {{ background-color: {tokens['bg_main']}; }}")
+
+        card_style = (
+            f"QFrame#card, QFrame#graph_card {{ background-color: {tokens['bg_card']}; "
+            f"border: 2px solid {tokens['border_card']}; border-radius: 16px; }}"
+        )
+        for card in (
+            self.blood_card, self.dialysate_card, self.uf_card,
+            self.vitals_card, self.time_card, self.graph_container, self.buttons_container
+        ):
+            card.setStyleSheet(card_style)
+
+        title_style = (
+            f"color: {tokens['title_color']}; font-size: 19px; font-weight: bold; "
+            f"background: transparent; border: none; border-bottom: 2px solid {tokens['border_card']}; "
+            f"padding-bottom: 6px; margin-bottom: 4px;"
+        )
+        for t_lbl in (self.blood_title, self.dialysate_title, self.uf_title, self.vitals_title):
+            t_lbl.setStyleSheet(title_style)
+
+        sublabel_style = f"font-size: 20px; color: {tokens['text_secondary']}; font-weight: 600; border: none;"
+        for lbl in self.themed_sublabels:
+            lbl.setStyleSheet(sublabel_style)
+
+        unit_style = f"font-size: 22px; color: {tokens['text_muted']}; font-weight: 600; border: none;"
+        for u_lbl in self.themed_unit_labels:
+            u_lbl.setStyleSheet(unit_style)
+
+        mono = ThemeManager.DEFAULT_MONOSPACE_FONTS
+        self.bfr_value.setStyleSheet(
+            f"color: {tokens['val_blood']}; font-family: {mono}; font-size: 48px; font-weight: bold; border: none;"
+        )
+        self.temp_value.setStyleSheet(
+            f"color: {tokens['val_temp']}; font-family: {mono}; font-size: 48px; font-weight: bold; border: none;"
+        )
+        self.uf_rate_val.setStyleSheet(
+            f"color: {tokens['val_uf']}; font-family: {mono}; font-size: 48px; font-weight: bold; border: none;"
+        )
+
+        self.art_p_value.setStyleSheet(
+            f"color: {tokens['val_blood']}; font-weight: bold; font-family: {mono}; font-size: 26px; border: none;"
+        )
+        self.ven_p_value.setStyleSheet(
+            f"color: {tokens['val_venous']}; font-weight: bold; font-family: {mono}; font-size: 26px; border: none;"
+        )
+
+        val_secondary_style = (
+            f"color: {tokens['val_venous']}; font-weight: bold; font-family: {mono}; font-size: 25px; border: none;"
+        )
+        for v_lbl in (self.cond_val, self.dfr_val_label, self.tmp_val, self.uf_goal_val, self.uf_rem_val, self.ktv_val):
+            v_lbl.setStyleSheet(val_secondary_style)
+
+        self.uf_pulse_val.setStyleSheet(
+            f"color: {tokens['warning']}; font-weight: bold; font-family: {mono}; font-size: 24px; border: none;"
+        )
+
+        self.nibp_value.setStyleSheet(
+            f"color: {tokens['val_vital_bp']}; font-weight: bold; font-size: 22px; font-family: {mono}; border: none;"
+        )
+        self.hr_value.setStyleSheet(
+            f"color: {tokens['val_vital_hr']}; font-weight: bold; font-size: 22px; font-family: {mono}; border: none;"
+        )
+        self.hr_unit.setStyleSheet(f"color: {tokens['text_muted']}; font-size: 14px; margin-left: 4px; border: none;")
+        self.spo2_value.setStyleSheet(
+            f"color: {tokens['val_vital_spo2']}; font-weight: bold; font-size: 22px; font-family: {mono}; border: none;"
+        )
+        self.spo2_status_label.setStyleSheet(f"color: {tokens['text_muted']}; font-size: 14px; border: none;")
+
+        self.btn_nibp_screen.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {tokens['nav_btn_bg']};
+                color: #ffffff;
+                font-size: 16px;
+                font-weight: bold;
+                border-radius: 8px;
+                padding: 4px 10px;
+                border: 1px solid {tokens['border_card']};
+            }}
+            QPushButton:hover {{ background-color: {tokens['primary']}; }}
+        """)
+
+        self.update_air_bubble_indicator(self._last_air_bubble_state)
+
+        for text, btn in self.action_buttons.items():
+            role = btn.property("color_role")
+            bg = tokens["nav_btn_bg"] if role == "nav" else role
+            btn.setStyleSheet(self._button_style(bg, btn.isEnabled()))
 
     def update_values(self, new_values: dict):
         """Update all displayed values."""
         self.current_values = new_values
 
-        # ===== CARD UF: Tasa, Objetivo, UF Removida =====
-        # Tasa: se toma directamente de ultraFilterPumpSpeed (L/h)
-        # Trata None como 0
         uf_rate_val = self.current_values.get("ultraFilterPumpSpeed", 0.0)
         uf_rate = float(uf_rate_val) if uf_rate_val is not None else 0.0
         self.uf_rate_val.setText(f"{uf_rate:.2f}")
-        
-        # Objetivo: tasa × duración programada (horas + minutos/60)
-        # Si hay perfil de UF activo, solo usar el producto cuando no hay perfil
-        # Trata None como 0
+
         hep_hours_val = self.current_values.get("heparineTherapyHours", 0.0)
         hep_minutes_val = self.current_values.get("heparineTherapyMinutes", 0.0)
         uf_therapy_hours = float(hep_hours_val) if hep_hours_val is not None else 0.0
         uf_therapy_minutes = float(hep_minutes_val) if hep_minutes_val is not None else 0.0
         therapy_duration_hours = uf_therapy_hours + (uf_therapy_minutes / 60.0)
-        
-        # TODO: Si está activo el perfil de UF, ajustar el cálculo del objetivo
-        # Para ahora, usar el producto directo
+
         uf_goal = uf_rate * therapy_duration_hours
         self.uf_goal_val.setText(f"{uf_goal:.2f} L")
-        
-        # UF Removida: usar los pulsos acumulados de la bomba UF (ultraFilterCycleCount)
-        # Trata None como 0
+
         cycle_count_val = self.current_values.get("ultraFilterCycleCount", 0.0)
         uf_pulse_count = float(cycle_count_val) if cycle_count_val is not None else 0.0
         uf_removed = litros_removidos(int(uf_pulse_count))
         self.uf_rem_val.setText(f"{uf_removed:.2f} L")
-        
-        # TEMPORAL: Mostrar el conteo crudo de pulsos. Quitar al cerrar el contrato de esta versión.
+
         pulse_display = int(uf_pulse_count) if uf_pulse_count is not None else 0
         self.uf_pulse_val.setText(str(pulse_display))
-    
-        # Actualizar gráfico - tratar None como 0
+
         venous_pressure_val = self.current_values.get("bloodVenousPressureData", 0.0)
         arterial_pressure_val = self.current_values.get("bloodArteryPressureData", 0.0)
         venous_pressure = venous_pressure_val if venous_pressure_val is not None else 0.0
         arterial_pressure = arterial_pressure_val if arterial_pressure_val is not None else 0.0
         self.pressure_plot.add_values(arterial_pressure, venous_pressure)
 
-        # Calculo PTM
         pd_in = self.current_values.get("dialyPresIFProcessData", 0.0)
         pd_out = self.current_values.get("dialyPresOFProcessData", 0.0)
         try:
@@ -722,61 +730,59 @@ class DialysisScreen(QWidget):
             ptm_calculated = 0.0
         self.current_values["CALC_PTM"] = ptm_calculated
 
-
-        # Mapeo de variables
         parameter_mapping = {
-            "bloodArteryPressureData":   self.art_p_value,
-            "bloodVenousPressureData":   self.ven_p_value,
-            "CALC_PTM":                  self.tmp_val,
-            "dialyCondVariableData":     self.cond_val,
-            "bloodFlowVariableData":     self.bfr_value,
-            "balanceChamberSetTiming":   self.dfr_val_label,  #verificar la salida 
-            "dialyTempIFProcessData":    self.temp_value, 
-            "ktv_projectado":            self.ktv_val,
-            "airBubbleInBloodDetected":  self.air_indicator,  
+            "bloodArteryPressureData":  self.art_p_value,
+            "bloodVenousPressureData":  self.ven_p_value,
+            "CALC_PTM":                 self.tmp_val,
+            "dialyCondVariableData":    self.cond_val,
+            "bloodFlowVariableData":    self.bfr_value,
+            "balanceChamberSetTiming":  self.dfr_val_label,
+            "dialyTempIFProcessData":   self.temp_value,
+            "ktv_projectado":           self.ktv_val,
+            "airBubbleInBloodDetected": self.air_indicator,
         }
-
 
         for tag, widget in parameter_mapping.items():
             value = self.current_values.get(tag, 0.0)
             self._set_label_value(tag, widget, value)
 
         air_bubble = self.current_values.get("airBubbleInBloodDetected", 0.0)
+        self._last_air_bubble_state = air_bubble
         self.update_air_bubble_indicator(air_bubble)
-        
+
         if hasattr(self, 'parent_window') and hasattr(self.parent_window, 'state'):
-            self.update_state(self.parent_window.state.current_phase)#
+            self.update_state(self.parent_window.state.current_phase)
 
     def _time_to_decimal_hours(self, time_str: str) -> float:
-        """Convierte un string 'HH:MM' a un float de horas (ej: '01:30' -> 1.5)"""
         try:
-            if ":" not in time_str: return 0.0
+            if ":" not in time_str:
+                return 0.0
             h, m = map(int, time_str.split(":"))
             return h + (m / 60.0)
-        except:
+        except Exception:
             return 0.0
 
-
     def update_air_bubble_indicator(self, value):
-        """Actualiza el indicador de burbuja de aire según el valor recibido."""
-        if value == 1.0 or value == 1:  # Alarma activa
-            self.air_indicator.setText("BURBUJA DE AIRE")
-            self.air_indicator.setStyleSheet("""
-                background-color: #ef4444; 
-                color: #ffffff; 
-                font-weight: bold; 
-                border-radius: 8px; 
+        tokens = ThemeManager.get_tokens()
+        if value == 1.0 or value == 1:
+            self.air_indicator.setText("¡BURBUJA DE AIRE!")
+            self.air_indicator.setStyleSheet(f"""
+                background-color: {tokens['danger']};
+                color: #ffffff;
+                font-weight: bold;
+                border-radius: 8px;
                 font-size: 18px;
+                border: none;
             """)
-            logger.warning("¡ALERTA! Burbuja de aire detectada en línea de sangre.")
-        else:  # Normal
-            self.air_indicator.setText("DETECTOR DE AIRE")
-            self.air_indicator.setStyleSheet("""
-                background-color: #10B924; 
-                color: #ffffff; 
-                font-weight: bold; 
-                border-radius: 8px; 
+        else:
+            self.air_indicator.setText("DETECTOR DE AIRE: OK")
+            self.air_indicator.setStyleSheet(f"""
+                background-color: {tokens['success']};
+                color: #ffffff;
+                font-weight: bold;
+                border-radius: 8px;
                 font-size: 18px;
+                border: none;
             """)
 
     def show_heparin_config_screen(self):
@@ -784,19 +790,17 @@ class DialysisScreen(QWidget):
             self.parent_window.show_heparin_config_screen()
 
     def show_nibp_config_screen(self):
-        # TEMPORAL: ver comentario junto a btn_nibp_screen.
         if self.parent_window and hasattr(self.parent_window, "show_nibp_screen"):
             self.parent_window.show_nibp_screen()
 
     def _format_display_value(self, tag: str, value):
         try:
-            # Si el valor es None, poner 0.0 por defecto
             if value is None:
                 val_float = 0.0
             else:
                 val_float = float(value)
         except (TypeError, ValueError):
-            return str(value) # Si no es número, devolver el texto tal cual
+            return str(value)
 
         if tag in {"bloodArteryPressureData", "bloodVenousPressureData"}:
             try:
@@ -852,89 +856,84 @@ class DialysisScreen(QWidget):
         widget.setText(self._format_display_value(tag, value))
 
     def _button_style(self, background_color: str, enabled: bool = True):
+        tokens = ThemeManager.get_tokens()
         if not enabled:
-            return """
-                QPushButton {
-                    background: #334155;
-                    color: #94a3b8;
+            return f"""
+                QPushButton {{
+                    background: {tokens['btn_disabled_bg']};
+                    color: {tokens['btn_disabled_text']};
                     font-weight: bold;
-                    font-size: 22px;
+                    font-size: 20px;
                     border-radius: 12px;
-                    border: 3px solid #1e293b;
-                }
+                    border: 2px solid {tokens['border_card']};
+                }}
             """
 
+        resolved_bg = tokens["nav_btn_bg"] if background_color in ("nav", "#06298a") else background_color
         return f"""
             QPushButton {{
-                background: {background_color};
+                background: {resolved_bg};
                 color: #ffffff;
                 font-weight: bold;
-                font-size: 22px;
+                font-size: 20px;
                 border-radius: 12px;
-                border: 3px solid #1e293b;
+                border: 2px solid {tokens['border_strong']};
+            }}
+            QPushButton:hover {{
+                background: {tokens['primary']};
             }}
             QPushButton:pressed {{
-                background: #334155;
+                background: {tokens['primary_pressed']};
             }}
         """
 
     def on_user_boolean_command(self, tag, state):
         self.request_boolean_change.emit(tag, state)
-    
+
     def set_start_stop_buttons_state(self, enable_start: bool, enable_stop: bool, enable_pause: bool):
-        """
-        Recibe instrucciones directas del Main para habilitar/deshabilitar.
-        """
+        tokens = ThemeManager.get_tokens()
         btn_iniciar = self.action_buttons.get("INICIAR")
         btn_detener = self.action_buttons.get("DETENER")
-        btn_pausar = self.action_buttons.get("PAUSAR") # se agrego este boton a la logica de activación/desactivación
-        
+        btn_pausar = self.action_buttons.get("PAUSAR")
+
         if btn_iniciar:
             btn_iniciar.setEnabled(enable_start)
-            btn_iniciar.setStyleSheet(self._button_style("#39ec21", enable_start))
-        
+            btn_iniciar.setStyleSheet(self._button_style(tokens["success"], enable_start))
+
         if btn_detener:
-            btn_detener.setEnabled(enable_stop)            
-            btn_detener.setStyleSheet(self._button_style("#DD2911", enable_stop))
-        
+            btn_detener.setEnabled(enable_stop)
+            btn_detener.setStyleSheet(self._button_style(tokens["danger"], enable_stop))
+
         if btn_pausar:
             btn_pausar.setEnabled(enable_pause)
-            btn_pausar.setStyleSheet(self._button_style("#FFC400", enable_pause))  
-
+            btn_pausar.setStyleSheet(self._button_style(tokens["warning"], enable_pause))
 
     def show_therapy_config(self):
-        """Navigate to therapy configuration screen."""
         if self.parent_window and hasattr(self.parent_window, "show_therapy_config_screen"):
             self.parent_window.show_therapy_config_screen()
 
     def show_patient_config(self):
-        """Navigate to patient configuration screen."""
         if self.parent_window and hasattr(self.parent_window, "show_patient_config_screen"):
             self.parent_window.show_patient_config_screen()
 
-
     def update_therapy_times(self, elapsed_str: str, remaining_str: str):
-        """Método llamado desde el Main para actualizar tiempos"""
         if hasattr(self, 'elapsed_time_display') and self.elapsed_time_display:
             self.elapsed_time_display.set_time_value(elapsed_str)
         if hasattr(self, 'remaining_time_display') and self.remaining_time_display:
             self.remaining_time_display.set_time_value(remaining_str)
 
     def update_nibp_measurement(self, sys_mmhg: int, dia_mmhg: int, map_mmhg: int, hr_bpm: int):
-        """Signos vitales - P.A. (NIBP), conectado a nibp.measurement_ready."""
         if sys_mmhg >= 0 and dia_mmhg >= 0:
             self.nibp_value.setText(f"{sys_mmhg} / {dia_mmhg}")
         else:
             self.nibp_value.setText("-- / --")
-        
-        # Frecuencia cardiaca
+
         if hr_bpm >= 0:
             self.hr_value.setText(str(hr_bpm))
         else:
             self.hr_value.setText("--")
 
     def update_spo2(self, data):
-        """Signos vitales - SpO2, conectado a nibp.spo2_updated (None si stream off)."""
         if not data:
             self.spo2_value.setText("-- %")
             self.spo2_status_label.setText("")
@@ -957,69 +956,52 @@ class DialysisScreen(QWidget):
             status_text = ""
         self.spo2_status_label.setText(status_text)
 
-
     def set_priming_buttons_state(self, enable_start_priming: bool, enable_stop_priming: bool):
-        """
-        Recibe instrucciones directas del Main para habilitar/deshabilitar
-        los botones de 'INICIAR CEBADO' y 'DETENER CEBADO'.
-        """
         btn_start_priming = self.action_buttons.get("INICIAR CEBADO")
         btn_stop_priming = self.action_buttons.get("DETENER CEBADO")
 
-        # Estilos
         if btn_start_priming:
             btn_start_priming.setEnabled(enable_start_priming)
-            btn_start_priming.setStyleSheet(self._button_style("#06298a", enable_start_priming))
-        
+            btn_start_priming.setStyleSheet(self._button_style("nav", enable_start_priming))
+
         if btn_stop_priming:
             btn_stop_priming.setEnabled(enable_stop_priming)
-            btn_stop_priming.setStyleSheet(self._button_style("#06298a", enable_stop_priming))
-    
-    
+            btn_stop_priming.setStyleSheet(self._button_style("nav", enable_stop_priming))
+
     def update_state(self, phase: TreatmentPhase):
-        """Actualiza el estado visual de esta pantalla"""
-        treatment_mode_selection = self.current_values.get("treatmentModeSelection", 0.0)        
-        if int(treatment_mode_selection) == 3:
+        treatment_mode_selection = self.current_values.get("treatmentModeSelection", 0.0)
+        if int(treatment_mode_selection or 0) == 3:
             self.set_priming_buttons_state(False, False)
             self.set_start_stop_buttons_state(False, False, False)
             return
 
-        # === LÓGICA CENTRALIZADA DE CONDICIONES ===
         if hasattr(self.parent_window, '_can_start_treatment'):
             can_start = self.parent_window._can_start_treatment()
         else:
-            # Fallback (mientras implementas el helper en el main)
-            temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)
-            temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
-            cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
-            cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
-            
+            temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0) or 0.0
+            temp_set = self.current_values.get("dialyTempControlSetPoint", 0.0) or 0.0
+            cond_actual = self.current_values.get("dialyCondVariableData", 0.0) or 0.0
+            cond_set = self.current_values.get("dialyCondControlSetPoint", 0.0) or 0.0
+
             temp_ok = (temp_actual - temp_set <= 2.0) and (temp_set - temp_actual <= 5.0)
             cond_ok = abs(cond_actual - cond_set) <= 2.0
-            can_start = temp_ok and cond_ok   # ← Aquí estaba bien, pero mejor dejarlo claro
+            can_start = temp_ok and cond_ok
 
-        # === ACTUALIZACIÓN DE BOTONES ===
-        if phase == TreatmentPhase.RUNNING:   # Estado 14
+        if phase == TreatmentPhase.RUNNING:
             self.set_priming_buttons_state(False, False)
             self.set_start_stop_buttons_state(False, True, True)
-        elif phase == TreatmentPhase.PAUSED: # Estado 15
+        elif phase == TreatmentPhase.PAUSED:
             self.set_priming_buttons_state(False, False)
             self.set_start_stop_buttons_state(can_start, True, False)
-        elif phase == TreatmentPhase.READY: # estado 13
+        elif phase == TreatmentPhase.READY:
             self.set_priming_buttons_state(False, True)
             self.set_start_stop_buttons_state(can_start, False, False)
         elif phase == TreatmentPhase.PREPARING:
             self.set_priming_buttons_state(False, True)
             self.set_start_stop_buttons_state(False, False, False)
-        elif phase == TreatmentPhase.IDLE: 
+        elif phase == TreatmentPhase.IDLE:
             self.set_priming_buttons_state(True, False)
             self.set_start_stop_buttons_state(False, False, False)
         else:
-            # Seguridad: deshabilitar todo en estados desconocidos
             self.set_priming_buttons_state(False, False)
             self.set_start_stop_buttons_state(False, False, False)
-        
-
-    
-
-

@@ -20,6 +20,7 @@ import pyqtgraph as pg
 import numpy as np
 
 from core.nibp_pressure_history import NibpPressureHistory
+from gui.theme_manager import ThemeManager
 
 logger = logging.getLogger(__name__)
 
@@ -37,12 +38,17 @@ class NibpHistoryScreen(QWidget):
         self.setup_background()
         self.setup_ui()
         self.update_from_history()
+        try:
+            ThemeManager.instance().theme_changed.connect(self._on_theme_changed)
+        except Exception:
+            pass
     
     def setup_background(self):
         """Fondo de la pantalla."""
+        t = ThemeManager.get_tokens()
         self.setAutoFillBackground(True)
         p = self.palette()
-        p.setColor(self.backgroundRole(), QColor("#ffffff"))
+        p.setColor(self.backgroundRole(), QColor(t.get("bg_primary", "#ffffff")))
         self.setPalette(p)
     
     def setup_ui(self):
@@ -57,101 +63,73 @@ class NibpHistoryScreen(QWidget):
         
         # ─── ENCABEZADO ───────────────────────────────────────────────
         header_layout = QHBoxLayout()
-        title = QLabel("Historial de Presión Arterial")
-        title.setStyleSheet("font-size: 28px; font-weight: bold; color: #0f172a;")
-        header_layout.addWidget(title)
+        self.lbl_title = QLabel("Historial de Presión Arterial")
+        header_layout.addWidget(self.lbl_title)
         header_layout.addStretch()
         
-        btn_close = QPushButton("Cerrar")
-        btn_close.setStyleSheet("""
-            QPushButton {
-                background-color: #64748b;
-                color: #ffffff;
-                font-size: 16px;
-                font-weight: bold;
-                padding: 8px 20px;
-                border-radius: 8px;
-            }
-            QPushButton:hover { background-color: #475569; }
-        """)
-        btn_close.clicked.connect(self.on_close_clicked)
-        header_layout.addWidget(btn_close)
+        self.btn_close = QPushButton("Cerrar")
+        self.btn_close.clicked.connect(self.on_close_clicked)
+        header_layout.addWidget(self.btn_close)
         
         main.addLayout(header_layout, 0, 0, 1, 4)
         
         # ─── GRÁFICA ───────────────────────────────────────────────────
         self.plot_widget = pg.PlotWidget()
-        self.plot_widget.setBackground("#ffffff")
         self.plot_widget.hideButtons()
         self.plot_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         self.plot_item = self.plot_widget.plotItem
-        self.plot_item.setLabel("left", "mmHg", color="#0f172a")
-        self.plot_item.setLabel("bottom", "", color="#0f172a")
         self.plot_item.showGrid(x=True, y=True, alpha=0.25)
         
         # Configurar eje izquierdo
         left_axis = self.plot_item.getAxis("left")
         left_axis.enableAutoSIPrefix(False)
-        left_axis.setPen(pg.mkPen("#0f172a"))
-        left_axis.setTextPen(pg.mkPen("#0f172a"))
         left_axis.setStyle(tickTextOffset=7)
         left_axis.setWidth(110)
 
-     
         # Configurar eje inferior
         bottom_axis = self.plot_item.getAxis("bottom")
         bottom_axis.enableAutoSIPrefix(False)
-        bottom_axis.setPen(pg.mkPen("#0f172a"))
-        bottom_axis.setTextPen(pg.mkPen("#0f172a"))
         bottom_axis.setStyle(tickTextOffset=6)
         
         self.plot_item.hideAxis("top")
         self.plot_item.hideAxis("right")
-        self.plot_item.vb.setBorder(pg.mkPen("#0f172a", width=1))
-
-
 
         # ViewBox con rangos fijos
-        self.plot_item.vb.setBackgroundColor("#ffffff")
         self.plot_item.vb.enableAutoRange(False)
         self.plot_item.vb.setYRange(40, 200, padding=0)
         self.plot_item.vb.setXRange(0, max(self.programmed_therapy_minutes, 1), padding=0)
-        
 
         # Crear las tres curvas
         self.curve_sys = self.plot_widget.plot(
-            [], [], pen=pg.mkPen("#dc2626", width=2),
-            symbol="o", symbolSize=7, symbolBrush="#dc2626", name="Sistólica",
+            [], [], pen=pg.mkPen("#dc2626", width=2.5),
+            symbol="o", symbolSize=8, symbolBrush="#dc2626", name="Sistólica",
         )
         self.curve_dia = self.plot_widget.plot(
-            [], [], pen=pg.mkPen("#2563eb", width=2),
-            symbol="o", symbolSize=7, symbolBrush="#2563eb", name="Diastólica",
+            [], [], pen=pg.mkPen("#2563eb", width=2.5),
+            symbol="o", symbolSize=8, symbolBrush="#2563eb", name="Diastólica",
         )
         self.curve_hr = self.plot_widget.plot(
-            [], [], pen=pg.mkPen("#15803d", width=2),
-            symbol="o", symbolSize=7, symbolBrush="#15803d", name="FC (lpm)",
+            [], [], pen=pg.mkPen("#15803d", width=2.5),
+            symbol="o", symbolSize=8, symbolBrush="#15803d", name="FC (lpm)",
         )
 
         # Leyenda flotante dentro de la cuadrícula
-        legend = pg.LegendItem(offset=(8, 8))
-        legend.setParentItem(self.plot_item.vb)
-        legend.addItem(self.curve_sys, "Sistólica")
-        legend.addItem(self.curve_dia, "Diastólica")
-        legend.addItem(self.curve_hr, "FC (lpm)")
-        legend.setBrush(pg.mkBrush(255, 255, 255, 230))
-        legend.setPen(pg.mkPen("#cbd5e1"))
+        self.legend = pg.LegendItem(offset=(8, 8))
+        self.legend.setParentItem(self.plot_item.vb)
+        self.legend.addItem(self.curve_sys, "Sistólica")
+        self.legend.addItem(self.curve_dia, "Diastólica")
+        self.legend.addItem(self.curve_hr, "FC (lpm)")
 
         # Agregar plot a la fila 1, columnas 0-1
         main.addWidget(self.plot_widget, 1, 0, 1, 2)
         
         # ─── LABEL DEL EJE X (separado) ───────────────────────────────
-        lbl_x_axis = QLabel("Minutos de Terapia")
-        lbl_x_axis.setStyleSheet("font-size: 13px; color: #0f172a; font-weight: normal;")
-        lbl_x_axis.setAlignment(Qt.AlignCenter)
+        self.lbl_x_axis = QLabel("Minutos de Terapia")
+        self.lbl_x_axis.setAlignment(Qt.AlignCenter)
         
         # Agregar label en fila 2, columnas 0-1 (solo bajo la gráfica)
-        main.addWidget(lbl_x_axis, 2, 0, 1, 2)
+        main.addWidget(self.lbl_x_axis, 2, 0, 1, 2)
         
         # ─── TABLA ─────────────────────────────────────────────────────
         self.table = QTableWidget()
@@ -159,39 +137,6 @@ class NibpHistoryScreen(QWidget):
         self.table.setHorizontalHeaderLabels([
             "No.", "Tiempo", "SYS", "DIA", "MAP", "FC", "SpO2", "Origen"
         ])
-        
-        # Estilos de la tabla
-        self.table.setStyleSheet("""
-            QTableWidget {
-                background-color: #ffffff;
-                gridline-color: #e2e8f0;
-                border: none;
-            }
-            QTableWidget::item {
-                padding: 4px;
-                background-color: #ffffff;
-                color: #0f172a;
-            }
-            QTableWidget::item:selected {
-                background-color: #dbeafe;
-            }
-            QHeaderView {
-                background-color: #ffffff;
-                border: none;
-            }
-            QHeaderView::section {
-                background-color: #ffffff;
-                color: #0f172a;
-                padding: 4px;
-                border: none;
-                border-bottom: 2px solid #cbd5e1;
-                font-weight: bold;
-            }
-            QTableCornerButton::section {
-                background-color: #ffffff;
-                border: none;
-            }
-        """)
         
         # Ajustar columnas
         header = self.table.horizontalHeader()
@@ -207,7 +152,6 @@ class NibpHistoryScreen(QWidget):
         # ─── PIE DE PÁGINA ─────────────────────────────────────────────
         footer_layout = QHBoxLayout()
         self.lbl_count = QLabel("Total: 0 mediciones")
-        self.lbl_count.setStyleSheet("font-size: 14px; color: #0f172a;")
         footer_layout.addWidget(self.lbl_count)
         footer_layout.addStretch()
         
@@ -229,6 +173,88 @@ class NibpHistoryScreen(QWidget):
         main.setRowStretch(4, 0)  # Footer: auto
         
         self.setLayout(main)
+        self._apply_theme_styles()
+
+    def _on_theme_changed(self, _theme_name: str):
+        self.setup_background()
+        self._apply_theme_styles()
+
+    def _apply_theme_styles(self):
+        t = ThemeManager.get_tokens()
+        bg_card = t.get("bg_card", "#ffffff")
+        bg_alt = t.get("bg_card_alt", "#f8fafc")
+        text_primary = t.get("text_primary", "#0f172a")
+        text_secondary = t.get("text_secondary", "#475569")
+        border = t.get("border", "#cbd5e1")
+        accent = t.get("accent", "#2563eb")
+        accent_soft = t.get("accent_soft", "#dbeafe")
+
+        self.lbl_title.setStyleSheet(f"font-size: 28px; font-weight: bold; color: {text_primary};")
+        self.btn_close.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {t.get('btn_secondary_bg', '#64748b')};
+                color: {t.get('btn_secondary_text', '#ffffff')};
+                font-size: 16px;
+                font-weight: bold;
+                padding: 8px 20px;
+                border-radius: 8px;
+                border: 1px solid {border};
+            }}
+            QPushButton:hover {{ background-color: {accent}; color: #ffffff; }}
+        """)
+        self.plot_widget.setBackground(bg_card)
+        self.plot_item.vb.setBackgroundColor(bg_card)
+        self.plot_item.setLabel("left", "mmHg", color=text_primary)
+        self.plot_item.setLabel("bottom", "", color=text_primary)
+        left_axis = self.plot_item.getAxis("left")
+        left_axis.setPen(pg.mkPen(text_secondary))
+        left_axis.setTextPen(pg.mkPen(text_primary))
+        bottom_axis = self.plot_item.getAxis("bottom")
+        bottom_axis.setPen(pg.mkPen(text_secondary))
+        bottom_axis.setTextPen(pg.mkPen(text_primary))
+        self.plot_item.vb.setBorder(pg.mkPen(border, width=1))
+
+        c_bg = QColor(bg_alt)
+        self.legend.setBrush(pg.mkBrush(c_bg.red(), c_bg.green(), c_bg.blue(), 230))
+        self.legend.setPen(pg.mkPen(border))
+
+        self.lbl_x_axis.setStyleSheet(f"font-size: 13px; color: {text_primary}; font-weight: normal;")
+        self.lbl_count.setStyleSheet(f"font-size: 14px; color: {text_primary};")
+
+        self.table.setStyleSheet(f"""
+            QTableWidget {{
+                background-color: {bg_card};
+                gridline-color: {border};
+                border: 1px solid {border};
+                border-radius: 8px;
+                color: {text_primary};
+            }}
+            QTableWidget::item {{
+                padding: 4px;
+                background-color: {bg_card};
+                color: {text_primary};
+            }}
+            QTableWidget::item:selected {{
+                background-color: {accent_soft};
+                color: {text_primary};
+            }}
+            QHeaderView {{
+                background-color: {bg_alt};
+                border: none;
+            }}
+            QHeaderView::section {{
+                background-color: {bg_alt};
+                color: {text_primary};
+                padding: 4px;
+                border: none;
+                border-bottom: 2px solid {border};
+                font-weight: bold;
+            }}
+            QTableCornerButton::section {{
+                background-color: {bg_alt};
+                border: none;
+            }}
+        """)
     
     def update_from_history(self):
         """Actualiza gráfica y tabla desde el historial."""

@@ -1,5 +1,5 @@
 {
-    "enabled": true,
+    "enabled": false,
     "port": "COM8",
     "baudrate": 19200,
     "patient_mode": "adult",

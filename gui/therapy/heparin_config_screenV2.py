@@ -10,6 +10,7 @@ from gui.components.numpad_modal import NumpadDialog
 from gui.components.time_numpad_modal import TimeNumpadDialog
 from gui.components.floating_confirm import FloatingConfirmDialog
 from gui.components.ui_components import ClickableLineEdit
+from gui.theme_manager import ThemeManager
 from core.state_manager import TreatmentPhase
 from logic.heparin_time import reference_minutes, clamp_heparin_time, was_clamped
 from utilities.platform_runtime import safe_float
@@ -57,73 +58,20 @@ class HeparinConfigScreen(QWidget):
         self._selected_flujo_index = 1
         self._selected_heparin_flow_index = 1
         self._selected_syringe_index = 0
+        self._field_labels = []
+        self._ctrl_buttons = []
 
-        
         self.setup_ui()
+        try:
+            ThemeManager.instance().theme_changed.connect(self._on_theme_changed)
+        except Exception:
+            pass
 
 
     def setup_ui(self):
         layout = QGridLayout(self)
         layout.setSpacing(16)
         layout.setContentsMargins(18, 18, 18, 18)
-
-        # ==================== ESTILOS ====================
-        button_style = """
-            QPushButton { 
-                background: #06298a; 
-                color: #ffffff; 
-                border-radius: 20px; 
-                font-weight: bold; 
-                font-size: 18px;
-            }
-            QPushButton:pressed { background: #1e40af; }
-        """
-
-        label_style = "font-size: 26px; color: #334155; font-weight: 600;"
-        input_style = """
-            ClickableLineEdit {
-                font-family: Consolas, "Courier New", monospace;
-                font-size: 24px;
-                color: #000000;
-                background: #e2e8f0;
-                border: 2px solid #64748b;
-                border-radius: 8px;
-                padding: 5px;
-                min-width: 120px;
-            }
-            ClickableLineEdit:focus {
-                border: 2px solid #3b82f6;
-                background: #ffffff;
-            }
-            ClickableLineEdit:disabled {
-                color: #94a3b8;
-                background-color: #f1f5f9;
-                border: 2px solid #cbd5e1;
-            }
-        """
-
-        combo_style = """
-            QComboBox {
-                font-size: 24px;
-                min-width: 180px;
-                color: #0f172a;
-                background-color: #ffffff;
-                border: 1px solid #cbd5e1;
-                border-radius: 5px;
-                padding: 5px;
-            }
-            QComboBox::drop-down {
-                border: none;
-            }
-            /* Estilo para la lista que se despliega */
-            QComboBox QAbstractItemView {
-                background-color: #ffffff;
-                color: #0f172a;
-                selection-background-color: #cbd5e1;
-                selection-color: #0f172a;
-                border: 1px solid #cbd5e1;
-            }
-            """
 
         # ===================== CARDS =====================
 
@@ -141,12 +89,10 @@ class HeparinConfigScreen(QWidget):
         # Volumen bolo
         h = QHBoxLayout()
         self.bolus_label = QLabel("Vol. Bolo Heparina (ml):")
-        self.bolus_label.setStyleSheet(label_style)        
         h.addWidget(self.bolus_label)
         self.input_bolus = ClickableLineEdit("0.0")
         self.input_bolus.setFixedSize(130, 52)
         self.input_bolus.setAlignment(Qt.AlignCenter)
-        self.input_bolus.setStyleSheet(input_style)
         self.input_bolus.setReadOnly(True)
         self.input_bolus.clicked.connect(
             lambda: self.open_numpad("heparineBolusQuantity", self.input_bolus, "Bolo (ml)")
@@ -155,23 +101,10 @@ class HeparinConfigScreen(QWidget):
 
         self.btn_apply_bolus = QPushButton("APLICAR\n BOLO")
         self.btn_apply_bolus.setFixedHeight(60)
-        self.btn_apply_bolus.setStyleSheet(button_style)
         self.btn_apply_bolus.clicked.connect(self.apply_bolus)
         h.addWidget(self.btn_apply_bolus)
         bolus_layout.addLayout(h)
 
-#======================no hay flujo de bolo de heparina, por ahora se comenta el combo de flujo========================
-        # Flujo bolo
-        # h = QHBoxLayout()
-        # flujo_label = QLabel("Flujo Bolo Heparina (ml/h):")
-        # flujo_label.setStyleSheet(label_style)
-        # h.addWidget(flujo_label)
-        # self.flow_combo = QComboBox()
-        # self.flow_combo.addItems(["1.0", "2.0", "3.0", "4.0"])
-        # self.flow_combo.setStyleSheet(combo_style)
-        # self.flow_combo.currentIndexChanged.connect(self._on_bolus_flow_changed)
-        # h.addWidget(self.flow_combo)
-        # bolus_layout.addLayout(h)
         bolus_layout.addStretch(1)  # para centrar verticalmente los campos
 
         layout.addWidget(self.bolus_card, 0, 0)
@@ -198,20 +131,13 @@ class HeparinConfigScreen(QWidget):
         ]:
             btn = PushbuttonEvent(text, self)
             btn.setFixedSize(150, 75)
-            btn.setStyleSheet(button_style)
+            self._ctrl_buttons.append(btn)
             if is_toggle:
                 btn.pressed.connect(lambda t=tag: self.on_user_boolean_command(t, True))
             else:
                 btn.pressed.connect(lambda t=tag: self.on_user_boolean_command(t, True))
                 btn.released.connect(lambda t=tag: self.on_user_boolean_command(t, False))
             buttons_layout.addWidget(btn)
-
-        # PAUSE oculto a petición clínica; reactivar si se requiere.
-        # self.btn_pause_hep = PushbuttonEvent("PAUSE", self)
-        # self.btn_pause_hep.setFixedSize(150, 75)
-        # self.btn_pause_hep.setStyleSheet(button_style)
-        # self.btn_pause_hep.pressed.connect(self._toggle_heparin_pause_resume)
-        # buttons_layout.addWidget(self.btn_pause_hep)
 
         ctrls_layout.addLayout(buttons_layout)
         ctrls_layout.addStretch(1)   # para centrar verticalmente los botones
@@ -231,11 +157,6 @@ class HeparinConfigScreen(QWidget):
         heparin_layout.addWidget(title)
 
         self.chk_heparin_enabled = QCheckBox("Habilitar infusión de heparina")
-        self.chk_heparin_enabled.setStyleSheet(
-            "QCheckBox { color: #0f172a; font-size: 20px; background: transparent; }"
-            "QCheckBox::indicator { width: 28px; height: 28px; border: 2px solid #334155; border-radius: 4px; }"
-            "QCheckBox::indicator:checked { background-color: #0f172a; }"
-        )
         self.chk_heparin_enabled.setChecked(True)
         self.chk_heparin_enabled.toggled.connect(self._on_heparin_enabled_toggled)
         heparin_layout.addWidget(self.chk_heparin_enabled)
@@ -252,17 +173,14 @@ class HeparinConfigScreen(QWidget):
         for label_text, tag, widget_name in fields:
             h = QHBoxLayout()
             lbl = QLabel(label_text)
-            lbl.setStyleSheet(label_style)
             lbl.setMinimumHeight(50)   # consistencia
+            self._field_labels.append(lbl)
             h.addWidget(lbl)
-
-
 
             if "input_" in widget_name:
                 w = ClickableLineEdit("0.0" if "auto_stop" not in widget_name else "00:00")
                 w.setFixedSize(130, 52)
                 w.setAlignment(Qt.AlignCenter)
-                w.setStyleSheet(input_style)
                 w.setReadOnly(True)
                 
                 if "auto_stop" in widget_name:
@@ -286,14 +204,12 @@ class HeparinConfigScreen(QWidget):
             elif widget_name == "heparin_flow_combo":
                 w = QComboBox()
                 w.addItems(["1.0", "2.0", "3.0", "4.0"])
-                w.setStyleSheet(combo_style)
                 w.currentIndexChanged.connect(self._on_flow_hep_changed)
                 setattr(self, widget_name, w)
 
             elif widget_name == "syringe_combo":
                 # Jeringa fija a 20 ml (no editable)
                 w = QLabel("20 ml")
-                w.setStyleSheet("font-size: 24px; color: #0f172a; background-color: #e2e8f0; border: 1px solid #cbd5e1; border-radius: 5px; padding: 5px; min-width: 150px; text-align: center;")
                 w.setAlignment(Qt.AlignCenter)
                 w.setFixedSize(150, 52)
                 setattr(self, widget_name, w)
@@ -312,9 +228,72 @@ class HeparinConfigScreen(QWidget):
         layout.setRowStretch(0, 1)
         layout.setRowStretch(1, 1)
 
-#================================FALTA DEFINIR SI HABRÁ FLUJO DE HEPARINA O NO, POR AHORA SE COMENTA EL MÉTODO========================================
+        self._apply_theme_styles()
 
+    def _on_theme_changed(self, _theme_name: str):
+        self._apply_theme_styles()
 
+    def _apply_theme_styles(self):
+        t = ThemeManager.get_tokens()
+        bg_card = t.get("bg_card", "#ffffff")
+        bg_input = t.get("bg_input", "#e2e8f0")
+        text_primary = t.get("text_primary", "#0f172a")
+        text_secondary = t.get("text_secondary", "#334155")
+        border = t.get("border", "#cbd5e1")
+        border_strong = t.get("border_strong", "#64748b")
+        accent = t.get("accent", "#3b82f6")
+        btn_bg = t.get("btn_primary_bg", "#06298a")
+        btn_hover = t.get("btn_primary_hover", "#1e40af")
+
+        self.setStyleSheet(f"""
+            QWidget {{ background-color: transparent; }}
+            QFrame#card {{
+                background-color: {bg_card};
+                border: 1px solid {border};
+                border-radius: 14px;
+            }}
+            QLabel#card_title {{
+                font-family: 'Segoe UI', Arial, sans-serif;
+                color: {text_primary};
+                font-size: 28px;
+                font-weight: bold;
+                border-bottom: 1px solid {border};
+                padding-bottom: 10px;
+                margin-bottom: 12px;
+            }}
+        """)
+
+        button_style = f"""
+            QPushButton {{ 
+                background: {btn_bg}; 
+                color: #ffffff; 
+                border-radius: 20px; 
+                font-weight: bold; 
+                font-size: 18px;
+            }}
+            QPushButton:pressed {{ background: {btn_hover}; }}
+        """
+        for btn in self._ctrl_buttons:
+            btn.setStyleSheet(button_style)
+
+        label_style = f"font-size: 26px; color: {text_secondary}; font-weight: 600;"
+        for lbl in self._field_labels:
+            lbl.setStyleSheet(label_style)
+
+        self.chk_heparin_enabled.setStyleSheet(
+            f"QCheckBox {{ color: {text_primary}; font-size: 20px; background: transparent; }}"
+            f"QCheckBox::indicator {{ width: 28px; height: 28px; border: 2px solid {border_strong}; border-radius: 4px; background: {bg_input}; }}"
+            f"QCheckBox::indicator:checked {{ background-color: {accent}; border-color: {accent}; }}"
+        )
+
+        if hasattr(self, "syringe_combo") and isinstance(self.syringe_combo, QLabel):
+            self.syringe_combo.setStyleSheet(
+                f"font-size: 24px; color: {text_primary}; background-color: {bg_input}; "
+                f"border: 1px solid {border}; border-radius: 5px; padding: 5px; min-width: 150px; text-align: center;"
+            )
+
+        heparin_enabled = bool(self.current_values.get("heparineInfusionEnabled", 1.0))
+        self._apply_disabled_styles(heparin_enabled)
 
 
     def _on_flow_hep_changed(self, index):  
@@ -529,6 +508,19 @@ class HeparinConfigScreen(QWidget):
 
     def _apply_disabled_styles(self, enabled: bool):
         """Aplica estilos QSS para el estado enabled/disabled de controles de heparina."""
+        t = ThemeManager.get_tokens()
+        bg_card = t.get("bg_card", "#ffffff")
+        bg_input = t.get("bg_input", "#e2e8f0")
+        bg_alt = t.get("bg_card_alt", "#f1f5f9")
+        text_primary = t.get("text_primary", "#0f172a")
+        text_secondary = t.get("text_secondary", "#334155")
+        text_muted = t.get("text_muted", "#94a3b8")
+        border = t.get("border", "#cbd5e1")
+        border_strong = t.get("border_strong", "#64748b")
+        accent = t.get("accent", "#3b82f6")
+        btn_bg = t.get("btn_primary_bg", "#06298a")
+        btn_hover = t.get("btn_primary_hover", "#1e40af")
+
         # Detectar si estamos en RUNNING o PAUSED
         is_running_or_paused = False
         if self.parent_window and hasattr(self.parent_window, "state"):
@@ -536,82 +528,82 @@ class HeparinConfigScreen(QWidget):
         
         if enabled:
             # Restaurar estilos normales
-            button_style = """
-                QPushButton { 
-                    background: #06298a; 
+            button_style = f"""
+                QPushButton {{ 
+                    background: {btn_bg}; 
                     color: #ffffff; 
                     border-radius: 20px; 
                     font-weight: bold; 
                     font-size: 18px;
-                }
-                QPushButton:pressed { background: #1e40af; }
+                }}
+                QPushButton:pressed {{ background: {btn_hover}; }}
             """
-            input_style = """
-                ClickableLineEdit {
+            input_style = f"""
+                ClickableLineEdit {{
                     font-family: Consolas, "Courier New", monospace;
                     font-size: 24px;
-                    color: #000000;
-                    background: #e2e8f0;
-                    border: 2px solid #64748b;
+                    color: {text_primary};
+                    background: {bg_input};
+                    border: 2px solid {border_strong};
                     border-radius: 8px;
                     padding: 5px;
                     min-width: 120px;
-                }
-                ClickableLineEdit:focus {
-                    border: 2px solid #3b82f6;
-                    background: #ffffff;
-                }
-                ClickableLineEdit:disabled {
-                    color: #94a3b8;
-                    background-color: #f1f5f9;
-                    border: 2px solid #cbd5e1;
-                }
+                }}
+                ClickableLineEdit:focus {{
+                    border: 2px solid {accent};
+                    background: {bg_card};
+                }}
+                ClickableLineEdit:disabled {{
+                    color: {text_muted};
+                    background-color: {bg_alt};
+                    border: 2px solid {border};
+                }}
             """
             # Estilo para input_heparin_auto_stop en RUNNING/PAUSED: mantener gris
-            input_heparin_auto_stop_style = """
-                ClickableLineEdit {
+            input_heparin_auto_stop_style = f"""
+                ClickableLineEdit {{
                     font-family: Consolas, "Courier New", monospace;
                     font-size: 24px;
-                    color: #94a3b8;
-                    background-color: #f1f5f9;
-                    border: 2px solid #cbd5e1;
+                    color: {text_muted};
+                    background-color: {bg_alt};
+                    border: 2px solid {border};
                     border-radius: 8px;
                     padding: 5px;
                     min-width: 120px;
-                }
-                ClickableLineEdit:focus {
-                    color: #94a3b8;
-                    background-color: #f1f5f9;
-                    border: 2px solid #cbd5e1;
-                }
-                ClickableLineEdit:disabled {
-                    color: #94a3b8;
-                    background-color: #f1f5f9;
-                    border: 2px solid #cbd5e1;
-                }
+                }}
+                ClickableLineEdit:focus {{
+                    color: {text_muted};
+                    background-color: {bg_alt};
+                    border: 2px solid {border};
+                }}
+                ClickableLineEdit:disabled {{
+                    color: {text_muted};
+                    background-color: {bg_alt};
+                    border: 2px solid {border};
+                }}
             """
-            combo_style = """
-                QComboBox {
+            combo_style = f"""
+                QComboBox {{
                     font-size: 24px;
                     min-width: 180px;
-                    color: #0f172a;
-                    background-color: #ffffff;
-                    border: 1px solid #cbd5e1;
+                    color: {text_primary};
+                    background-color: {bg_card};
+                    border: 1px solid {border};
                     border-radius: 5px;
                     padding: 5px;
-                }
-                QComboBox::drop-down {
+                }}
+                QComboBox::drop-down {{
                     border: none;
-                }
-                QComboBox QAbstractItemView {
-                    background-color: #ffffff;
-                    color: #0f172a;
-                    selection-background-color: #cbd5e1;
-                    selection-color: #0f172a;
-                    border: 1px solid #cbd5e1;
-                }
+                }}
+                QComboBox QAbstractItemView {{
+                    background-color: {bg_card};
+                    color: {text_primary};
+                    selection-background-color: {accent};
+                    selection-color: #ffffff;
+                    border: 1px solid {border};
+                }}
             """
-            label_style = "font-size: 26px; color: #334155; font-weight: 600;"
+            label_style = f"font-size: 26px; color: {text_secondary}; font-weight: 600;"
             
             self.btn_apply_bolus.setStyleSheet(button_style)
             self.input_bolus.setStyleSheet(input_style)
@@ -636,27 +628,27 @@ class HeparinConfigScreen(QWidget):
                     widget.setStyleSheet(input_style)
         else:
             # Estilos para estado disabled (gris)
-            disabled_button_style = """
-                QPushButton:disabled {
-                    background-color: #94a3b8;
-                    color: #e2e8f0;
-                }
+            disabled_button_style = f"""
+                QPushButton:disabled {{
+                    background-color: {text_muted};
+                    color: {bg_alt};
+                }}
             """
-            disabled_input_style = """
-                ClickableLineEdit:disabled {
-                    color: #94a3b8;
-                    background-color: #f1f5f9;
-                    border: 2px solid #cbd5e1;
-                }
+            disabled_input_style = f"""
+                ClickableLineEdit:disabled {{
+                    color: {text_muted};
+                    background-color: {bg_alt};
+                    border: 2px solid {border};
+                }}
             """
-            disabled_combo_style = """
-                QComboBox:disabled {
-                    color: #94a3b8;
-                    background-color: #f1f5f9;
-                    border: 1px solid #cbd5e1;
-                }
+            disabled_combo_style = f"""
+                QComboBox:disabled {{
+                    color: {text_muted};
+                    background-color: {bg_alt};
+                    border: 1px solid {border};
+                }}
             """
-            disabled_label_style = "font-size: 26px; color: #94a3b8; font-weight: 600;"
+            disabled_label_style = f"font-size: 26px; color: {text_muted}; font-weight: 600;"
             
             self.btn_apply_bolus.setStyleSheet(disabled_button_style)
             self.input_bolus.setStyleSheet(disabled_input_style)
@@ -887,15 +879,3 @@ class HeparinConfigScreen(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         self.setFocus()
-
-
-        
-        # Fila 0
-           # Abajo Izquierda (debajo de bolo)
-        
-        # Aquí puedes poner un placeholder para tus futuros controles
-        # future_frame = QFrame()
-        # # future_frame.setStyleSheet(...)
-        # content_layout.addWidget(future_frame, 1, 1) # Abajo Derecha (debajo de params)
-
-   

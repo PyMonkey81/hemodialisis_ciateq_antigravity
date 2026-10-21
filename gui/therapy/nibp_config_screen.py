@@ -15,6 +15,7 @@ import json
 import logging
 
 from gui.components.floating_confirm import FloatingConfirmDialog
+from gui.theme_manager import ThemeManager
 from utilities.platform_runtime import get_runtime_config_path, safe_json_load
 
 logger = logging.getLogger(__name__)
@@ -62,11 +63,14 @@ class NibpConfigScreen(QWidget):
         self._config = self._load_config()
 
         self.setObjectName("NibpConfigScreen")
-        self.setStyleSheet("QWidget#NibpConfigScreen { background-color: #FCFCFC; }")
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         self.setup_ui()
         self._apply_config_to_ui()
+        try:
+            ThemeManager.instance().theme_changed.connect(self._on_theme_changed)
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------
     # Persistencia
@@ -90,65 +94,16 @@ class NibpConfigScreen(QWidget):
     # UI
     # ------------------------------------------------------------------
     def setup_ui(self):
-        combo_style = """
-            QComboBox {
-                font-size: 22px;
-                min-width: 200px;
-                color: #0f172a;
-                background-color: #ffffff;
-                border: 1px solid #cbd5e1;
-                border-radius: 6px;
-                padding: 6px 10px;
-            }
-            QComboBox QAbstractItemView {
-                background-color: #ffffff;
-                color: #0f172a;
-                selection-background-color: #cbd5e1;
-                selection-color: #0f172a;
-                border: 1px solid #cbd5e1;
-            }
-        """
-        chk_style = """
-            QCheckBox { color: #0f172a; font-size: 20px; background: transparent; }
-            QCheckBox::indicator { width: 28px; height: 28px; border: 2px solid #334155; border-radius: 4px; }
-            QCheckBox::indicator:checked { background-color: #0f172a; }
-        """
-        btn_style = """
-            QPushButton {
-                background-color: #06298a;
-                color: #ffffff;
-                font-size: 22px;
-                font-weight: bold;
-                padding: 12px 28px;
-                border-radius: 10px;
-                min-height: 70px;
-            }
-            QPushButton:hover { background-color: #1e293b; }
-            QPushButton:pressed { background-color: #334155; }
-        """
-        
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(7, 7, 7, 7)
         main_layout.setSpacing(10)
 
         header_layout = QHBoxLayout()
-        title = QLabel("Baumanómetro PAR NIBP2020 UP")
-        title.setStyleSheet("font-size: 28px; font-weight: bold; color: #0f172a; background: transparent;")
-        header_layout.addWidget(title)
+        self.lbl_main_title = QLabel("Baumanómetro PAR NIBP2020 UP")
+        header_layout.addWidget(self.lbl_main_title)
         header_layout.addStretch()
 
         self.btn_close = QPushButton("Cerrar")
-        self.btn_close.setStyleSheet("""
-            QPushButton {
-                background-color: #64748b;
-                color: #ffffff;
-                font-size: 20px;
-                font-weight: bold;
-                padding: 10px 20px;
-                border-radius: 8px;
-            }
-            QPushButton:hover { background-color: #475569; }
-        """)
         self.btn_close.clicked.connect(self._on_close_clicked)
         header_layout.addWidget(self.btn_close)
         main_layout.addLayout(header_layout)
@@ -156,6 +111,10 @@ class NibpConfigScreen(QWidget):
         grid = QGridLayout()
         grid.setSpacing(16)
         grid.setContentsMargins(7, 7, 7, 7)
+
+        self._card_titles = []
+        self._value_labels = []
+        self._hint_labels = []
 
         # ─── CARD 1: LECTURA ACTUAL ───────────────────────────────────────
         reading_card, reading_layout = self._make_card("Lectura actual", _CARD_ROW0_MIN_HEIGHT, fixed_width=False)
@@ -175,22 +134,18 @@ class NibpConfigScreen(QWidget):
         inf_row.setSpacing(20)
 
         self.lbl_cuff = QLabel("Manguito: — mmHg")
-        self.lbl_cuff.setStyleSheet("font-size: 22px; color: #0f172a;")
         inf_row.addWidget(self.lbl_cuff)
 
         self.lbl_status = QLabel("Desconectado")
-
-        self.lbl_status.setStyleSheet("font-size: 20px; color: #475569;")
         inf_row.addWidget(self.lbl_status)
         reading_layout.addLayout(inf_row)
 
         self.lbl_nibp_error = QLabel("")
-        self.lbl_nibp_error.setStyleSheet("font-size: 16px; color: #b91c1c;")
         self.lbl_nibp_error.setWordWrap(True)
         reading_layout.addWidget(self.lbl_nibp_error)
 
         hint_label = QLabel("Colocar el manguito en el brazo contrario a la fístula.")
-        hint_label.setStyleSheet("font-size: 16px; color: #64748b;")
+        self._hint_labels.append(hint_label)
         reading_layout.addWidget(hint_label)
         reading_layout.addStretch()
 
@@ -200,7 +155,6 @@ class NibpConfigScreen(QWidget):
         method_card, method_layout = self._make_card("Método", _CARD_ROW0_MIN_HEIGHT)
 
         self.cmb_method = QComboBox()
-        self.cmb_method.setStyleSheet(combo_style)
         for code, label in METHOD_LABELS.items():
             self.cmb_method.addItem(label, code)
         method_layout.addWidget(self.cmb_method)
@@ -212,7 +166,6 @@ class NibpConfigScreen(QWidget):
         pressure_card, pressure_layout = self._make_card("Presión de arranque", _CARD_ROW1_MIN_HEIGHT)
 
         self.cmb_start_pressure = QComboBox()
-        self.cmb_start_pressure.setStyleSheet(combo_style)
         for pressure in START_PRESSURE_OPTIONS_MMHG:
             self.cmb_start_pressure.addItem(f"{pressure} mmHg", pressure)
         pressure_layout.addWidget(self.cmb_start_pressure)
@@ -225,25 +178,22 @@ class NibpConfigScreen(QWidget):
         auto_card, auto_layout = self._make_card("Configuración", _CARD_ROW1_MIN_HEIGHT)
 
         self.chk_auto = QCheckBox("Medición automática durante la terapia")
-        self.chk_auto.setStyleSheet(chk_style)
         auto_layout.addWidget(self.chk_auto)
 
         interval_row = QHBoxLayout()
         interval_row.setSpacing(10)
-        lbl_interval = QLabel("Intervalo:")
-        lbl_interval.setStyleSheet("font-size: 22px; color: #0f172a;")
+        self.lbl_interval = QLabel("Intervalo:")
         self.cmb_interval = QComboBox()
-        self.cmb_interval.setStyleSheet(combo_style)
         for minutes in INTERVAL_OPTIONS_MIN:
             self.cmb_interval.addItem(f"{minutes} min", minutes)
-        interval_row.addWidget(lbl_interval)
+        interval_row.addWidget(self.lbl_interval)
         interval_row.addWidget(self.cmb_interval)
         interval_row.addStretch()
         auto_layout.addLayout(interval_row)
 
         auto_hint = QLabel("Se activará cuando la terapia esté en RUNNING.")
-        auto_hint.setStyleSheet("font-size: 16px; color: #64748b;")
         auto_hint.setWordWrap(True)
+        self._hint_labels.append(auto_hint)
         auto_layout.addWidget(auto_hint)
         auto_layout.addStretch()
 
@@ -253,7 +203,6 @@ class NibpConfigScreen(QWidget):
         spo2_card, spo2_layout = self._make_card("SpO2", _CARD_ROW1_MIN_HEIGHT)
 
         self.chk_spo2 = QCheckBox("SpO2")
-        self.chk_spo2.setStyleSheet(chk_style)
         self.chk_spo2.toggled.connect(self._on_chk_spo2_toggled)
         spo2_layout.addWidget(self.chk_spo2)
 
@@ -277,19 +226,15 @@ class NibpConfigScreen(QWidget):
         buttons_grid.setContentsMargins(0, 0, 0, 0)
 
         self.btn_measure_now = QPushButton("Medir\n ahora")
-        self.btn_measure_now.setStyleSheet(btn_style)
         self.btn_measure_now.clicked.connect(self.measure_now_requested.emit)
 
         self.btn_apply = QPushButton("Aplicar")
-        self.btn_apply.setStyleSheet(btn_style)
         self.btn_apply.clicked.connect(self._on_apply_clicked)
 
         self.btn_reset = QPushButton("Reset\n módulo")
-        self.btn_reset.setStyleSheet(btn_style)
         self.btn_reset.clicked.connect(self._on_reset_clicked)
 
         self.btn_history = QPushButton("Historial")
-        self.btn_history.setStyleSheet(btn_style)
         self.btn_history.clicked.connect(self.history_requested.emit)
 
         # Fila 0: botones en columnas 0, 1, 2
@@ -311,6 +256,110 @@ class NibpConfigScreen(QWidget):
         main_layout.addLayout(grid)
         main_layout.addStretch()
 
+        self._apply_theme_styles()
+
+    def _on_theme_changed(self, _theme_name: str):
+        self._apply_theme_styles()
+
+    def _apply_theme_styles(self):
+        t = ThemeManager.get_tokens()
+        bg_primary = t.get("bg_primary", "#FCFCFC")
+        bg_card = t.get("bg_card", "#ffffff")
+        bg_input = t.get("bg_input", "#ffffff")
+        text_primary = t.get("text_primary", "#0f172a")
+        text_secondary = t.get("text_secondary", "#475569")
+        text_muted = t.get("text_muted", "#64748b")
+        border = t.get("border", "#cbd5e1")
+        border_strong = t.get("border_strong", "#94a3b8")
+        accent = t.get("accent", "#2563eb")
+        btn_bg = t.get("btn_primary_bg", "#06298a")
+        btn_hover = t.get("btn_primary_hover", "#1e293b")
+
+        self.setStyleSheet(f"""
+            QWidget#NibpConfigScreen {{ background-color: {bg_primary}; }}
+            QFrame#card {{
+                background-color: {bg_card};
+                border: 1px solid {border};
+                border-radius: 14px;
+            }}
+        """)
+        self.lbl_main_title.setStyleSheet(
+            f"font-size: 28px; font-weight: bold; color: {text_primary}; background: transparent;"
+        )
+        self.btn_close.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {t.get('btn_secondary_bg', '#64748b')};
+                color: {t.get('btn_secondary_text', '#ffffff')};
+                font-size: 20px;
+                font-weight: bold;
+                padding: 10px 20px;
+                border-radius: 8px;
+                border: 1px solid {border};
+            }}
+            QPushButton:hover {{ background-color: {accent}; color: #ffffff; }}
+        """)
+
+        combo_style = f"""
+            QComboBox {{
+                font-size: 22px;
+                min-width: 200px;
+                color: {text_primary};
+                background-color: {bg_input};
+                border: 1px solid {border};
+                border-radius: 6px;
+                padding: 6px 10px;
+            }}
+            QComboBox QAbstractItemView {{
+                background-color: {bg_card};
+                color: {text_primary};
+                selection-background-color: {accent};
+                selection-color: #ffffff;
+                border: 1px solid {border};
+            }}
+        """
+        for cmb in (self.cmb_method, self.cmb_start_pressure, self.cmb_interval):
+            cmb.setStyleSheet(combo_style)
+
+        chk_style = f"""
+            QCheckBox {{ color: {text_primary}; font-size: 20px; background: transparent; }}
+            QCheckBox::indicator {{ width: 28px; height: 28px; border: 2px solid {border_strong}; border-radius: 4px; background: {bg_input}; }}
+            QCheckBox::indicator:checked {{ background-color: {accent}; border-color: {accent}; }}
+        """
+        for chk in (self.chk_auto, self.chk_spo2):
+            chk.setStyleSheet(chk_style)
+
+        btn_style = f"""
+            QPushButton {{
+                background-color: {btn_bg};
+                color: #ffffff;
+                font-size: 22px;
+                font-weight: bold;
+                padding: 12px 28px;
+                border-radius: 10px;
+                min-height: 70px;
+            }}
+            QPushButton:hover {{ background-color: {btn_hover}; }}
+            QPushButton:pressed {{ background-color: {accent}; }}
+            QPushButton:disabled {{ background-color: {border}; color: {text_muted}; }}
+        """
+        for btn in (self.btn_measure_now, self.btn_apply, self.btn_reset, self.btn_history):
+            btn.setStyleSheet(btn_style)
+
+        for title_lbl in self._card_titles:
+            title_lbl.setStyleSheet(
+                f"font-size: 20px; font-weight: bold; color: {text_primary}; background: transparent;"
+                f"padding-bottom: 6px; border: none; border-bottom: 1px solid {border};"
+            )
+        for val_lbl in self._value_labels:
+            val_lbl.setStyleSheet(f"font-size: 26px; font-weight: bold; color: {text_primary};")
+        for h_lbl in self._hint_labels:
+            h_lbl.setStyleSheet(f"font-size: 16px; color: {text_muted};")
+
+        self.lbl_cuff.setStyleSheet(f"font-size: 22px; color: {text_primary};")
+        self.lbl_status.setStyleSheet(f"font-size: 20px; color: {text_secondary};")
+        self.lbl_nibp_error.setStyleSheet(f"font-size: 16px; color: {t.get('danger', '#b91c1c')};")
+        self.lbl_interval.setStyleSheet(f"font-size: 22px; color: {text_primary};")
+
     def _make_card(self, title_text: str, min_height: int, fixed_width: bool = True):
         """Card con patrón uniforme: título (con raya via QSS) + widgets añadidos directo al layout del card."""
         card = QFrame()
@@ -327,17 +376,14 @@ class NibpConfigScreen(QWidget):
         title = QLabel(title_text)
         title.setObjectName("card_title")
         title.setMinimumHeight(28)
-        title.setStyleSheet(
-            "font-size: 20px; font-weight: bold; color: #0f172a; background: transparent;"
-            "padding-bottom: 6px; border: none; border-bottom: 1px solid #94a3b8;"
-        )
+        self._card_titles.append(title)
         card_layout.addWidget(title)
 
         return card, card_layout
 
     def _make_value_label(self, name: str, value: str) -> QLabel:
         label = QLabel(f"{name}: {value}")
-        label.setStyleSheet("font-size: 26px; font-weight: bold; color: #0f172a;")
+        self._value_labels.append(label)
         return label
 
     # ------------------------------------------------------------------
