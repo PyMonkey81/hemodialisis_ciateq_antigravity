@@ -299,6 +299,8 @@ class ThemeManager(QObject):
             "table_row_alt": "#090D16",
             "table_sel_bg": "#FACC15",
             "table_sel_text": "#000000",
+            "font_size_param_label": "26px",
+            "font_size_param_val": "32px",
         },
     }
 
@@ -604,6 +606,14 @@ class ThemeManager(QObject):
         base.setdefault("nav_btn_disabled", base.get("btn_disabled_bg", "#334155"))
         base.setdefault("val_green", base.get("val_temp", "#15803D"))
         base.setdefault("val_cyan", base.get("val_uf", "#0369A1"))
+
+        # Tokens tipográficos escalables y configurables por tema
+        base.setdefault("font_size_param_label", "25px")
+        base.setdefault("font_size_param_val", "30px")
+        base.setdefault("font_size_param_unit", "22px")
+        base.setdefault("font_size_val_large", "48px")
+        base.setdefault("font_size_card_title", "20px")
+        base.setdefault("font_size_vital_val", "24px")
         return base
 
     def _load_saved_settings(self):

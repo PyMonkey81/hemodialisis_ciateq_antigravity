@@ -616,42 +616,49 @@ class DialysisScreen(QWidget):
         ):
             card.setStyleSheet(card_style)
 
+        lbl_size = tokens.get("font_size_param_label", "25px")
+        val_size = tokens.get("font_size_param_val", "30px")
+        unit_size = tokens.get("font_size_param_unit", "22px")
+        large_size = tokens.get("font_size_val_large", "48px")
+        title_size = tokens.get("font_size_card_title", "20px")
+        vital_size = tokens.get("font_size_vital_val", "24px")
+
         title_style = (
-            f"color: {tokens['title_color']}; font-size: 19px; font-weight: bold; "
+            f"color: {tokens['title_color']}; font-size: {title_size}; font-weight: bold; "
             f"background: transparent; border: none; border-bottom: 2px solid {tokens['border_card']}; "
             f"padding-bottom: 6px; margin-bottom: 4px;"
         )
         for t_lbl in (self.blood_title, self.dialysate_title, self.uf_title, self.vitals_title):
             t_lbl.setStyleSheet(title_style)
 
-        sublabel_style = f"font-size: 20px; color: {tokens['text_secondary']}; font-weight: 600; border: none;"
+        sublabel_style = f"font-size: {lbl_size}; color: {tokens['text_secondary']}; font-weight: 600; border: none;"
         for lbl in self.themed_sublabels:
             lbl.setStyleSheet(sublabel_style)
 
-        unit_style = f"font-size: 22px; color: {tokens['text_muted']}; font-weight: 600; border: none;"
+        unit_style = f"font-size: {unit_size}; color: {tokens['text_muted']}; font-weight: 600; border: none;"
         for u_lbl in self.themed_unit_labels:
             u_lbl.setStyleSheet(unit_style)
 
         mono = ThemeManager.DEFAULT_MONOSPACE_FONTS
         self.bfr_value.setStyleSheet(
-            f"color: {tokens['val_blood']}; font-family: {mono}; font-size: 48px; font-weight: bold; border: none;"
+            f"color: {tokens['val_blood']}; font-family: {mono}; font-size: {large_size}; font-weight: bold; border: none;"
         )
         self.temp_value.setStyleSheet(
-            f"color: {tokens['val_temp']}; font-family: {mono}; font-size: 48px; font-weight: bold; border: none;"
+            f"color: {tokens['val_temp']}; font-family: {mono}; font-size: {large_size}; font-weight: bold; border: none;"
         )
         self.uf_goal_val.setStyleSheet(
-            f"color: {tokens['val_uf']}; font-family: {mono}; font-size: 48px; font-weight: bold; border: none;"
+            f"color: {tokens['val_uf']}; font-family: {mono}; font-size: {large_size}; font-weight: bold; border: none;"
         )
 
         self.art_p_value.setStyleSheet(
-            f"color: {tokens['val_blood']}; font-weight: bold; font-family: {mono}; font-size: 26px; border: none;"
+            f"color: {tokens['val_blood']}; font-weight: bold; font-family: {mono}; font-size: {val_size}; border: none;"
         )
         self.ven_p_value.setStyleSheet(
-            f"color: {tokens['val_venous']}; font-weight: bold; font-family: {mono}; font-size: 26px; border: none;"
+            f"color: {tokens['val_venous']}; font-weight: bold; font-family: {mono}; font-size: {val_size}; border: none;"
         )
 
         val_secondary_style = (
-            f"color: {tokens['val_venous']}; font-weight: bold; font-family: {mono}; font-size: 25px; border: none;"
+            f"color: {tokens['val_venous']}; font-weight: bold; font-family: {mono}; font-size: {val_size}; border: none;"
         )
         for v_lbl in (self.cond_val, self.dfr_val_label, self.tmp_val, self.uf_rate_val, self.uf_rem_val, self.ktv_val):
             v_lbl.setStyleSheet(val_secondary_style)
@@ -661,16 +668,16 @@ class DialysisScreen(QWidget):
         # )
 
         self.nibp_value.setStyleSheet(
-            f"color: {tokens['val_vital_bp']}; font-weight: bold; font-size: 22px; font-family: {mono}; border: none;"
+            f"color: {tokens['val_vital_bp']}; font-weight: bold; font-size: {vital_size}; font-family: {mono}; border: none;"
         )
         self.hr_value.setStyleSheet(
-            f"color: {tokens['val_vital_hr']}; font-weight: bold; font-size: 22px; font-family: {mono}; border: none;"
+            f"color: {tokens['val_vital_hr']}; font-weight: bold; font-size: {vital_size}; font-family: {mono}; border: none;"
         )
-        self.hr_unit.setStyleSheet(f"color: {tokens['text_muted']}; font-size: 14px; margin-left: 4px; border: none;")
+        self.hr_unit.setStyleSheet(f"color: {tokens['text_muted']}; font-size: 15px; margin-left: 4px; border: none;")
         self.spo2_value.setStyleSheet(
-            f"color: {tokens['val_vital_spo2']}; font-weight: bold; font-size: 22px; font-family: {mono}; border: none;"
+            f"color: {tokens['val_vital_spo2']}; font-weight: bold; font-size: {vital_size}; font-family: {mono}; border: none;"
         )
-        self.spo2_status_label.setStyleSheet(f"color: {tokens['text_muted']}; font-size: 14px; border: none;")
+        self.spo2_status_label.setStyleSheet(f"color: {tokens['text_muted']}; font-size: 15px; border: none;")
 
         self.btn_nibp_screen.setStyleSheet(f"""
             QPushButton {{
