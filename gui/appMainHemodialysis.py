@@ -262,20 +262,7 @@ class HemodialysisHMI(QMainWindow):
         }
     """
 
-    @staticmethod
-    def _desaturate_pixmap(pixmap: QPixmap) -> QPixmap:
-        if pixmap.isNull():
-            return pixmap
-        img = pixmap.toImage().convertToFormat(QImage.Format_ARGB32)
-        for y in range(img.height()):
-            for x in range(img.width()):
-                c = img.pixelColor(x, y)
-                gray = int(0.299 * c.red() + 0.587 * c.green() + 0.114 * c.blue())
-                c.setRed(gray)
-                c.setGreen(gray)
-                c.setBlue(gray)
-                img.setPixelColor(x, y, c)
-        return QPixmap.fromImage(img)
+
 
     def _build_header_label_style(self, background: str = "", is_process: bool = False) -> str:
         tokens = ThemeManager.get_tokens()
@@ -1659,18 +1646,7 @@ class HemodialysisHMI(QMainWindow):
             if logo_lbl is not None:
                 logo_lbl.setStyleSheet(logo_style)
 
-        # Dynamic in-memory desaturation of logos for monochrome theme
-        is_mono = bool(t.get("monochrome", False))
-        if hasattr(self, "_orig_pixmap_logo1") and hasattr(self, "_orig_pixmap_logo2"):
-            if is_mono:
-                if not hasattr(self, "_mono_pixmap_logo1"):
-                    self._mono_pixmap_logo1 = self._desaturate_pixmap(self._orig_pixmap_logo1)
-                    self._mono_pixmap_logo2 = self._desaturate_pixmap(self._orig_pixmap_logo2)
-                self.logo1.setPixmap(self._mono_pixmap_logo1)
-                self.logo2.setPixmap(self._mono_pixmap_logo2)
-            else:
-                self.logo1.setPixmap(self._orig_pixmap_logo1)
-                self.logo2.setPixmap(self._orig_pixmap_logo2)
+
 
         for lbl_attr in ("treatment_mode_selected", "remaining_time_display", "date_time_label"):
             lbl = getattr(self, lbl_attr, None)

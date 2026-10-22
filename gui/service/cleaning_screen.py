@@ -105,8 +105,9 @@ class CleaningScreen(QWidget):
 
         # Frame para Selección de Modo
         self.mode_frame = QFrame()
-        self.mode_frame.setStyleSheet("background: #fcfcfc; border-radius: 10px; padding: 15px;")
+        self.mode_frame.setStyleSheet("background: #fcfcfc; border-radius: 10px;")
         mode_layout = QHBoxLayout(self.mode_frame)
+        mode_layout.setContentsMargins(15, 12, 15, 12)
         mode_layout.setSpacing(20)
 
         self.btn_mode_group = QButtonGroup(self)
@@ -114,25 +115,29 @@ class CleaningScreen(QWidget):
 
         self.btn_short = QPushButton("Desinfección Química Corta")
         self.btn_long = QPushButton("Desinfección Química Larga")
+        self.btn_short.setFixedHeight(75)
+        self.btn_long.setFixedHeight(75)
+        self.btn_short.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.btn_long.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         # Estilos de los botones para los modos de limpieza
         self.style_unchecked = """
             QPushButton {
                 background: #3b82f6; color: #ffffff; font-size: 24px; font-weight: bold;
-                border-radius: 12px; padding: 15px; border: 2px solid #2563eb;
+                border-radius: 12px; padding: 6px 16px; border: 2px solid #2563eb;
             }
             QPushButton:hover { background: #60a5fa; }
         """
         self.style_checked = """
             QPushButton {
                 background: #22c55e; color: #ffffff; font-size: 24px; font-weight: bold;
-                border-radius: 12px; padding: 15px; border: 2px solid #16a34a;
+                border-radius: 12px; padding: 6px 16px; border: 2px solid #16a34a;
             }
         """
         self.style_disabled = """
             QPushButton {
                 background: #334155; color: #64748b; font-size: 24px; font-weight: bold;
-                border-radius: 12px; padding: 15px; border: 2px solid #475569;
+                border-radius: 12px; padding: 6px 16px; border: 2px solid #475569;
             }
         """
 
@@ -831,11 +836,11 @@ class CleaningScreen(QWidget):
 
         if is_mono:
             title_color = "#374151"
-            mode_frame_style = "background: #FFFFFF; border: 1px solid #D1D5DB; border-radius: 10px; padding: 15px;"
+            mode_frame_style = "background: #FFFFFF; border: 1px solid #D1D5DB; border-radius: 10px;"
             self.style_unchecked = """
                 QPushButton {
                     background: #D9E0E8; color: #374151; font-size: 24px; font-weight: bold;
-                    border-radius: 12px; padding: 15px; border: 2px solid #C5CDD6;
+                    border-radius: 12px; padding: 6px 16px; border: 2px solid #C5CDD6;
                 }
                 QPushButton:hover { background: #C5CED6; }
                 QPushButton:pressed { background: #B0B8C4; }
@@ -843,13 +848,13 @@ class CleaningScreen(QWidget):
             self.style_checked = """
                 QPushButton {
                     background: #9CA3AF; color: #111827; font-size: 24px; font-weight: bold;
-                    border-radius: 12px; padding: 15px; border: 2px solid #6B7280;
+                    border-radius: 12px; padding: 6px 16px; border: 2px solid #6B7280;
                 }
             """
             self.style_disabled = """
                 QPushButton {
                     background: #E5E7EB; color: #B0B8C2; font-size: 24px; font-weight: bold;
-                    border-radius: 12px; padding: 15px; border: 2px solid #D1D5DB;
+                    border-radius: 12px; padding: 6px 16px; border: 2px solid #D1D5DB;
                 }
             """
             phase_lbl_style = "color: #374151; font-size: 32px; font-weight: bold; background: transparent; min-height: 60px;"
@@ -884,24 +889,24 @@ class CleaningScreen(QWidget):
             """
         elif is_dark:
             title_color = tokens.get('text_primary', '#F8FAFC')
-            mode_frame_style = f"background: {tokens.get('bg_card', '#1E293B')}; border: 1px solid {tokens.get('border_card', '#334155')}; border-radius: 10px; padding: 15px;"
+            mode_frame_style = f"background: {tokens.get('bg_card', '#1E293B')}; border: 1px solid {tokens.get('border_card', '#334155')}; border-radius: 10px;"
             self.style_unchecked = f"""
                 QPushButton {{
                     background: {tokens.get('primary', '#38BDF8')}; color: #ffffff; font-size: 24px; font-weight: bold;
-                    border-radius: 12px; padding: 15px; border: 2px solid {tokens.get('primary_hover', '#0284C7')};
+                    border-radius: 12px; padding: 6px 16px; border: 2px solid {tokens.get('primary_hover', '#0284C7')};
                 }}
                 QPushButton:hover {{ background: {tokens.get('primary_hover', '#0284C7')}; }}
             """
             self.style_checked = f"""
                 QPushButton {{
                     background: {tokens.get('success', '#10B981')}; color: #ffffff; font-size: 24px; font-weight: bold;
-                    border-radius: 12px; padding: 15px; border: 2px solid {tokens.get('border_strong', '#059669')};
+                    border-radius: 12px; padding: 6px 16px; border: 2px solid {tokens.get('border_strong', '#059669')};
                 }}
             """
             self.style_disabled = f"""
                 QPushButton {{
                     background: {tokens.get('btn_disabled_bg', '#334155')}; color: {tokens.get('btn_disabled_text', '#64748b')}; font-size: 24px; font-weight: bold;
-                    border-radius: 12px; padding: 15px; border: 2px solid {tokens.get('border_card', '#475569')};
+                    border-radius: 12px; padding: 6px 16px; border: 2px solid {tokens.get('border_card', '#475569')};
                 }}
             """
             phase_lbl_style = f"color: {tokens.get('text_secondary', '#94A3B8')}; font-size: 32px; font-weight: bold; background: transparent; min-height: 60px;"
@@ -934,24 +939,24 @@ class CleaningScreen(QWidget):
             """
         else:
             title_color = "#cbd5e1"
-            mode_frame_style = "background: #fcfcfc; border-radius: 10px; padding: 15px;"
+            mode_frame_style = "background: #fcfcfc; border-radius: 10px;"
             self.style_unchecked = """
                 QPushButton {
                     background: #3b82f6; color: #ffffff; font-size: 24px; font-weight: bold;
-                    border-radius: 12px; padding: 15px; border: 2px solid #2563eb;
+                    border-radius: 12px; padding: 6px 16px; border: 2px solid #2563eb;
                 }
                 QPushButton:hover { background: #60a5fa; }
             """
             self.style_checked = """
                 QPushButton {
                     background: #22c55e; color: #ffffff; font-size: 24px; font-weight: bold;
-                    border-radius: 12px; padding: 15px; border: 2px solid #16a34a;
+                    border-radius: 12px; padding: 6px 16px; border: 2px solid #16a34a;
                 }
             """
             self.style_disabled = """
                 QPushButton {
                     background: #334155; color: #64748b; font-size: 24px; font-weight: bold;
-                    border-radius: 12px; padding: 15px; border: 2px solid #475569;
+                    border-radius: 12px; padding: 6px 16px; border: 2px solid #475569;
                 }
             """
             phase_lbl_style = "color: #94a3b8; font-size: 32px; font-weight: bold; background: transparent; min-height: 60px;"
