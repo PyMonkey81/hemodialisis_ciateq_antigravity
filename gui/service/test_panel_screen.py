@@ -1,3 +1,4 @@
+from gui.theme_manager import ThemeManager
 # gui/service/test_panel_screen.py
 # Test / Diagnostic panel screen for hemodialysis machine verification and manual control
 
@@ -119,6 +120,11 @@ class TestPanelScreen(QWidget):
         self.time_axis = np.arange(-self.history_length + 1, 1, dtype=np.float32)
 
         self.setup_ui()
+        self.apply_theme_styles()
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self.apply_theme_styles())
+        except Exception:
+            pass
         logger.info("Test panel module initialized (v1.0.0)")
 
     def setup_ui(self):
@@ -139,10 +145,10 @@ class TestPanelScreen(QWidget):
         """
 
         # ── Top Control Area (Input Setpoints & Readings)──────────────────────────
-        control_area = QFrame() # Changed to QFrame for styling ease
-        control_area.setStyleSheet("background: #fcfcfc; border-radius: 10px; border: 2px solid #1e293b;") # White background
-        control_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        grid_top = QGridLayout(control_area)
+        self.control_area = QFrame() # Changed to QFrame for styling ease
+        self.control_area.setStyleSheet("background: #fcfcfc; border-radius: 10px; border: 2px solid #1e293b;") # White background
+        self.control_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        grid_top = QGridLayout(self.control_area)
         grid_top.setSpacing(15)
         grid_top.setContentsMargins(10, 10, 10, 10)
 
@@ -271,10 +277,10 @@ class TestPanelScreen(QWidget):
 
 
         # ── Bottom Control Area (Pressures & Navigation) ─────────────────────────
-        bottom_control = QFrame() # Changed to QFrame for styling ease
-        bottom_control.setStyleSheet("background: #fcfcfc; border-radius: 10px; border: 2px solid #1e293b;") # White background
-        bottom_control.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        grid_bottom = QGridLayout(bottom_control)
+        self.bottom_control = QFrame() # Changed to QFrame for styling ease
+        self.bottom_control.setStyleSheet("background: #fcfcfc; border-radius: 10px; border: 2px solid #1e293b;") # White background
+        self.bottom_control.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        grid_bottom = QGridLayout(self.bottom_control)
         grid_bottom.setSpacing(15)
         grid_bottom.setContentsMargins(5, 5, 5, 5) #
 
@@ -306,26 +312,26 @@ class TestPanelScreen(QWidget):
         self.label_pt10 = self._add_output_row(grid_bottom, row, col, "PT-10", "mmHg", label_style=label_style, indicator_style=indicator_style)
         col += 3
 
-        btn_controller = QPushButton("Controlador")
-        btn_controller.setStyleSheet(button_style)
-        btn_controller.setFixedSize(200, 70)
-        btn_controller.clicked.connect(self.parent_window.show_calibration_screen)
-        grid_bottom.addWidget(btn_controller, row, col)
+        self.btn_controller = QPushButton("Controlador")
+        self.btn_controller.setStyleSheet(button_style)
+        self.btn_controller.setFixedSize(200, 70)
+        self.btn_controller.clicked.connect(self.parent_window.show_calibration_screen)
+        grid_bottom.addWidget(self.btn_controller, row, col)
 
         col += 3
-        btn_manual = QPushButton("Op. Manual")
-        btn_manual.setStyleSheet(button_style)
-        btn_manual.setFixedSize(200, 70)
-        btn_manual.clicked.connect(self.parent_window.show_manual_mode_screen)
-        grid_bottom.addWidget(btn_manual, row, col)
+        self.btn_manual = QPushButton("Op. Manual")
+        self.btn_manual.setStyleSheet(button_style)
+        self.btn_manual.setFixedSize(200, 70)
+        self.btn_manual.clicked.connect(self.parent_window.show_manual_mode_screen)
+        grid_bottom.addWidget(self.btn_manual, row, col)
 
         
 
         # ── Plots Area ───────────────────────────────────────────────────────────
-        graphics_area = QFrame() 
-        graphics_area.setStyleSheet("background: #fcfcfc;") 
-        graphics_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        grid_plots = QGridLayout(graphics_area)
+        self.graphics_area = QFrame() 
+        self.graphics_area.setStyleSheet("background: #fcfcfc;") 
+        self.graphics_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        grid_plots = QGridLayout(self.graphics_area)
         grid_plots.setSpacing(15)
         grid_plots.setContentsMargins(5, 5, 5, 5)
 
@@ -368,10 +374,10 @@ class TestPanelScreen(QWidget):
         
 
         # ── LED Indicators Area ──────────────────────────────────────────────────
-        led_area = QFrame() # Changed to QFrame for styling ease
-        led_area.setStyleSheet("background: #fcfcfc;") # White background
-        led_area.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding) #
-        grid_led = QGridLayout(led_area)
+        self.led_area = QFrame() # Changed to QFrame for styling ease
+        self.led_area.setStyleSheet("background: #fcfcfc;") # White background
+        self.led_area.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding) #
+        grid_led = QGridLayout(self.led_area)
         grid_led.setSpacing(10)
         grid_led.setContentsMargins(10, 10, 10, 10) # Adjusted margins for consistency
 
@@ -385,21 +391,23 @@ class TestPanelScreen(QWidget):
 
         self.led_widgets = []
 
+        self.led_labels = []
         for i, (name, tag) in enumerate(led_info):
             lbl = QLabel(name)
-            lbl.setStyleSheet("color: #000000; font-size: 20px; font-weight: bold;") # Black labels on white background
+            lbl.setStyleSheet("color: #000000; font-size: 20px; font-weight: bold;")
             lbl.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             grid_led.addWidget(lbl, i, 0)
+            self.led_labels.append(lbl)
 
-            led = LED(led_area)
+            led = LED(self.led_area)
             led.setFixedSize(45, 45)
             grid_led.addWidget(led, i, 1, alignment=Qt.AlignLeft | Qt.AlignVCenter)
             self.led_widgets.append((led, tag))
 
-        layout.addWidget(control_area, 0, 0, 1, 2) # control_area now takes col 0 and 1
-        layout.addWidget(graphics_area, 0, 2, 1, 1) # graphics_area now takes col 2
-        layout.addWidget(led_area, 0, 3, 1, 1) # led_area now takes col 3
-        layout.addWidget(bottom_control, 1, 0, 1, 4) # bottom_control now takes col 0, 1, 2, 3
+        layout.addWidget(self.control_area, 0, 0, 1, 2) # control_area now takes col 0 and 1
+        layout.addWidget(self.graphics_area, 0, 2, 1, 1) # graphics_area now takes col 2
+        layout.addWidget(self.led_area, 0, 3, 1, 1) # led_area now takes col 3
+        layout.addWidget(self.bottom_control, 1, 0, 1, 4) # bottom_control now takes col 0, 1, 2, 3
 
 
     def _add_output_row(self, grid, row, col, label_text, unit_text, label_style="", indicator_style=""):
@@ -425,6 +433,10 @@ class TestPanelScreen(QWidget):
         unit_lbl.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         unit_lbl.setStyleSheet(unit_style)
         grid.addWidget(unit_lbl, row, col + 2)
+
+        if not hasattr(self, "_output_row_items"):
+            self._output_row_items = []
+        self._output_row_items.append((lbl, value_label, unit_lbl))
 
         return value_label
 
@@ -634,3 +646,151 @@ class TestPanelScreen(QWidget):
         self.setFocus()
             
 
+
+
+    def apply_theme_styles(self, theme_name: str | None = None):
+        tokens = ThemeManager.get_tokens(theme_name)
+        is_mono = bool(tokens.get("monochrome", False))
+        is_dark = bool(tokens.get("is_dark", False))
+
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), QColor(tokens['bg_main']))
+        self.setPalette(palette)
+
+        if is_mono:
+            card_style = """
+                QFrame {
+                    background: #FFFFFF;
+                    border-radius: 10px;
+                    border: 1px solid #D1D5DB;
+                }
+            """
+            btn_style = """
+                QPushButton { background: #D9E0E8; color: #374151; border: 2px solid #C5CDD6; border-radius: 8px; font-weight: bold; font-size: 20px; }
+                QPushButton:hover { background: #C5CED6; }
+                QPushButton:pressed { background: #B0B8C4; }
+            """
+            row_lbl_style = "color: #374151; font-size: 26px; font-weight: bold; border: none; background: transparent;"
+            row_val_style = "color: #374151; font-size: 26px; font-weight: bold; border: 2px solid #C5CDD6; border-radius: 5px; padding: 2px; background: #F8F9FA;"
+            row_unit_style = "color: #6B7280; font-size: 26px; border: none; background: transparent;"
+            led_lbl_style = "color: #374151; font-size: 20px; font-weight: bold; background: transparent;"
+
+            if hasattr(self, "temp_plot"):
+                self.temp_plot.setBackground("#FFFFFF")
+                self.temp_plot.setTitle('<span style="font-size: 11pt; color: #374151;">Temperatura</span>')
+                self.temp_plot.setLabel('left', '<span style="font-size: 9pt; color: #374151;">Temperatura (°C)</span>')
+                self.temp_plot.setLabel('bottom', '<span style="font-size: 9pt; color: #374151;">Tiempo (s)</span>')
+                self.curve_temp_ef.setPen(pg.mkPen(color="#374151", width=2, style=Qt.SolidLine))
+                self.curve_temp_sf.setPen(pg.mkPen(color="#6B7280", width=2, style=Qt.DashLine))
+                self.curve_temp_tank.setPen(pg.mkPen(color="#9CA3AF", width=2, style=Qt.DotLine))
+
+            if hasattr(self, "cond_plot"):
+                self.cond_plot.setBackground("#FFFFFF")
+                self.cond_plot.setTitle('<span style="font-size: 11pt; color: #374151;">Conductividad</span>')
+                self.cond_plot.setLabel('left', '<span style="font-size: 9pt; color: #374151;">Conductividad (mS/cm)</span>')
+                self.cond_plot.setLabel('bottom', '<span style="font-size: 9pt; color: #374151;">Tiempo (s)</span>')
+                self.curve_cond_ef.setPen(pg.mkPen(color="#374151", width=2, style=Qt.SolidLine))
+                self.curve_cond_sf.setPen(pg.mkPen(color="#6B7280", width=2, style=Qt.DashLine))
+
+        elif is_dark:
+            card_style = f"""
+                QFrame {{
+                    background: {tokens.get('bg_card', '#1E293B')};
+                    border-radius: 10px;
+                    border: 1px solid {tokens.get('border_card', '#334155')};
+                }}
+            """
+            btn_style = f"""
+                QPushButton {{ background: {tokens.get('primary', '#38BDF8')}; color: #ffffff; border-radius: 8px; font-weight: bold; font-size: 20px; }}
+                QPushButton:hover {{ background: {tokens.get('primary_hover', '#0284C7')}; }}
+            """
+            row_lbl_style = f"color: {tokens.get('text_primary', '#F8FAFC')}; font-size: 26px; font-weight: bold; border: none; background: transparent;"
+            row_val_style = f"color: {tokens.get('primary', '#38BDF8')}; font-size: 26px; font-weight: bold; border: 2px solid {tokens.get('border_card', '#334155')}; border-radius: 5px; padding: 2px; background: {tokens.get('bg_card_alt', '#1E293B')};"
+            row_unit_style = f"color: {tokens.get('text_muted', '#64748B')}; font-size: 26px; border: none; background: transparent;"
+            led_lbl_style = f"color: {tokens.get('text_primary', '#F8FAFC')}; font-size: 20px; font-weight: bold; background: transparent;"
+
+            if hasattr(self, "temp_plot"):
+                self.temp_plot.setBackground(tokens.get("bg_card_alt", "#1E293B"))
+                self.temp_plot.setTitle(f'<span style="font-size: 11pt; color: {tokens.get("text_primary", "#F8FAFC")};">Temperatura</span>')
+                self.temp_plot.setLabel('left', f'<span style="font-size: 9pt; color: {tokens.get("text_primary", "#F8FAFC")};">Temperatura (°C)</span>')
+                self.temp_plot.setLabel('bottom', f'<span style="font-size: 9pt; color: {tokens.get("text_primary", "#F8FAFC")};">Tiempo (s)</span>')
+                self.curve_temp_ef.setPen(pg.mkPen(color=(56, 189, 248), width=2, style=Qt.SolidLine))
+                self.curve_temp_sf.setPen(pg.mkPen(color=(74, 222, 128), width=2, style=Qt.SolidLine))
+                self.curve_temp_tank.setPen(pg.mkPen(color=(248, 113, 113), width=2, style=Qt.SolidLine))
+
+            if hasattr(self, "cond_plot"):
+                self.cond_plot.setBackground(tokens.get("bg_card_alt", "#1E293B"))
+                self.cond_plot.setTitle(f'<span style="font-size: 11pt; color: {tokens.get("text_primary", "#F8FAFC")};">Conductividad</span>')
+                self.cond_plot.setLabel('left', f'<span style="font-size: 9pt; color: {tokens.get("text_primary", "#F8FAFC")};">Conductividad (mS/cm)</span>')
+                self.cond_plot.setLabel('bottom', f'<span style="font-size: 9pt; color: {tokens.get("text_primary", "#F8FAFC")};">Tiempo (s)</span>')
+                self.curve_cond_ef.setPen(pg.mkPen(color=(56, 189, 248), width=2, style=Qt.SolidLine))
+                self.curve_cond_sf.setPen(pg.mkPen(color=(74, 222, 128), width=2, style=Qt.SolidLine))
+
+        else:
+            card_style = """
+                QFrame {
+                    background: #fcfcfc;
+                    border-radius: 10px;
+                    border: 2px solid #1e293b;
+                }
+            """
+            btn_style = """
+                QPushButton { background: #3b82f6; color: #ffffff; border-radius: 8px; font-weight: bold; font-size: 20px; }
+                QPushButton:pressed { background: #1e40af; }
+            """
+            row_lbl_style = "color: #000000; font-size: 26px; font-weight: bold; border: none; background: transparent;"
+            row_val_style = "color: #22d3ee; font-size: 26px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px; background: #e0e0e0;"
+            row_unit_style = "color: #94a3b8; font-size: 26px; border: none; background: transparent;"
+            led_lbl_style = "color: #000000; font-size: 20px; font-weight: bold; background: transparent;"
+
+            if hasattr(self, "temp_plot"):
+                self.temp_plot.setBackground("#e0e0e0")
+                self.temp_plot.setTitle('<span style="font-size: 11pt; color: black;">Temperatura</span>')
+                self.temp_plot.setLabel('left', '<span style="font-size: 9pt; color: black;">Temperatura (°C)</span>')
+                self.temp_plot.setLabel('bottom', '<span style="font-size: 9pt; color: black;">Tiempo (s)</span>')
+                self.curve_temp_ef.setPen(pg.mkPen(color=(0, 0, 255), width=2, style=Qt.SolidLine))
+                self.curve_temp_sf.setPen(pg.mkPen(color=(0, 150, 0), width=2, style=Qt.SolidLine))
+                self.curve_temp_tank.setPen(pg.mkPen(color=(255, 0, 0), width=2, style=Qt.SolidLine))
+
+            if hasattr(self, "cond_plot"):
+                self.cond_plot.setBackground("#e0e0e0")
+                self.cond_plot.setTitle('<span style="font-size: 11pt; color: black;">Conductividad</span>')
+                self.cond_plot.setLabel('left', '<span style="font-size: 9pt; color: black;">Conductividad (mS/cm)</span>')
+                self.cond_plot.setLabel('bottom', '<span style="font-size: 9pt; color: black;">Tiempo (s)</span>')
+                self.curve_cond_ef.setPen(pg.mkPen(color=(0, 0, 255), width=2, style=Qt.SolidLine))
+                self.curve_cond_sf.setPen(pg.mkPen(color=(0, 150, 0), width=2, style=Qt.SolidLine))
+
+        if hasattr(self, "control_area"):
+            self.control_area.setStyleSheet(card_style)
+        if hasattr(self, "bottom_control"):
+            self.bottom_control.setStyleSheet(card_style)
+        if hasattr(self, "graphics_area"):
+            self.graphics_area.setStyleSheet(card_style)
+        if hasattr(self, "led_area"):
+            self.led_area.setStyleSheet(card_style)
+        if hasattr(self, "btn_controller"):
+            self.btn_controller.setStyleSheet(btn_style)
+        if hasattr(self, "btn_manual"):
+            self.btn_manual.setStyleSheet(btn_style)
+
+        for lbl, val, unt in getattr(self, "_output_row_items", []):
+            lbl.setStyleSheet(row_lbl_style)
+            val.setStyleSheet(row_val_style)
+            unt.setStyleSheet(row_unit_style)
+
+        # Fallback to ensure all PT labels have correct style
+        for attr in ("label_ptm", "label_peristaltic_flow", "label_pt3", "label_pt4", "label_pt5",
+                     "label_pt7", "label_pt8", "label_pt1", "label_pt2", "label_pt9", "label_pt10"):
+            val_lbl = getattr(self, attr, None)
+            if val_lbl and hasattr(val_lbl, "setStyleSheet"):
+                val_lbl.setStyleSheet(row_val_style)
+
+        for lbl in getattr(self, "led_labels", []):
+            lbl.setStyleSheet(led_lbl_style)
+
+        # Call apply_theme_styles on all child parameter widgets
+        for wid in self.findChildren(LabeledParameterWidget):
+            try:
+                wid.apply_theme_styles()
+            except Exception:
+                pass

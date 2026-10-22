@@ -679,17 +679,20 @@ class DialysisScreen(QWidget):
         )
         self.spo2_status_label.setStyleSheet(f"color: {tokens['text_muted']}; font-size: 15px; border: none;")
 
+        is_mono = bool(tokens.get("monochrome", False))
+        btn_nibp_fg = tokens['text_primary'] if is_mono else "#ffffff"
+        btn_nibp_border = f"1px solid {tokens['border_input']}" if is_mono else f"1px solid {tokens['border_card']}"
         self.btn_nibp_screen.setStyleSheet(f"""
             QPushButton {{
                 background-color: {tokens['nav_btn_bg']};
-                color: #ffffff;
+                color: {btn_nibp_fg};
                 font-size: 16px;
                 font-weight: bold;
                 border-radius: 8px;
                 padding: 4px 10px;
-                border: 1px solid {tokens['border_card']};
+                border: {btn_nibp_border};
             }}
-            QPushButton:hover {{ background-color: {tokens['primary']}; }}
+            QPushButton:hover {{ background-color: {tokens['primary_hover'] if is_mono else tokens['primary']}; }}
         """)
 
         self.update_air_bubble_indicator(self._last_air_bubble_state)
@@ -781,26 +784,26 @@ class DialysisScreen(QWidget):
 
     def update_air_bubble_indicator(self, value):
         tokens = ThemeManager.get_tokens()
+        is_mono = bool(tokens.get("monochrome", False))
         if value == 1.0 or value == 1:
             self.air_indicator.setText("¡BURBUJA DE AIRE!")
-            self.air_indicator.setStyleSheet(f"""
-                background-color: {tokens['danger']};
-                color: #ffffff;
-                font-weight: bold;
-                border-radius: 8px;
-                font-size: 18px;
-                border: none;
-            """)
+            bg_col = tokens['nav_btn_active'] if is_mono else tokens['danger']
+            fg_col = tokens['text_primary'] if is_mono else "#ffffff"
+            border_style = f"1px solid {tokens['border_strong']}" if is_mono else "none"
         else:
             self.air_indicator.setText("DETECTOR DE AIRE: OK")
-            self.air_indicator.setStyleSheet(f"""
-                background-color: {tokens['success']};
-                color: #ffffff;
-                font-weight: bold;
-                border-radius: 8px;
-                font-size: 18px;
-                border: none;
-            """)
+            bg_col = tokens['primary'] if is_mono else tokens['success']
+            fg_col = tokens['text_primary'] if is_mono else "#ffffff"
+            border_style = f"1px solid {tokens['border_input']}" if is_mono else "none"
+
+        self.air_indicator.setStyleSheet(f"""
+            background-color: {bg_col};
+            color: {fg_col};
+            font-weight: bold;
+            border-radius: 8px;
+            font-size: 18px;
+            border: {border_style};
+        """)
 
     def show_heparin_config_screen(self):
         if self.parent_window and hasattr(self.parent_window, "show_heparin_config_screen"):
@@ -874,6 +877,37 @@ class DialysisScreen(QWidget):
 
     def _button_style(self, background_color: str, enabled: bool = True):
         tokens = ThemeManager.get_tokens()
+        if bool(tokens.get("monochrome", False)):
+            if not enabled:
+                return f"""
+                    QPushButton {{
+                        background: {tokens['btn_disabled_bg']};
+                        color: {tokens['btn_disabled_text']};
+                        font-weight: bold;
+                        font-size: 20px;
+                        border-radius: 12px;
+                        border: 2px solid {tokens['border_card']};
+                    }}
+                """
+            return f"""
+                QPushButton {{
+                    background: #D9E0E8;
+                    color: #6B7280;
+                    font-weight: bold;
+                    font-size: 20px;
+                    border-radius: 12px;
+                    border: 2px solid #C5CDD6;
+                }}
+                QPushButton:hover {{
+                    background: {tokens['primary_hover']};
+                    color: #6B7280;
+                }}
+                QPushButton:pressed {{
+                    background: {tokens['primary_pressed']};
+                    color: #6B7280;
+                }}
+            """
+
         if not enabled:
             return f"""
                 QPushButton {{

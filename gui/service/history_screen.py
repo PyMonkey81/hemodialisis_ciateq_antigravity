@@ -319,50 +319,127 @@ class HistoryScreen(QWidget):
         self.load_button.setStyleSheet(primary_btn_qss)
         self.export_btn.setStyleSheet(primary_btn_qss)
 
-        self.btn_live_report.setStyleSheet("""
-            QPushButton {
-                background: #0d9488;
-                font-size: 19px;
-                font-weight: bold;
-                color: #FFFFFF;
-                border-radius: 10px;
-            }
-            QPushButton:hover { background: #0f766e; }
-            QPushButton:disabled {
-                background: #94a3b8;
-                color: #e2e8f0;
-            }
-""")
-        self.btn_view_report.setStyleSheet(f"""
-            QPushButton {{
-                background: {accent};
-                font-size: 20px;
-                font-weight: bold;
-                color: #FFFFFF;
-                border-radius: 10px;
-            }}
-            QPushButton:hover {{ background: {btn_hover}; }}
-        """)
-        self.btn_export_pdf.setStyleSheet("""
-            QPushButton {
-                background: #16a34a;
-                font-size: 20px;
-                font-weight: bold;
-                color: #FFFFFF;
-                border-radius: 10px;
-            }
-            QPushButton:hover { background: #15803d; }
-        """)
-        self.delete_btn.setStyleSheet("""
-            QPushButton {
-                background: #dc2626;
-                font-size: 20px;
-                font-weight: bold;
-                color: #FFFFFF;
-                border-radius: 10px;
-            }
-            QPushButton:hover { background: #b91c1c; }
-        """)
+        is_mono = bool(t.get("monochrome", False))
+        is_dark = bool(t.get("is_dark", False))
+
+        if is_mono:
+            mono_btn = """
+                QPushButton {
+                    background: #D9E0E8;
+                    color: #374151;
+                    font-size: 20px;
+                    font-weight: bold;
+                    border-radius: 10px;
+                    border: 2px solid #C5CDD6;
+                }
+                QPushButton:hover { background: #C5CED6; }
+                QPushButton:pressed { background: #B0B8C4; }
+                QPushButton:disabled { background: #E5E7EB; color: #B0B8C2; border: 1px solid #D1D5DB; }
+            """
+            self.load_button.setStyleSheet(mono_btn)
+            self.export_btn.setStyleSheet(mono_btn)
+            self.btn_live_report.setStyleSheet(mono_btn)
+            self.btn_view_report.setStyleSheet(mono_btn)
+            self.btn_export_pdf.setStyleSheet(mono_btn)
+            self.delete_btn.setStyleSheet(mono_btn)
+            self.total_label.setStyleSheet("""
+                QLabel { 
+                    background: #E5E7EB; 
+                    color: #374151; 
+                    font-size: 22px; 
+                    font-weight: bold; 
+                    padding: 6px 18px;
+                    border-radius: 8px;
+                    border: 1px solid #D1D5DB;
+                }
+            """)
+        elif is_dark:
+            self.btn_live_report.setStyleSheet(f"""
+                QPushButton {{
+                    background: {accent};
+                    font-size: 19px;
+                    font-weight: bold;
+                    color: #FFFFFF;
+                    border-radius: 10px;
+                }}
+                QPushButton:hover {{ background: {btn_hover}; }}
+                QPushButton:disabled {{ background: {t.get('btn_disabled_bg', '#334155')}; color: {t.get('btn_disabled_text', '#64748b')}; }}
+            """)
+            self.btn_view_report.setStyleSheet(f"""
+                QPushButton {{
+                    background: {accent};
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #FFFFFF;
+                    border-radius: 10px;
+                }}
+                QPushButton:hover {{ background: {btn_hover}; }}
+            """)
+            self.btn_export_pdf.setStyleSheet(f"""
+                QPushButton {{
+                    background: {t.get('success', '#10b981')};
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #FFFFFF;
+                    border-radius: 10px;
+                }}
+                QPushButton:hover {{ background: {t.get('border_strong', '#059669')}; }}
+            """)
+            self.delete_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: {t.get('danger', '#ef4444')};
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #FFFFFF;
+                    border-radius: 10px;
+                }}
+                QPushButton:hover {{ background: {t.get('border_strong', '#b91c1c')}; }}
+            """)
+        else:
+            self.btn_live_report.setStyleSheet("""
+                QPushButton {
+                    background: #0d9488;
+                    font-size: 19px;
+                    font-weight: bold;
+                    color: #FFFFFF;
+                    border-radius: 10px;
+                }
+                QPushButton:hover { background: #0f766e; }
+                QPushButton:disabled {
+                    background: #94a3b8;
+                    color: #e2e8f0;
+                }
+            """)
+            self.btn_view_report.setStyleSheet(f"""
+                QPushButton {{
+                    background: {accent};
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #FFFFFF;
+                    border-radius: 10px;
+                }}
+                QPushButton:hover {{ background: {btn_hover}; }}
+            """)
+            self.btn_export_pdf.setStyleSheet("""
+                QPushButton {
+                    background: #16a34a;
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #FFFFFF;
+                    border-radius: 10px;
+                }
+                QPushButton:hover { background: #15803d; }
+            """)
+            self.delete_btn.setStyleSheet("""
+                QPushButton {
+                    background: #dc2626;
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #FFFFFF;
+                    border-radius: 10px;
+                }
+                QPushButton:hover { background: #b91c1c; }
+            """)
 
         self.total_label.setStyleSheet(f"""
             QLabel {{ 
@@ -428,8 +505,8 @@ class HistoryScreen(QWidget):
                 border: 1px solid {border};
             }}
             QTableWidget::item:selected {{
-                background-color: {accent_soft};
-                color: {text_primary};
+                background-color: {'#9CA3AF' if is_mono else accent};
+                color: {'#111827' if is_mono else '#FFFFFF'};
             }}
         """)
 
@@ -737,3 +814,7 @@ class HistoryScreen(QWidget):
                 self.parent_window.show_success_message(f"Historial de {self.current_filter} eliminado correctamente.", 2500)
             else:
                 QMessageBox.information(self, "Historial", f"Historial de {self.current_filter} eliminado correctamente.")
+
+
+    def apply_theme_styles(self, theme_name: str | None = None):
+        self._apply_theme_styles()

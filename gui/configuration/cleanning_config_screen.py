@@ -1,3 +1,4 @@
+from gui.theme_manager import ThemeManager
 # # gui/configuration/cleanning_config_screen.py
 # gui/configuration/cleanning_config_screen.py
 
@@ -44,17 +45,22 @@ class CleanningConfigScreen(QWidget):
         self.init_ui()
         # Se llama a _load_config_for_display() al inicializar la pantalla
         # para que siempre muestre el último modo y tiempo activo al abrirla.
-        self._load_config_for_display() 
+        self._load_config_for_display()
+        self.apply_theme_styles()
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self.apply_theme_styles())
+        except Exception:
+            pass 
 
     def init_ui(self):
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(15)
 
-        title_label = QLabel("Configuración de Desinfección")
-        title_label.setStyleSheet("color: #0f172a; font-size: 28px; font-weight: bold;")
-        title_label.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(title_label)
+        self.title_label = QLabel("Configuración de Desinfección")
+        self.title_label.setStyleSheet("color: #0f172a; font-size: 28px; font-weight: bold;")
+        self.title_label.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(self.title_label)
 
         _line = QFrame()
         _line.setFrameShape(QFrame.HLine)
@@ -62,14 +68,14 @@ class CleanningConfigScreen(QWidget):
         main_layout.addWidget(_line)
 
         # === Frame para modos ===
-        mode_frame = QFrame()
-        mode_frame.setStyleSheet("background: #fcfcfc; border-radius: 10px; padding: 20px; border: 1px solid #e5e5e5;")
-        mode_layout = QVBoxLayout(mode_frame)
+        self.mode_frame = QFrame()
+        self.mode_frame.setStyleSheet("background: #fcfcfc; border-radius: 10px; padding: 20px; border: 1px solid #e5e5e5;")
+        mode_layout = QVBoxLayout(self.mode_frame)
         mode_layout.setSpacing(20)
 
-        lbl_mode = QLabel("Seleccione tipo de desinfección predeterminado")
-        lbl_mode.setStyleSheet("font-size: 24px; font-weight: bold; color: #000000; border: none;")
-        mode_layout.addWidget(lbl_mode)
+        self.lbl_mode = QLabel("Seleccione tipo de desinfección predeterminado")
+        self.lbl_mode.setStyleSheet("font-size: 24px; font-weight: bold; color: #000000; border: none;")
+        mode_layout.addWidget(self.lbl_mode)
 
         buttons_layout = QHBoxLayout()
         buttons_layout.setSpacing(20)
@@ -108,12 +114,12 @@ class CleanningConfigScreen(QWidget):
             self.btn_mode_group.addButton(btn)
 
         mode_layout.addLayout(buttons_layout)
-        main_layout.addWidget(mode_frame)
+        main_layout.addWidget(self.mode_frame)
 
         # === Input de Tiempo ===
-        lbl_time = QLabel("Tiempo de desinfección (hh:mm):") 
-        lbl_time.setStyleSheet("color: #0f172a; font-size: 20px; font-weight: bold;")
-        main_layout.addWidget(lbl_time)
+        self.lbl_time = QLabel("Tiempo de desinfección (hh:mm):") 
+        self.lbl_time.setStyleSheet("color: #0f172a; font-size: 20px; font-weight: bold;")
+        main_layout.addWidget(self.lbl_time)
 
         # ClickableLineEdit para el tiempo
         self.desinfection_time_input = ClickableLineEdit("00:00")
@@ -129,9 +135,9 @@ class CleanningConfigScreen(QWidget):
         main_layout.addWidget(self.desinfection_time_input)
 
         # === Input de Temperatura ===
-        lbl_temperature = QLabel("Temperatura (°C):")
-        lbl_temperature.setStyleSheet("color: #0f172a; font-size: 20px; font-weight: bold;")
-        main_layout.addWidget(lbl_temperature)
+        self.lbl_temperature = QLabel("Temperatura (°C):")
+        self.lbl_temperature.setStyleSheet("color: #0f172a; font-size: 20px; font-weight: bold;")
+        main_layout.addWidget(self.lbl_temperature)
 
         self._desinfection_temp_input = ClickableLineEdit("0.0")
         self._desinfection_temp_input.setStyleSheet("color: #0f172a; font-size: 24px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background: #FFFFFF;")
@@ -148,9 +154,9 @@ class CleanningConfigScreen(QWidget):
 
 
         # ==========imput de flujo camara de balance=========
-        lbl_balance_chamber_flow = QLabel("Flujo de Cámara (ml/min)")
-        lbl_balance_chamber_flow.setStyleSheet("color: #0f172a; font-size: 20px; font-weight: bold;")
-        main_layout.addWidget(lbl_balance_chamber_flow)
+        self.lbl_balance_chamber_flow = QLabel("Flujo de Cámara (ml/min)")
+        self.lbl_balance_chamber_flow.setStyleSheet("color: #0f172a; font-size: 20px; font-weight: bold;")
+        main_layout.addWidget(self.lbl_balance_chamber_flow)
 
         self._flow_bchamber = ClickableLineEdit("0.0")
         self._flow_bchamber.setStyleSheet("color: #0f172a; font-size: 24px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background: #FFFFFF;")
@@ -167,13 +173,10 @@ class CleanningConfigScreen(QWidget):
         main_layout.addStretch(1)
 
         # === Botón Guardar ===
-        save_button = QPushButton("Guardar Configuración")
-        save_button.setStyleSheet("""
-            QPushButton { background: #475569; color: #ffffff; font-size: 24px; padding: 15px; border-radius: 8px;}
-            QPushButton:hover { background: #334155; }
-        """)
-        save_button.clicked.connect(self.save_configuration)
-        main_layout.addWidget(save_button)
+        self.save_button = QPushButton("Guardar Configuración")
+        self.save_button.setStyleSheet("QPushButton { background: #06298a; color: #ffffff; font-size: 24px; padding: 15px; border-radius: 8px; font-weight: bold; }")
+        self.save_button.clicked.connect(self.save_configuration)
+        main_layout.addWidget(self.save_button)
 
         self.setLayout(main_layout)
 
@@ -382,3 +385,110 @@ class CleanningConfigScreen(QWidget):
             self._floating_msg = FloatingMessage(self)
         self._floating_msg.show_error_message(text, timeout_ms)
 
+
+
+    def apply_theme_styles(self, theme_name: str | None = None):
+        tokens = ThemeManager.get_tokens(theme_name)
+        is_mono = bool(tokens.get("monochrome", False))
+        is_dark = bool(tokens.get("is_dark", False))
+
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), QColor(tokens['bg_main']))
+        self.setPalette(palette)
+        self.setStyleSheet(f"background-color: {tokens['bg_main']};")
+
+        if is_mono:
+            if hasattr(self, "title_label"):
+                self.title_label.setStyleSheet("color: #4B5563; font-size: 28px; font-weight: bold; background: transparent;")
+            if hasattr(self, "mode_frame"):
+                self.mode_frame.setStyleSheet("background: #FFFFFF; border-radius: 10px; padding: 20px; border: 1px solid #D1D5DB;")
+            lbl_css = "color: #374151; font-size: 20px; font-weight: bold; background: transparent;"
+            inp_css = "color: #374151; font-size: 24px; padding: 10px; border: 2px solid #C5CDD6; border-radius: 5px; background: #F8F9FA;"
+            self.style_mode_unchecked = """
+                QPushButton {
+                    background: #D9E0E8; color: #374151; font-size: 22px; font-weight: bold;
+                    border-radius: 12px; padding: 15px 25px; border: 2px solid #C5CDD6;
+                }
+                QPushButton:hover { background: #C5CED6; }
+            """
+            self.style_mode_checked = """
+                QPushButton {
+                    background: #9CA3AF; color: #111827; font-size: 22px; font-weight: bold;
+                    border-radius: 12px; padding: 15px 25px; border: 2px solid #6B7280;
+                }
+            """
+            save_css = """
+                QPushButton { background: #D9E0E8; color: #374151; font-size: 24px; padding: 15px; border-radius: 8px; font-weight: bold; border: 2px solid #C5CDD6; }
+                QPushButton:hover { background: #C5CED6; }
+                QPushButton:pressed { background: #B0B8C4; }
+            """
+
+        elif is_dark:
+            if hasattr(self, "title_label"):
+                self.title_label.setStyleSheet(f"color: {tokens.get('text_primary', '#F8FAFC')}; font-size: 28px; font-weight: bold; background: transparent;")
+            if hasattr(self, "mode_frame"):
+                self.mode_frame.setStyleSheet(f"background: {tokens.get('bg_card', '#1E293B')}; border-radius: 10px; padding: 20px; border: 1px solid {tokens.get('border_card', '#334155')};")
+            lbl_css = f"color: {tokens.get('text_primary', '#F8FAFC')}; font-size: 20px; font-weight: bold; background: transparent;"
+            inp_css = f"color: {tokens.get('text_primary', '#F8FAFC')}; font-size: 24px; padding: 10px; border: 2px solid {tokens.get('border_input', '#334155')}; border-radius: 5px; background: {tokens.get('bg_input', '#1E293B')};"
+            self.style_mode_unchecked = f"""
+                QPushButton {{
+                    background: {tokens.get('bg_card_alt', '#1E293B')}; color: {tokens.get('text_secondary', '#94A3B8')}; font-size: 22px; font-weight: bold;
+                    border-radius: 12px; padding: 15px 25px; border: 2px solid {tokens.get('border_card', '#334155')};
+                }}
+                QPushButton:hover {{ background: {tokens.get('border_card', '#334155')}; }}
+            """
+            self.style_mode_checked = f"""
+                QPushButton {{
+                    background: {tokens.get('primary', '#38BDF8')}; color: #ffffff; font-size: 22px; font-weight: bold;
+                    border-radius: 12px; padding: 15px 25px; border: 2px solid {tokens.get('primary_hover', '#0284C7')};
+                }}
+            """
+            save_css = f"""
+                QPushButton {{ background: {tokens.get('primary', '#38BDF8')}; color: #ffffff; font-size: 24px; padding: 15px; border-radius: 8px; font-weight: bold; }}
+                QPushButton:hover {{ background: {tokens.get('primary_hover', '#0284C7')}; }}
+            """
+
+        else:
+            if hasattr(self, "title_label"):
+                self.title_label.setStyleSheet("color: #0f172a; font-size: 28px; font-weight: bold; background: transparent;")
+            if hasattr(self, "mode_frame"):
+                self.mode_frame.setStyleSheet("background: #fcfcfc; border-radius: 10px; padding: 20px; border: 1px solid #e5e5e5;")
+            lbl_css = "color: #0f172a; font-size: 20px; font-weight: bold; background: transparent;"
+            inp_css = "color: #0f172a; font-size: 24px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background: #FFFFFF;"
+            self.style_mode_unchecked = """
+                QPushButton {
+                    background: #3b82f6; color: #ffffff; font-size: 22px; font-weight: bold;
+                    border-radius: 12px; padding: 15px 25px; border: 2px solid #2563eb;
+                }
+                QPushButton:hover { background: #60a5fa; }
+            """
+            self.style_mode_checked = """
+                QPushButton {
+                    background: #22c55e; color: #ffffff; font-size: 22px; font-weight: bold;
+                    border-radius: 12px; padding: 15px 25px; border: 2px solid #16a34a;
+                }
+            """
+            save_css = """
+                QPushButton { background: #06298a; color: #ffffff; font-size: 24px; padding: 15px; border-radius: 8px; font-weight: bold; }
+                QPushButton:hover { background: #1e293b; }
+            """
+
+        if hasattr(self, "lbl_mode"):
+            self.lbl_mode.setStyleSheet(lbl_css)
+        if hasattr(self, "lbl_time"):
+            self.lbl_time.setStyleSheet(lbl_css)
+        if hasattr(self, "lbl_temperature"):
+            self.lbl_temperature.setStyleSheet(lbl_css)
+        if hasattr(self, "lbl_balance_chamber_flow"):
+            self.lbl_balance_chamber_flow.setStyleSheet(lbl_css)
+
+        for inp in (getattr(self, "desinfection_time_input", None), getattr(self, "_desinfection_temp_input", None), getattr(self, "_flow_bchamber", None)):
+            if inp:
+                inp.setStyleSheet(inp_css)
+
+        if hasattr(self, "save_button"):
+            self.save_button.setStyleSheet(save_css)
+
+        for btn in (getattr(self, "_short_chemical_desinfection", None), getattr(self, "_long_chemical_desinfection", None)):
+            if btn:
+                btn.setStyleSheet(self.style_mode_checked if btn.isChecked() else self.style_mode_unchecked)

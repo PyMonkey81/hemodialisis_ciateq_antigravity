@@ -275,6 +275,10 @@ class TherapyConfigScreen(QWidget):
         main_layout.setRowStretch(0, 1)
         main_layout.setRowStretch(1, 1)
 
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self._apply_theme_styles())
+        except Exception:
+            pass
         self._apply_theme_styles()
 
     def _on_theme_changed(self, _theme_name: str):
@@ -316,36 +320,77 @@ class TherapyConfigScreen(QWidget):
                        self.input_duration]:
             widget.setStyleSheet(input_style)
 
-        self.profile_btn_style = f"""
-            QPushButton {{
-                background: {btn_bg};
-                color: #ffffff;
-                font-weight: bold;
-                font-size: 20px;
-                border-radius: 12px;
-                border: 2px solid {accent};
-                min-height: 48px;
-                padding: 4px 12px;
-            }}
-            QPushButton:pressed {{
-                background: {accent};
-            }}
-        """
-        self.profile_btn_active_style = """
-            QPushButton {
-                background: #16a34a;
-                color: #ffffff;
-                font-weight: bold;
-                font-size: 20px;
-                border-radius: 12px;
-                border: 2px solid #14532d;
-                min-height: 48px;
-                padding: 4px 12px;
-            }
-            QPushButton:pressed {
-                background: #15803d;
-            }
-        """
+        is_mono = bool(t.get("monochrome", False))
+        is_dark = bool(t.get("is_dark", False))
+        if is_mono:
+            self.style_enabled = f"""
+                QPushButton {{ background: #D9E0E8; color: #374151; font-weight: bold; font-size: {self.button_font_size}px; border-radius: 15px; border: 2px solid #C5CDD6; }}
+                QPushButton:hover {{ background: {t.get('primary_hover', '#C5CED6')}; }}
+                QPushButton:pressed {{ background: {t.get('primary_pressed', '#B0B8C4')}; }}
+            """
+            self.style_stop_enabled = f"""
+                QPushButton {{ background: #D9E0E8; color: #374151; font-weight: bold; font-size: {self.button_font_size}px; border-radius: 15px; border: 2px solid #C5CDD6; }}
+                QPushButton:hover {{ background: {t.get('primary_hover', '#C5CED6')}; }}
+                QPushButton:pressed {{ background: {t.get('primary_pressed', '#B0B8C4')}; }}
+            """
+            self.style_disabled = f"""
+                QPushButton {{ background: {t.get('btn_disabled_bg', '#E5E7EB')}; color: {t.get('btn_disabled_text', '#B0B8C2')}; font-weight: bold; font-size: {self.button_font_size}px; border-radius: 15px; border: 1px solid {t.get('border_card', '#D1D5DB')}; }}
+            """
+            self.profile_btn_style = f"""
+                QPushButton {{ background: #D9E0E8; color: #374151; font-weight: bold; font-size: 20px; border-radius: 12px; border: 2px solid #C5CDD6; min-height: 48px; padding: 4px 12px; }}
+                QPushButton:hover {{ background: {t.get('primary_hover', '#C5CED6')}; }}
+                QPushButton:pressed {{ background: {t.get('primary_pressed', '#B0B8C4')}; }}
+            """
+            self.profile_btn_active_style = f"""
+                QPushButton {{ background: #9CA3AF; color: #111827; font-weight: bold; font-size: 20px; border-radius: 12px; border: 2px solid #6B7280; min-height: 48px; padding: 4px 12px; }}
+            """
+        elif is_dark:
+            self.style_enabled = f"""
+                QPushButton {{ background: {t.get('primary', '#3b82f6')}; color: #FFFFFF; font-weight: bold; font-size: {self.button_font_size}px; border-radius: 15px; border: 2px solid {t.get('primary_hover', '#60a5fa')}; }}
+                QPushButton:pressed {{ background: {t.get('primary_pressed', '#1d4ed8')}; }}
+            """
+            self.style_stop_enabled = f"""
+                QPushButton {{ background: {t.get('danger', '#ef4444')}; color: #FFFFFF; font-weight: bold; font-size: {self.button_font_size}px; border-radius: 15px; border: 2px solid {t.get('border_card', '#334155')}; }}
+                QPushButton:pressed {{ background: #991b1b; }}
+            """
+            self.style_disabled = f"""
+                QPushButton {{ background: {t.get('btn_disabled_bg', '#1E293B')}; color: {t.get('btn_disabled_text', '#64748B')}; font-weight: bold; font-size: {self.button_font_size}px; border-radius: 15px; border: 1px solid {t.get('border_card', '#334155')}; }}
+            """
+            self.profile_btn_style = f"""
+                QPushButton {{ background: {t.get('nav_btn_bg', '#1E293B')}; color: #FFFFFF; font-weight: bold; font-size: 20px; border-radius: 12px; border: 2px solid {t.get('border_card', '#334155')}; min-height: 48px; padding: 4px 12px; }}
+                QPushButton:pressed {{ background: {t.get('primary', '#3b82f6')}; }}
+            """
+            self.profile_btn_active_style = f"""
+                QPushButton {{ background: {t.get('primary', '#3b82f6')}; color: #FFFFFF; font-weight: bold; font-size: 20px; border-radius: 12px; border: 2px solid {t.get('primary_hover', '#60a5fa')}; min-height: 48px; padding: 4px 12px; }}
+            """
+        else:
+            self.style_enabled = f"""
+                QPushButton {{ background: #39ec21; color: #ffffff; font-weight: bold; font-size: {self.button_font_size}px; border-radius: 15px; border: 3px solid #06298a; }}
+                QPushButton:pressed {{ background: #334155; }}
+            """
+            self.style_stop_enabled = f"""
+                QPushButton {{ background: #DD2911; color: #ffffff; font-weight: bold; font-size: {self.button_font_size}px; border-radius: 15px; border: 3px solid #06298a; }}
+                QPushButton:pressed {{ background: #334155; }}
+            """
+            self.style_disabled = f"""
+                QPushButton {{ background: #334155; color: #94a3b8; font-weight: bold; font-size: {self.button_font_size}px; border-radius: 15px; border: 3px solid #06298a; }}
+            """
+            self.profile_btn_style = f"""
+                QPushButton {{ background: {btn_bg}; color: #ffffff; font-weight: bold; font-size: 20px; border-radius: 12px; border: 2px solid {accent}; min-height: 48px; padding: 4px 12px; }}
+                QPushButton:pressed {{ background: {accent}; }}
+            """
+            self.profile_btn_active_style = """
+                QPushButton { background: #16a34a; color: #ffffff; font-weight: bold; font-size: 20px; border-radius: 12px; border: 2px solid #14532d; min-height: 48px; padding: 4px 12px; }
+                QPushButton:pressed { background: #15803d; }
+            """
+
+        if hasattr(self, "btn_filter_fill"):
+            self.btn_filter_fill.setStyleSheet(self.style_enabled)
+        if hasattr(self, "btn_start_blood_pump"):
+            self.btn_start_blood_pump.setStyleSheet(self.style_enabled)
+        if hasattr(self, "btn_stop_blood_pump"):
+            self.btn_stop_blood_pump.setStyleSheet(self.style_stop_enabled)
+
         self._refresh_conductivity_profile_button()
         self._refresh_uf_profile_button()
 

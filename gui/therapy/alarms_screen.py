@@ -1,3 +1,4 @@
+from gui.theme_manager import ThemeManager
 
 # gui/therapy/alarms_screen.py
 """
@@ -107,6 +108,11 @@ class AlarmsScreen(QWidget):
 
         self.active_alarms: dict = {}
         self.setup_ui()
+        self.apply_theme_styles()
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self.apply_theme_styles())
+        except Exception:
+            pass
         self._refresh_history_display() # Mostrar lo cargado al iniciar
 
         if self.alarm_system:
@@ -151,10 +157,10 @@ class AlarmsScreen(QWidget):
         layout.setSpacing(5) # Reducido un poco el espaciado
 
         # Título
-        title = QLabel("ALARMAS Y EVENTOS DEL SISTEMA")
-        title.setStyleSheet("font-size: 42px; font-weight: bold; color: #E74C3C;") # Rojo fuerte
-        title.setAlignment(Qt.AlignCenter)
-        layout.addWidget(title)
+        self.title_label = QLabel("ALARMAS Y EVENTOS DEL SISTEMA")
+        self.title_label.setStyleSheet("font-size: 42px; font-weight: bold; color: #E74C3C;") # Rojo fuerte
+        self.title_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.title_label)
 
         sep1 = QFrame()
         sep1.setFrameShape(QFrame.HLine)
@@ -162,9 +168,9 @@ class AlarmsScreen(QWidget):
         layout.addWidget(sep1)
 
         # Sección Alarmas Activas
-        lbl_active = QLabel("ALARMAS ACTIVAS")
-        lbl_active.setStyleSheet("font-size: 32px; font-weight: bold; color: #3F88C5; margin-top: 15px;") # Azul profesional
-        layout.addWidget(lbl_active)
+        self.lbl_active = QLabel("ALARMAS ACTIVAS")
+        self.lbl_active.setStyleSheet("font-size: 32px; font-weight: bold; color: #3F88C5; margin-top: 15px;") # Azul profesional
+        layout.addWidget(self.lbl_active)
 
         self.active_alarms_display = QTextEdit()
         self.active_alarms_display.setReadOnly(True)
@@ -251,7 +257,8 @@ class AlarmsScreen(QWidget):
             QPushButton:hover { background: #2980B9; }
             QPushButton:pressed { background: #1F6C8C; }
         """)
-        self.btn_config_limits.clicked.connect(self.parent_window.show_alarm_config_limits_screen)
+        if self.parent_window and hasattr(self.parent_window, 'show_alarm_config_limits_screen'):
+            self.btn_config_limits.clicked.connect(self.parent_window.show_alarm_config_limits_screen)
 
         # Contenedor horizontal para alinear los 3 botones en una sola línea
         action_buttons_h_layout = QHBoxLayout()
@@ -268,9 +275,9 @@ class AlarmsScreen(QWidget):
         layout.addWidget(sep2)
 
         # Sección Historial
-        lbl_history = QLabel("HISTORIAL DE EVENTOS")
-        lbl_history.setStyleSheet("font-size: 26px; font-weight: bold; color: #3F88C5; margin-top: 15px;") # Azul profesional
-        layout.addWidget(lbl_history)
+        self.lbl_history = QLabel("HISTORIAL DE EVENTOS")
+        self.lbl_history.setStyleSheet("font-size: 26px; font-weight: bold; color: #3F88C5; margin-top: 15px;") # Azul profesional
+        layout.addWidget(self.lbl_history)
 
         self.history_display = QTextEdit()
         self.history_display.setReadOnly(True)
@@ -645,3 +652,167 @@ class AlarmsScreen(QWidget):
         self.request_boolean_change.emit(tag, state)
         print("confirmado")
 
+
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.apply_theme_styles()
+
+    def apply_theme_styles(self, theme_name: str | None = None):
+        tokens = ThemeManager.get_tokens(theme_name)
+        is_mono = bool(tokens.get("monochrome", False))
+        is_dark = bool(tokens.get("is_dark", False))
+
+        if is_mono:
+            self.setStyleSheet(f"background: {tokens['bg_main']}; color: {tokens['text_primary']}; font-family: 'Segoe UI';")
+            if hasattr(self, "title_label"):
+                self.title_label.setStyleSheet("font-size: 42px; font-weight: bold; color: #4B5563; background: transparent;")
+            if hasattr(self, "lbl_active"):
+                self.lbl_active.setStyleSheet("font-size: 32px; font-weight: bold; color: #374151; margin-top: 15px; background: transparent;")
+            if hasattr(self, "lbl_history"):
+                self.lbl_history.setStyleSheet("font-size: 26px; font-weight: bold; color: #374151; margin-top: 15px; background: transparent;")
+            if hasattr(self, "active_alarms_display"):
+                self.active_alarms_display.setStyleSheet("""
+                    background-color: #FFFFFF;
+                    color: #374151;
+                    font-size: 22px;
+                    border: 2px solid #9CA3AF;
+                    border-radius: 10px;
+                    padding: 15px;
+                """)
+            if hasattr(self, "history_display"):
+                self.history_display.setStyleSheet("""
+                    background-color: #F8F9FA;
+                    color: #374151;
+                    font-size: 20px;
+                    border: 1px solid #D1D5DB;
+                    border-radius: 10px;
+                    padding: 15px;
+                """)
+            btn_mono = """
+                QPushButton {
+                    font-size: 20px;
+                    font-weight: bold;
+                    background: #D9E0E8;
+                    color: #374151;
+                    border: 1px solid #C5CDD6;
+                    border-radius: 10px;
+                    padding: 8px;
+                }
+                QPushButton:hover { background: #C5CED6; }
+                QPushButton:pressed { background: #B0B8C4; }
+                QPushButton:disabled { background: #E5E7EB; color: #B0B8C2; border: 1px solid #D1D5DB; }
+            """
+            if hasattr(self, "btn_ack_all"):
+                self.btn_ack_all.setStyleSheet(btn_mono)
+            if hasattr(self, "btn_reset_pumps"):
+                self.btn_reset_pumps.setStyleSheet(btn_mono)
+            if hasattr(self, "btn_config_limits"):
+                self.btn_config_limits.setStyleSheet(btn_mono)
+        elif is_dark:
+            self.setStyleSheet(f"background: {tokens['bg_main']}; color: {tokens['text_primary']}; font-family: 'Segoe UI';")
+            if hasattr(self, "title_label"):
+                self.title_label.setStyleSheet(f"font-size: 42px; font-weight: bold; color: {tokens.get('danger', '#ef4444')}; background: transparent;")
+            if hasattr(self, "lbl_active"):
+                self.lbl_active.setStyleSheet(f"font-size: 32px; font-weight: bold; color: {tokens.get('primary', '#38bdf8')}; margin-top: 15px; background: transparent;")
+            if hasattr(self, "lbl_history"):
+                self.lbl_history.setStyleSheet(f"font-size: 26px; font-weight: bold; color: {tokens.get('primary', '#38bdf8')}; margin-top: 15px; background: transparent;")
+            if hasattr(self, "active_alarms_display"):
+                self.active_alarms_display.setStyleSheet(f"""
+                    background-color: {tokens.get('bg_card', '#1E293B')};
+                    color: {tokens.get('text_primary', '#F8FAFC')};
+                    font-size: 22px;
+                    border: 2px solid {tokens.get('border_card', '#334155')};
+                    border-radius: 10px;
+                    padding: 15px;
+                """)
+            if hasattr(self, "history_display"):
+                self.history_display.setStyleSheet(f"""
+                    background-color: {tokens.get('bg_card_alt', '#1E293B')};
+                    color: {tokens.get('text_primary', '#F8FAFC')};
+                    font-size: 20px;
+                    border: 1px solid {tokens.get('border_card', '#334155')};
+                    border-radius: 10px;
+                    padding: 15px;
+                """)
+            btn_dark = f"""
+                QPushButton {{
+                    font-size: 20px;
+                    font-weight: bold;
+                    background: {tokens.get('primary', '#3b82f6')};
+                    color: #FFFFFF;
+                    border-radius: 10px;
+                    padding: 8px;
+                }}
+                QPushButton:hover {{ background: {tokens.get('primary_hover', '#60a5fa')}; }}
+                QPushButton:disabled {{ background: {tokens.get('btn_disabled_bg', '#334155')}; color: {tokens.get('btn_disabled_text', '#64748b')}; }}
+            """
+            if hasattr(self, "btn_ack_all"):
+                self.btn_ack_all.setStyleSheet(btn_dark)
+            if hasattr(self, "btn_reset_pumps"):
+                self.btn_reset_pumps.setStyleSheet(btn_dark)
+            if hasattr(self, "btn_config_limits"):
+                self.btn_config_limits.setStyleSheet(btn_dark)
+        else:
+            self.setStyleSheet("background: #F8F8FA; color: #333333; font-family: 'Segoe UI';")
+            if hasattr(self, "title_label"):
+                self.title_label.setStyleSheet("font-size: 42px; font-weight: bold; color: #E74C3C;")
+            if hasattr(self, "lbl_active"):
+                self.lbl_active.setStyleSheet("font-size: 32px; font-weight: bold; color: #3F88C5; margin-top: 15px;")
+            if hasattr(self, "lbl_history"):
+                self.lbl_history.setStyleSheet("font-size: 26px; font-weight: bold; color: #3F88C5; margin-top: 15px;")
+            if hasattr(self, "active_alarms_display"):
+                self.active_alarms_display.setStyleSheet("""
+                    background-color: #FFFFFF;
+                    color: #333333;
+                    font-size: 22px;
+                    border: 2px solid #E74C3C;
+                    border-radius: 10px;
+                    padding: 15px;
+                """)
+            if hasattr(self, "history_display"):
+                self.history_display.setStyleSheet("""
+                    background-color: #F8F8F8;
+                    color: #333333;
+                    font-size: 20px;
+                    border: 1px solid #DDDDDD;
+                    border-radius: 10px;
+                    padding: 15px;
+                """)
+            if hasattr(self, "btn_ack_all"):
+                self.btn_ack_all.setStyleSheet("""
+                    QPushButton {
+                        font-size: 20px;
+                        font-weight: bold;
+                        background: #3b82f6;
+                        color: white;
+                        border-radius: 10px;
+                        padding: 8px;
+                    }
+                    QPushButton:hover { background: #2563eb; }
+                    QPushButton:disabled { background: #94a3b8; }
+                """)
+            if hasattr(self, "btn_reset_pumps"):
+                self.btn_reset_pumps.setStyleSheet("""
+                    QPushButton {
+                        font-size: 22px;
+                        font-weight: bold;
+                        background: #facc15;
+                        color: #1e293b;
+                        border-radius: 10px;
+                        padding: 8px;
+                    }
+                    QPushButton:hover { background: #eab308; }
+                """)
+            if hasattr(self, "btn_config_limits"):
+                self.btn_config_limits.setStyleSheet("""
+                    QPushButton {
+                        font-size: 22px;
+                        font-weight: bold;
+                        background: #3b82f6;
+                        color: white;
+                        border-radius: 10px;
+                        padding: 8px;
+                    }
+                    QPushButton:hover { background: #2563eb; }
+                """)

@@ -302,10 +302,65 @@ class ThemeManager(QObject):
             "font_size_param_label": "26px",
             "font_size_param_val": "32px",
         },
+        "Escala de grises": {
+            "id": "Escala de grises",
+            "description": "Solo para capturas de diseño industrial. Sin color.",
+            "is_dark": False,
+            "monochrome": True,
+            "bg_main": "#F3F4F6",
+            "bg_header": "#F3F4F6",
+            "bg_nav": "#F3F4F6",
+            "bg_card": "#FFFFFF",
+            "bg_card_alt": "#F8F9FA",
+            "bg_input": "#F8F9FA",
+            "bg_input_focus": "#FFFFFF",
+            "border_card": "#D1D5DB",
+            "border_strong": "#9CA3AF",
+            "border_input": "#C5CDD6",
+            "text_primary": "#374151",
+            "text_secondary": "#6B7280",
+            "text_muted": "#9CA3AF",
+            "text_on_primary": "#374151",
+            "title_color": "#4B5563",
+            "primary": "#D9E0E8",
+            "primary_hover": "#C5CED6",
+            "primary_pressed": "#B0B8C4",
+            "nav_btn_bg": "#D9E0E8",
+            "nav_btn_hover": "#C5CED6",
+            "nav_btn_active": "#9CA3AF",
+            "nav_btn_active_border": "#6B7280",
+            "btn_disabled_bg": "#E5E7EB",
+            "btn_disabled_text": "#B0B8C2",
+            "success": "#6B7280",
+            "success_bright": "#9CA3AF",
+            "warning": "#6B7280",
+            "danger": "#4B5563",
+            "info": "#6B7280",
+            "val_blood": "#374151",
+            "val_venous": "#4B5563",
+            "val_temp": "#374151",
+            "val_uf": "#374151",
+            "val_vital_bp": "#374151",
+            "val_vital_hr": "#374151",
+            "val_vital_spo2": "#4B5563",
+            "plot_bg": "#FFFFFF",
+            "plot_grid": "#E5E7EB",
+            "plot_axis": "#6B7280",
+            "gauge_bg": "#F3F4F6",
+            "gauge_tank_bg": "#E5E7EB",
+            "gauge_tank_border": "#9CA3AF",
+            "table_header_bg": "#E5E7EB",
+            "table_row_alt": "#F8F9FA",
+            "table_sel_bg": "#D1D5DB",
+            "table_sel_text": "#111827",
+        },
     }
 
     # Alias retrocompatibles
     THEME_ALIASES = {
+        "gris": "Escala de grises",
+        "grayscale": "Escala de grises",
+        "registro": "Escala de grises",
         "light": "Clínico Claro",
         "Light": "Clínico Claro",
         "claro": "Clínico Claro",
@@ -337,6 +392,66 @@ class ThemeManager(QObject):
         resolved = cls.resolve_theme_name(theme_name)
         t = cls.THEME_TOKENS[resolved]
         mono = cls.DEFAULT_MONOSPACE_FONTS
+        is_mono = bool(t.get("monochrome", False))
+        if is_mono:
+            btn_styles = f"""
+            QPushButton {{
+                background-color: {t["primary"]};
+                color: {t["text_on_primary"]};
+                border-radius: 10px;
+                font-size: 18px;
+                padding: 8px 14px;
+                font-weight: bold;
+                border: 1px solid {t["border_input"]};
+            }}
+            QPushButton:hover {{
+                background-color: {t["primary_hover"]};
+                color: {t["text_on_primary"]};
+            }}
+            QPushButton:pressed {{
+                background-color: {t["primary_pressed"]};
+                color: {t["text_on_primary"]};
+            }}
+            QPushButton:disabled {{
+                background-color: {t["btn_disabled_bg"]};
+                color: {t["btn_disabled_text"]};
+                border: 1px solid {t["border_card"]};
+            }}
+            QPushButton[active="true"], QPushButton:checked {{
+                background-color: {t["nav_btn_active"]};
+                color: {t["text_primary"]};
+                border: 2px solid {t["nav_btn_active_border"]};
+            }}
+            """
+            selection_color = t["text_primary"]
+            msgbox_btn_color = t["text_on_primary"]
+            msgbox_btn_border = f'border: 1px solid {t["border_input"]};'
+        else:
+            btn_styles = f"""
+            QPushButton {{
+                background-color: {t["primary"]};
+                color: #FFFFFF;
+                border-radius: 10px;
+                font-size: 18px;
+                padding: 8px 14px;
+                font-weight: bold;
+                border: 1px solid {t["primary_hover"]};
+            }}
+            QPushButton:hover {{
+                background-color: {t["primary_hover"]};
+            }}
+            QPushButton:pressed {{
+                background-color: {t["primary_pressed"]};
+            }}
+            QPushButton:disabled {{
+                background-color: {t["btn_disabled_bg"]};
+                color: {t["btn_disabled_text"]};
+                border: 1px solid {t["border_card"]};
+            }}
+            """
+            selection_color = "#FFFFFF"
+            msgbox_btn_color = "#FFFFFF"
+            msgbox_btn_border = ""
         return f"""
             /* ===== ESTILO GLOBAL TEMA: {resolved} ===== */
             * {{
@@ -450,29 +565,10 @@ class ThemeManager(QObject):
                 background-color: {t["bg_card"]};
                 color: {t["text_primary"]};
                 selection-background-color: {t["primary"]};
-                selection-color: #FFFFFF;
+                selection-color: {selection_color};
                 border: 2px solid {t["border_card"]};
             }}
-            QPushButton {{
-                background-color: {t["primary"]};
-                color: #FFFFFF;
-                border-radius: 10px;
-                font-size: 18px;
-                padding: 8px 14px;
-                font-weight: bold;
-                border: 1px solid {t["primary_hover"]};
-            }}
-            QPushButton:hover {{
-                background-color: {t["primary_hover"]};
-            }}
-            QPushButton:pressed {{
-                background-color: {t["primary_pressed"]};
-            }}
-            QPushButton:disabled {{
-                background-color: {t["btn_disabled_bg"]};
-                color: {t["btn_disabled_text"]};
-                border: 1px solid {t["border_card"]};
-            }}
+            {btn_styles}
             QTableWidget {{
                 background-color: {t["bg_card"]};
                 alternate-background-color: {t["table_row_alt"]};
@@ -552,15 +648,17 @@ class ThemeManager(QObject):
             }}
             QMessageBox QPushButton {{
                 background-color: {t["primary"]};
-                color: #FFFFFF;
+                color: {msgbox_btn_color};
                 border-radius: 8px;
                 padding: 8px 20px;
                 font-weight: bold;
+                {msgbox_btn_border}
             }}
         """
 
     # Compatibilidad con código legado que acceda a THEMES directamente
     THEMES = {
+        "Escala de grises": "",
         "Clínico Claro": "",
         "Modo Oscuro UCI": "",
         "Azul Biomédico": "",
@@ -649,7 +747,7 @@ class ThemeManager(QObject):
         pal.setColor(QPalette.ToolTipText, QColor(tokens["text_primary"]))
         pal.setColor(QPalette.Text, QColor(tokens["text_primary"]))
         pal.setColor(QPalette.Button, QColor(tokens["primary"]))
-        pal.setColor(QPalette.ButtonText, QColor("#FFFFFF"))
+        pal.setColor(QPalette.ButtonText, QColor(tokens.get("text_on_primary", "#374151") if tokens.get("monochrome") else "#FFFFFF"))
         self.app.setPalette(pal)
 
     def _build_qss(self, theme_name: str) -> str:

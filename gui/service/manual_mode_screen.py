@@ -1,3 +1,4 @@
+from gui.theme_manager import ThemeManager
 # gui/service/manual_mode_screen.py
 # Manual mode screen for direct control of pumps, valves, and critical actuators
 # Critical safety features: REQ-SW-005, REQ-SW-010, REQ-SW-012, REQ-SW-020
@@ -144,28 +145,63 @@ class ValveCard(QFrame):
 
     def __init__(self, code: str, description: str, parent=None):
         super().__init__(parent)
-        self.setStyleSheet("""
-            QFrame {
-                background-color: #1e293b;
-                border-radius: 2px;
-                border: 1px solid #334155;
-            }
-        """)
+        self.code = code
+        self.description = description
         self.setFixedHeight(80)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(10)
 
-        
-        info_label = QLabel(f"<b>{code}</b><br><span style='font-size:18px; color:#cbd5e1;'>{description}</span>")
-        info_label.setStyleSheet("color: #ffffff; font-size: 18px; border:none; background: transparent;")
-        info_label.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
+        self.info_label = QLabel(f"<b>{code}</b><br><span style='font-size:18px;'>{description}</span>")
+        self.info_label.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
 
         self.toggle = ToggleSwitch(width=70, height=30, parent=self)
-        layout.addWidget(info_label)
+        layout.addWidget(self.info_label)
         layout.addStretch()
         layout.addWidget(self.toggle)
+
+        self.apply_theme_styles()
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self.apply_theme_styles())
+        except Exception:
+            pass
+
+    def apply_theme_styles(self, theme_name: str | None = None):
+        tokens = ThemeManager.get_tokens(theme_name)
+        is_mono = bool(tokens.get("monochrome", False))
+        is_dark = bool(tokens.get("is_dark", False))
+
+        if is_mono:
+            self.setStyleSheet("""
+                QFrame {
+                    background-color: #FFFFFF;
+                    border-radius: 6px;
+                    border: 1px solid #D1D5DB;
+                }
+            """)
+            self.info_label.setText(f"<b>{self.code}</b><br><span style='font-size:18px; color:#6B7280;'>{self.description}</span>")
+            self.info_label.setStyleSheet("color: #111827; font-size: 18px; border:none; background: transparent;")
+        elif is_dark:
+            self.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {tokens.get('bg_card', '#1E293B')};
+                    border-radius: 6px;
+                    border: 1px solid {tokens.get('border_card', '#334155')};
+                }}
+            """)
+            self.info_label.setText(f"<b>{self.code}</b><br><span style='font-size:18px; color:{tokens.get('text_secondary', '#94A3B8')};'>{self.description}</span>")
+            self.info_label.setStyleSheet(f"color: {tokens.get('text_primary', '#F8FAFC')}; font-size: 18px; border:none; background: transparent;")
+        else:
+            self.setStyleSheet("""
+                QFrame {
+                    background-color: #1e293b;
+                    border-radius: 2px;
+                    border: 1px solid #334155;
+                }
+            """)
+            self.info_label.setText(f"<b>{self.code}</b><br><span style='font-size:18px; color:#cbd5e1;'>{self.description}</span>")
+            self.info_label.setStyleSheet("color: #ffffff; font-size: 18px; border:none; background: transparent;")
 
 
 class ManualModeScreen(QWidget):
@@ -239,6 +275,11 @@ class ManualModeScreen(QWidget):
         self._setup_timers()
         self.setup_ui()
         logger.info("Manual mode module initialized (v1.0.0)")
+        self.apply_theme_styles()
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self.apply_theme_styles())
+        except Exception:
+            pass
 
     def _setup_timers(self):
         self.blood_pump_timer = QTimer(self)
@@ -348,9 +389,9 @@ class ManualModeScreen(QWidget):
         grid.addWidget(self.input_bolus, 0, 2, 1, 2)
 
         # 3. Toggle b. sangre (Der)
-        lbl_blood_pump = QLabel("B. S.")
-        lbl_blood_pump.setStyleSheet(label_style)
-        grid.addWidget(lbl_blood_pump, 0, 5, 1, 1)
+        self.lbl_blood_pump = QLabel("B. S.")
+        self.lbl_blood_pump.setStyleSheet(label_style)
+        grid.addWidget(self.lbl_blood_pump, 0, 5, 1, 1)
 
         self.blood_pump_toggle = ToggleSwitch(width=70, height=35, parent=self.control_area)
         self.blood_pump_toggle.toggled.connect(
@@ -369,12 +410,12 @@ class ManualModeScreen(QWidget):
         grid.addWidget(self.btn_rev, 0, 7, 1, 1)
 
         # 5. Btn FWD sangre (Der)
-        btn_fwd = PushbuttonEvent("FWD", self.control_area)
-        btn_fwd.setFixedSize(80, 70)
-        btn_fwd.setStyleSheet(button_style)
-        btn_fwd.pressed.connect(lambda: self.on_user_boolean_command("bloodPumpFWDButton", True))
-        btn_fwd.released.connect(lambda: self.on_user_boolean_command("bloodPumpFWDButton", False))
-        grid.addWidget(btn_fwd, 0, 8, 1, 1)
+        self.btn_fwd = PushbuttonEvent("FWD", self.control_area)
+        self.btn_fwd.setFixedSize(80, 70)
+        self.btn_fwd.setStyleSheet(button_style)
+        self.btn_fwd.pressed.connect(lambda: self.on_user_boolean_command("bloodPumpFWDButton", True))
+        self.btn_fwd.released.connect(lambda: self.on_user_boolean_command("bloodPumpFWDButton", False))
+        grid.addWidget(self.btn_fwd, 0, 8, 1, 1)
 
         # 6. Flujo Sangre (Der)
         self.blood_flow_input = LabeledParameterWidget(
@@ -407,12 +448,12 @@ class ManualModeScreen(QWidget):
         grid.addWidget(self.input_syringe_size, 1, 0, 1, 2)
 
         # 9. Btn aplicar bolo (Izq)
-        btn_bolus_apply = QPushButton("Aplicar\nbolo", self.control_area)
-        btn_bolus_apply.setFixedSize(120, 70)
-        btn_bolus_apply.setStyleSheet(button_style)
-        btn_bolus_apply.pressed.connect(lambda: self.on_user_boolean_command("heparinApplyBolusDose", True))
+        self.btn_bolus_apply = QPushButton("Aplicar\nbolo", self.control_area)
+        self.btn_bolus_apply.setFixedSize(120, 70)
+        self.btn_bolus_apply.setStyleSheet(button_style)
+        self.btn_bolus_apply.pressed.connect(lambda: self.on_user_boolean_command("heparinApplyBolusDose", True))
         # btn_bolus_apply.released.connect(lambda: self.on_user_boolean_command("heparinApplyBolusDose", False))
-        grid.addWidget(btn_bolus_apply, 1, 2, 1, 2, alignment=Qt.AlignCenter)
+        grid.addWidget(self.btn_bolus_apply, 1, 2, 1, 2, alignment=Qt.AlignCenter)
 
         # 10. Tiempo operación b. sangre (Der)
         self.blood_pump_time_input = LabeledTimeInput(
@@ -475,20 +516,20 @@ class ManualModeScreen(QWidget):
         grid.addWidget(self.heparin_pump_toggle, 2, 6, 1, 1)
 
         # 14. Btn HOME heparina
-        btn_heparin_home = PushbuttonEvent("HOME", self.control_area)
-        btn_heparin_home.setFixedSize(80, 70)
-        btn_heparin_home.setStyleSheet(button_style)
-        btn_heparin_home.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpHomePosition", True))
+        self.btn_heparin_home = PushbuttonEvent("HOME", self.control_area)
+        self.btn_heparin_home.setFixedSize(80, 70)
+        self.btn_heparin_home.setStyleSheet(button_style)
+        self.btn_heparin_home.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpHomePosition", True))
         # btn_heparin_home.released.connect(lambda: self.on_user_boolean_command("heparinePumpHomePosition", False))
-        grid.addWidget(btn_heparin_home, 2, 7, 1, 1)
+        grid.addWidget(self.btn_heparin_home, 2, 7, 1, 1)
 
         # 15. Btn REV heparina
-        btn_rev_hep = PushbuttonEvent("REV", self.control_area)
-        btn_rev_hep.setFixedSize(80, 70)
-        btn_rev_hep.setStyleSheet(button_style)
-        btn_rev_hep.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpREVButton", True))
-        btn_rev_hep.released.connect(lambda: self.on_user_boolean_command("heparinePumpREVButton", False))
-        grid.addWidget(btn_rev_hep, 2, 8, 1, 1)
+        self.btn_rev_hep = PushbuttonEvent("REV", self.control_area)
+        self.btn_rev_hep.setFixedSize(80, 70)
+        self.btn_rev_hep.setStyleSheet(button_style)
+        self.btn_rev_hep.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpREVButton", True))
+        self.btn_rev_hep.released.connect(lambda: self.on_user_boolean_command("heparinePumpREVButton", False))
+        grid.addWidget(self.btn_rev_hep, 2, 8, 1, 1)
 
         # 16. Btn PAUSE heparina
         self.btn_pause_hep = PushbuttonEvent("PAUSE", self.control_area)
@@ -498,12 +539,12 @@ class ManualModeScreen(QWidget):
         grid.addWidget(self.btn_pause_hep, 2, 9, 1, 1)
 
         # 17. Btn FWD heparina
-        btn_fwd_hep = PushbuttonEvent("FWD", self.control_area)
-        btn_fwd_hep.setFixedSize(80, 70)
-        btn_fwd_hep.setStyleSheet(button_style)
-        btn_fwd_hep.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpFWDButton", True))
-        btn_fwd_hep.released.connect(lambda: self.on_user_boolean_command("heparinePumpFWDButton", False))
-        grid.addWidget(btn_fwd_hep, 2, 10, 1, 1)
+        self.btn_fwd_hep = PushbuttonEvent("FWD", self.control_area)
+        self.btn_fwd_hep.setFixedSize(80, 70)
+        self.btn_fwd_hep.setStyleSheet(button_style)
+        self.btn_fwd_hep.pressed.connect(lambda: self.on_user_boolean_command("heparinePumpFWDButton", True))
+        self.btn_fwd_hep.released.connect(lambda: self.on_user_boolean_command("heparinePumpFWDButton", False))
+        grid.addWidget(self.btn_fwd_hep, 2, 10, 1, 1)
 
         # 18. Heparina (Acumulado)
         self.heparin_current_dosage_display = LabeledParameterWidget(
@@ -759,32 +800,32 @@ class ManualModeScreen(QWidget):
         
 
         # --- VALVULAS ---
-        valves_container = QWidget()
-        valves_layout = QHBoxLayout(valves_container)
+        self.valves_container = QWidget()
+        valves_layout = QHBoxLayout(self.valves_container)
         valves_layout.setContentsMargins(0, 0, 0, 0)
         valves_layout.setSpacing(5)
 
-        mode_frame = QFrame()
-        mode_frame.setFixedSize(100, 180)
-        mode_frame.setStyleSheet("background-color: #0f172a; border-radius:8px; border: 2px solid #334155;")
-        mode_layout = QVBoxLayout(mode_frame)
+        self.mode_frame = QFrame()
+        self.mode_frame.setFixedSize(100, 180)
+        self.mode_frame.setStyleSheet("background-color: #0f172a; border-radius:8px; border: 2px solid #334155;")
+        mode_layout = QVBoxLayout(self.mode_frame)
 
-        mode_label = QLabel("Modo de<br>Op.")
-        mode_label.setStyleSheet("color: #ffffff; font-weight: bold; font-size: 18px;")
-        mode_label.setAlignment(Qt.AlignCenter)
+        self.mode_label = QLabel("Modo de<br>Op.")
+        self.mode_label.setStyleSheet("color: #ffffff; font-weight: bold; font-size: 18px;")
+        self.mode_label.setAlignment(Qt.AlignCenter)
 
-        self.operation_mode_toggle = ToggleSwitch(width=70, height=30, active_color="#facc15", parent=mode_frame)
+        self.operation_mode_toggle = ToggleSwitch(width=70, height=30, active_color="#facc15", parent=self.mode_frame)
         self.operation_mode_toggle.toggled.connect(
             lambda checked: self.on_user_boolean_command("dialyCircuitElementsOpSel", checked)
         )
 
         mode_layout.addStretch()
-        mode_layout.addWidget(mode_label)
+        mode_layout.addWidget(self.mode_label)
         mode_layout.addSpacing(10)
         mode_layout.addWidget(self.operation_mode_toggle, 0, Qt.AlignCenter)
         mode_layout.addStretch()
 
-        valves_layout.addWidget(mode_frame)
+        valves_layout.addWidget(self.mode_frame)
 
         valves_grid_widget = QWidget()
         valves_grid = QGridLayout(valves_grid_widget)
@@ -813,10 +854,10 @@ class ManualModeScreen(QWidget):
         #======================================================================================
         #                           --- LEDS ---
         #======================================================================================
-        indicators_area = QWidget()
-        indicators_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        indicators_area.setStyleSheet("background: #fcfcfc;")
-        led_grid = QGridLayout(indicators_area)
+        self.indicators_area = QWidget()
+        self.indicators_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.indicators_area.setStyleSheet("background: #fcfcfc;")
+        led_grid = QGridLayout(self.indicators_area)
         led_grid.setSpacing(10)
         led_grid.setContentsMargins(10, 10, 10, 10)
 
@@ -835,20 +876,22 @@ class ManualModeScreen(QWidget):
             (5, 2, 5, 3,"Nivel Tanque","dialyTankHiLevelSwitch"),        ]
 
         self.led_indicators = []
+        self.led_labels = []
         for rowl,coll, rled,cled, name, tag in led_info:
             lbl = QLabel(name)
             lbl.setStyleSheet("color: #000000; font-size: 18px; font-weight: bold;") 
             lbl.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             led_grid.addWidget(lbl, rowl, coll)
+            self.led_labels.append(lbl)
 
-            led = LED(indicators_area)
+            led = LED(self.indicators_area)
             led.setFixedSize(45, 45)
             led_grid.addWidget(led, rled, cled, alignment=Qt.AlignLeft | Qt.AlignVCenter)
             self.led_indicators.append((led, tag))
 
         layout.addWidget(self.control_area, 0, 0, 2, 2) 
-        layout.addWidget(valves_container, 0, 2, 1, 1) 
-        layout.addWidget(indicators_area, 1, 2, 1, 1)
+        layout.addWidget(self.valves_container, 0, 2, 1, 1) 
+        layout.addWidget(self.indicators_area, 1, 2, 1, 1)
 
         layout.setColumnStretch(0, 4)
         layout.setColumnStretch(1, 4)
@@ -1482,4 +1525,141 @@ class ManualModeScreen(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         self.setFocus()
+
+    def apply_theme_styles(self, theme_name: str | None = None):
+        tokens = ThemeManager.get_tokens(theme_name)
+        is_mono = bool(tokens.get("monochrome", False))
+        is_dark = bool(tokens.get("is_dark", False))
+
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), QColor(tokens.get("bg_main", "#F3F4F6")))
+        self.setPalette(palette)
+        self.setStyleSheet(f"background-color: {tokens.get('bg_main', '#F3F4F6')};")
+
+        if is_mono:
+            card_style = """
+                background-color: #FFFFFF;
+                border-radius: 8px;
+                border: 1px solid #D1D5DB;
+            """
+            mode_frame_style = """
+                background-color: #FFFFFF;
+                border-radius: 8px;
+                border: 1px solid #D1D5DB;
+            """
+            mode_lbl_style = "color: #111827; font-weight: bold; font-size: 18px; border: none; background: transparent;"
+            lbl_color = "color: #374151; font-size: 18px; font-weight: bold; border: none; background: transparent;"
+            btn_style = """
+                QPushButton {
+                    background: #D9E0E8;
+                    color: #374151;
+                    border: 2px solid #C5CDD6;
+                    border-radius: 20px;
+                    font-weight: bold;
+                    font-size: 18px;
+                }
+                QPushButton:hover { background: #C5CED6; }
+                QPushButton:pressed { background: #B0B8C4; }
+            """
+            test_btn_style = """
+                QPushButton {
+                    background: #D9E0E8;
+                    color: #374151;
+                    border: 2px solid #C5CDD6;
+                    border-radius: 8px;
+                    font-weight: bold;
+                    font-size: 18px;
+                }
+                QPushButton:hover { background: #C5CED6; }
+                QPushButton:pressed { background: #B0B8C4; }
+            """
+        elif is_dark:
+            card_style = f"""
+                background-color: {tokens.get('bg_card', '#1E293B')};
+                border-radius: 8px;
+                border: 1px solid {tokens.get('border_card', '#334155')};
+            """
+            mode_frame_style = f"""
+                background-color: {tokens.get('bg_card', '#1E293B')};
+                border-radius: 8px;
+                border: 1px solid {tokens.get('border_card', '#334155')};
+            """
+            mode_lbl_style = f"color: {tokens.get('text_primary', '#F8FAFC')}; font-weight: bold; font-size: 18px; border: none; background: transparent;"
+            lbl_color = f"color: {tokens.get('text_primary', '#F8FAFC')}; font-size: 18px; font-weight: bold; border: none; background: transparent;"
+            btn_style = f"""
+                QPushButton {{
+                    background: {tokens.get('primary', '#38BDF8')};
+                    color: #ffffff;
+                    border-radius: 20px;
+                    font-weight: bold;
+                    font-size: 18px;
+                }}
+                QPushButton:hover {{ background: {tokens.get('primary_hover', '#0284C7')}; }}
+            """
+            test_btn_style = f"""
+                QPushButton {{
+                    background: {tokens.get('primary', '#38BDF8')};
+                    color: #ffffff;
+                    border-radius: 8px;
+                    font-weight: bold;
+                    font-size: 18px;
+                }}
+                QPushButton:hover {{ background: {tokens.get('primary_hover', '#0284C7')}; }}
+            """
+        else:
+            card_style = "background: #fcfcfc; border: None;"
+            mode_frame_style = "background-color: #0f172a; border-radius: 8px; border: 2px solid #334155;"
+            mode_lbl_style = "color: #ffffff; font-weight: bold; font-size: 18px; border: none; background: transparent;"
+            lbl_color = "color: #000000; font-size: 18px; font-weight: bold; border: none; background: transparent;"
+            btn_style = """
+                QPushButton { background: #3b82f6; color: #ffffff; border-radius: 20px; font-weight: bold; }
+                QPushButton:pressed { background: #1e40af; }
+                QPushButton:hover { background: #60a5fa; }
+            """
+            test_btn_style = """
+                QPushButton { background: #3b82f6; color: white; font-size: 18px; font-weight: bold; border-radius: 8px; }
+                QPushButton:hover { background: #60a5fa; }
+            """
+
+        if hasattr(self, "control_area"):
+            self.control_area.setStyleSheet(card_style)
+        if hasattr(self, "indicators_area"):
+            self.indicators_area.setStyleSheet(card_style)
+        if hasattr(self, "mode_frame"):
+            self.mode_frame.setStyleSheet(mode_frame_style)
+        if hasattr(self, "mode_label"):
+            self.mode_label.setStyleSheet(mode_lbl_style)
+
+        # Style all push buttons in control area
+        if hasattr(self, "control_area"):
+            for btn in self.control_area.findChildren(QPushButton):
+                if hasattr(self, "test_parameter_configuration") and btn is self.test_parameter_configuration:
+                    btn.setStyleSheet(test_btn_style)
+                else:
+                    btn.setStyleSheet(btn_style)
+
+        # Style all labels in control area
+        if hasattr(self, "control_area"):
+            for lbl in self.control_area.findChildren(QLabel):
+                # Don't overwrite LabeledParameterWidget internals if any
+                if lbl.parent() is self.control_area:
+                    lbl.setStyleSheet(lbl_color)
+
+        # Style LED labels
+        for lbl in getattr(self, "led_labels", []):
+            lbl.setStyleSheet(lbl_color)
+
+        # Apply to valve cards
+        for card in getattr(self, "valve_cards", {}).values():
+            try:
+                card.apply_theme_styles(theme_name)
+            except Exception:
+                pass
+
+        # Apply to parameter widgets
+        for wid in self.findChildren(LabeledParameterWidget):
+            try:
+                wid.apply_theme_styles(theme_name)
+            except Exception:
+                pass
 

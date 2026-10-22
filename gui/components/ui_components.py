@@ -1,3 +1,4 @@
+from gui.theme_manager import ThemeManager
 # gui/components/ui_components.py
 """
 Módulo que contiene componentes de interfaz de usuario (UI) reutilizables
@@ -132,27 +133,70 @@ class DoubleToggleBox(QFrame):
 
         # --- Primera Fila: Label 1 y Toggle 1 ---
         row1_layout = QHBoxLayout()
-        lbl1 = QLabel(f"<b>{label1_text}</b>")
-        lbl1.setStyleSheet("color: #000000; font-size: 16px; border:none; background: transparent;")
-        lbl1.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
+        self.lbl1 = QLabel(f"<b>{label1_text}</b>")
+        self.lbl1.setStyleSheet("color: #000000; font-size: 16px; border:none; background: transparent;")
+        self.lbl1.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
         self.toggle1 = ToggleSwitch(width=60, height=30) # Almacenar como atributo
 
-        row1_layout.addWidget(lbl1)
+        row1_layout.addWidget(self.lbl1)
         row1_layout.addStretch()
         row1_layout.addWidget(self.toggle1)
         main_layout.addLayout(row1_layout)
 
         # --- Segunda Fila: Label 2 y Toggle 2 ---
         row2_layout = QHBoxLayout()
-        lbl2 = QLabel(f"<b>{label2_text}</b>")
-        lbl2.setStyleSheet("color: #000000; font-size: 16px; border:none; background: transparent;")
-        lbl2.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
+        self.lbl2 = QLabel(f"<b>{label2_text}</b>")
+        self.lbl2.setStyleSheet("color: #000000; font-size: 16px; border:none; background: transparent;")
+        self.lbl2.setAlignment(Qt.AlignLeft | Qt.AlignCenter)
         self.toggle2 = ToggleSwitch(width=60, height=30) # Almacenar como atributo
 
-        row2_layout.addWidget(lbl2)
+        row2_layout.addWidget(self.lbl2)
         row2_layout.addStretch()
         row2_layout.addWidget(self.toggle2)
         main_layout.addLayout(row2_layout)
+
+        self.apply_theme_styles()
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self.apply_theme_styles())
+        except Exception:
+            pass
+
+    def apply_theme_styles(self, theme_name: str | None = None):
+        tokens = ThemeManager.get_tokens(theme_name)
+        is_mono = bool(tokens.get("monochrome", False))
+        is_dark = bool(tokens.get("is_dark", False))
+        if is_mono:
+            self.setStyleSheet("""
+                QFrame {
+                    background-color: #FFFFFF;
+                    border-radius: 8px;
+                    border: 1px solid #D1D5DB;
+                }
+            """)
+            lbl_css = "color: #374151; font-size: 16px; border:none; background: transparent;"
+        elif is_dark:
+            self.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {tokens.get('bg_card', '#1E293B')};
+                    border-radius: 8px;
+                    border: 1px solid {tokens.get('border_card', '#334155')};
+                }}
+            """)
+            lbl_css = f"color: {tokens.get('text_primary', '#F8FAFC')}; font-size: 16px; border:none; background: transparent;"
+        else:
+            self.setStyleSheet("""
+                QFrame {
+                    background-color: #f0f4f8;
+                    border-radius: 8px;
+                    border: 1px solid #334155;
+                }
+            """)
+            lbl_css = "color: #000000; font-size: 16px; border:none; background: transparent;"
+
+        if hasattr(self, "lbl1"):
+            self.lbl1.setStyleSheet(lbl_css)
+        if hasattr(self, "lbl2"):
+            self.lbl2.setStyleSheet(lbl_css)
 
 
 
@@ -185,6 +229,10 @@ class ClickableLineEdit(QLineEdit):
         if event.button() == Qt.LeftButton:
             self.clicked.emit()
         super().mousePressEvent(event)
+
+
+
+
 
 
 class LabeledParameterWidget(QWidget):
@@ -264,6 +312,41 @@ class LabeledParameterWidget(QWidget):
         frame_layout.addWidget(self.header_label)
         frame_layout.addWidget(self.value_widget)
 
+        self.is_editable = is_editable
+        self.apply_theme_styles()
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self.apply_theme_styles())
+        except Exception:
+            pass
+
+    def apply_theme_styles(self, theme_name: str | None = None):
+        tokens = ThemeManager.get_tokens()
+        is_mono = bool(tokens.get("monochrome", False))
+        is_dark = bool(tokens.get("is_dark", False))
+        if is_mono:
+            inp_style = (
+                "background: #F8F9FA; color: #374151; font-size: 26px; font-weight: bold; "
+                "border: 2px solid #C5CDD6; border-radius: 5px; padding: 4px;"
+            )
+            ind_style = (
+                "color: #374151; font-size: 26px; font-weight: bold; "
+                "border: 2px solid #C5CDD6; border-radius: 5px; padding: 2px; background: #FFFFFF;"
+            )
+            hdr_style = "background: transparent; border: none; color: #4B5563; font-weight: bold; font-size: 18px;"
+        elif is_dark:
+            inp_style = f"background: {tokens.get('bg_input', '#1E293B')}; color: {tokens.get('text_primary', '#F8FAFC')}; font-size: 26px; font-weight: bold; border: 2px solid {tokens.get('border_input', '#334155')}; border-radius: 5px; padding: 4px;"
+            ind_style = f"color: {tokens.get('primary', '#38BDF8')}; font-size: 26px; font-weight: bold; border: 2px solid {tokens.get('border_card', '#334155')}; border-radius: 5px; padding: 2px; background: {tokens.get('bg_card_alt', '#1E293B')};"
+            hdr_style = f"background: transparent; border: none; color: {tokens.get('text_secondary', '#94A3B8')}; font-weight: bold; font-size: 18px;"
+        else:
+            inp_style = "background: #FFFFE5; color: #000000; font-size: 26px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 4px;"
+            ind_style = "color: #22d3ee; font-size: 26px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px;"
+            hdr_style = "background: transparent; border: none; color: #333333; font-weight: bold; font-size: 18px;"
+
+        self.header_label.setStyleSheet(hdr_style)
+        if getattr(self, "is_editable", False):
+            self.value_widget.setStyleSheet(inp_style)
+        else:
+            self.value_widget.setStyleSheet(ind_style)
     def _emit_numpad_request(self):
         """Internal handler to emit numpad request signal."""
         self.request_numpad.emit(self._tag, self, self._numpad_title)
@@ -374,7 +457,50 @@ class LabeledTimeInput(QWidget):
             
 
         frame_layout.addWidget(self.header_label)
+        self.is_editable = is_editable
         frame_layout.addWidget(self.time_display)
+        self.apply_theme_styles()
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self.apply_theme_styles())
+        except Exception:
+            pass
+
+    def apply_theme_styles(self, theme_name: str | None = None):
+        tokens = ThemeManager.get_tokens(theme_name)
+        is_mono = bool(tokens.get("monochrome", False))
+        is_dark = bool(tokens.get("is_dark", False))
+        if is_mono:
+            self.setStyleSheet("""
+                QFrame {
+                    background-color: #FFFFFF;
+                    border-radius: 8px;
+                    border: 1px solid #D1D5DB;
+                }
+            """)
+            lbl_css = "color: #374151; font-size: 16px; border:none; background: transparent;"
+        elif is_dark:
+            self.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {tokens.get('bg_card', '#1E293B')};
+                    border-radius: 8px;
+                    border: 1px solid {tokens.get('border_card', '#334155')};
+                }}
+            """)
+            lbl_css = f"color: {tokens.get('text_primary', '#F8FAFC')}; font-size: 16px; border:none; background: transparent;"
+        else:
+            self.setStyleSheet("""
+                QFrame {
+                    background-color: #f0f4f8;
+                    border-radius: 8px;
+                    border: 1px solid #334155;
+                }
+            """)
+            lbl_css = "color: #000000; font-size: 16px; border:none; background: transparent;"
+
+        if hasattr(self, "lbl1"):
+            self.lbl1.setStyleSheet(lbl_css)
+        if hasattr(self, "lbl2"):
+            self.lbl2.setStyleSheet(lbl_css)
 
     def _emit_time_numpad_request(self):
         """Internal handler to emit time numpad request signal."""
@@ -403,6 +529,43 @@ class LabeledTimeInput(QWidget):
             print(f"[ERROR] Invalid time format in LabeledTimeInput: {self.time_display.text()}")
 #             return 0, 0
 
+
+
+
+    def apply_theme_styles(self, theme_name: str | None = None):
+        tokens = ThemeManager.get_tokens(theme_name)
+        is_mono = bool(tokens.get("monochrome", False))
+        is_dark = bool(tokens.get("is_dark", False))
+
+        if is_mono:
+            inp_style = (
+                "background: #F8F9FA; color: #374151; font-size: 26px; font-weight: bold; "
+                "border: 2px solid #C5CDD6; border-radius: 5px; padding: 4px;"
+            )
+            ind_style = (
+                "color: #374151; font-size: 26px; font-weight: bold; "
+                "border: 2px solid #C5CDD6; border-radius: 5px; padding: 2px; background: #FFFFFF;"
+            )
+            hdr_style = "background: transparent; border: none; color: #4B5563; font-weight: bold; font-size: 20px;"
+        elif is_dark:
+            inp_style = f"background: {tokens.get('bg_input', '#1E293B')}; color: {tokens.get('text_primary', '#F8FAFC')}; font-size: 26px; font-weight: bold; border: 2px solid {tokens.get('border_input', '#334155')}; border-radius: 5px; padding: 4px;"
+            ind_style = f"color: {tokens.get('primary', '#38BDF8')}; font-size: 26px; font-weight: bold; border: 2px solid {tokens.get('border_card', '#334155')}; border-radius: 5px; padding: 2px; background: {tokens.get('bg_card_alt', '#1E293B')};"
+            hdr_style = f"background: transparent; border: none; color: {tokens.get('text_secondary', '#94A3B8')}; font-weight: bold; font-size: 20px;"
+        else:
+            inp_style = (
+                "background: #FFFFE5; color: #000000; font-size: 26px; font-weight: bold; "
+                "border: 2px solid #000000; border-radius: 5px; padding: 4px;"
+            )
+            ind_style = "color: #22d3ee; font-size: 26px; font-weight: bold; border: 2px solid #000000; border-radius: 5px; padding: 2px;"
+            hdr_style = "background: transparent; border: none; color: #333333; font-weight: bold; font-size: 20px;"
+
+        if hasattr(self, "header_label"):
+            self.header_label.setStyleSheet(hdr_style)
+        if hasattr(self, "time_display"):
+            if self.is_editable:
+                self.time_display.setStyleSheet(inp_style)
+            else:
+                self.time_display.setStyleSheet(ind_style)
 
 
 def show_dark_message(parent, title: str, text: str, icon=QMessageBox.Information, buttons=QMessageBox.Ok):

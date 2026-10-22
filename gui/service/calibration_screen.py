@@ -1,3 +1,4 @@
+from gui.theme_manager import ThemeManager
 # gui/service/calibration_screen.py
 # Low-level calibration and controller tuning screen
 # Allows enabling control loops, adjusting PID gains, feedforward, and monitoring setpoints/variables/outputs
@@ -131,6 +132,11 @@ class CalibrationScreen(QWidget):
         self.time_axis = np.arange(-self.history_length + 1, 1, dtype=np.float32)
         
         self.setup_ui()
+        self.apply_theme_styles()
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self.apply_theme_styles())
+        except Exception:
+            pass
 
     def setup_ui(self):
         layout = QGridLayout(self)
@@ -139,10 +145,10 @@ class CalibrationScreen(QWidget):
 
 
         # ── Plots Area ───────────────────────────────────────────────────────────
-        graphics_area = QWidget()
-        graphics_area.setStyleSheet("background: transparent;")
-        graphics_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        grid_graphics = QGridLayout(graphics_area)
+        self.graphics_area = QWidget()
+        self.graphics_area.setStyleSheet("background: transparent;")
+        self.graphics_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        grid_graphics = QGridLayout(self.graphics_area)
         grid_graphics.setSpacing(15)
         grid_graphics.setContentsMargins(5, 5, 5, 5)
 
@@ -199,10 +205,10 @@ class CalibrationScreen(QWidget):
 
 
         # ── Control Area ─────────────────────────────────────────────────────────
-        control_area = QWidget()
-        control_area.setStyleSheet("background: transparent;")
-        control_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        grid = QGridLayout(control_area)
+        self.control_area = QWidget()
+        self.control_area.setStyleSheet("background: transparent;")
+        self.control_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        grid = QGridLayout(self.control_area)
         grid.setSpacing(15)
         grid.setContentsMargins(5, 5, 5, 5)
 
@@ -299,8 +305,8 @@ class CalibrationScreen(QWidget):
         pid_row += 1
         self.temp_kd_input = self._add_control_row(grid, pid_row, pid_col, "Temp.", "kd", tag="dialyTempControlDeriGain", numpad_title="Temp. Kd Gain")
 
-        layout.addWidget(control_area, 0, 0)
-        layout.addWidget(graphics_area, 0, 5)
+        layout.addWidget(self.control_area, 0, 0)
+        layout.addWidget(self.graphics_area, 0, 5)
         logger.debug("UI de calibración configurada con controles y gráficos.")
 
     def _add_control_row(self, grid, row, col, label_text, unit_text, tag=None, numpad_title="", is_input=True, initial_value="0.0"):
@@ -334,6 +340,10 @@ class CalibrationScreen(QWidget):
         unit_label = QLabel(unit_text)
         unit_label.setStyleSheet("color: #94a3b8; font-size: 16px;")
         grid.addWidget(unit_label, row, col + 2)
+
+        if not hasattr(self, "_calib_rows"):
+            self._calib_rows = []
+        self._calib_rows.append((label, widget, unit_label, is_input))
 
         return widget
 
@@ -474,3 +484,139 @@ class CalibrationScreen(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         self.setFocus()
+
+    def apply_theme_styles(self, theme_name: str | None = None):
+        tokens = ThemeManager.get_tokens(theme_name)
+        is_mono = bool(tokens.get("monochrome", False))
+        is_dark = bool(tokens.get("is_dark", False))
+
+        self.setStyleSheet(f"QWidget#CalibrationScreen {{ background-color: {tokens['bg_main']}; }}")
+
+        if is_mono:
+            inp_style = (
+                "background: #F8F9FA; color: #374151; font-size: 18px; font-weight: bold; "
+                "border: 2px solid #C5CDD6; border-radius: 5px; padding: 4px;"
+            )
+            ind_style = (
+                "color: #374151; font-size: 20px; font-weight: bold; "
+                "border: 2px solid #C5CDD6; border-radius: 5px; padding: 2px; background: #FFFFFF;"
+            )
+            lbl_style = "color: #374151; font-size: 18px; font-weight: bold; border: none; background: transparent;"
+            unt_style = "color: #6B7280; font-size: 16px; border: none; background: transparent;"
+
+            # Plots
+            for plot, title_text, y_label in [
+                (getattr(self, "blood_flow_control_plot", None), "Control de Flujo de Sangre", "Flujo Qb / Salida (%)"),
+                (getattr(self, "cond_control_plot", None), "Control de Conductividad", "Conductividad (mS/cm)"),
+                (getattr(self, "temp_control_plot", None), "Control de Temperatura", "Temperatura Dializante (°C)")
+            ]:
+                if plot:
+                    plot.setBackground("#FFFFFF")
+                    plot.setTitle(f'<span style="font-size: 11pt; color: #374151;">{title_text}</span>')
+                    plot.setLabel('left', f'<span style="font-size: 9pt; color: #374151;">{y_label}</span>')
+                    plot.setLabel('bottom', '<span style="font-size: 9pt; color: #374151;">Tiempo (s)</span>')
+
+            if hasattr(self, "curve_bf_setpoint"):
+                self.curve_bf_setpoint.setPen(pg.mkPen(color="#374151", width=2, style=Qt.SolidLine))
+                self.curve_bf_variable.setPen(pg.mkPen(color="#6B7280", width=2, style=Qt.DashLine))
+                self.curve_bf_output.setPen(pg.mkPen(color="#9CA3AF", width=2, style=Qt.DotLine))
+
+            if hasattr(self, "curve_cond_setpoint"):
+                self.curve_cond_setpoint.setPen(pg.mkPen(color="#374151", width=2, style=Qt.SolidLine))
+                self.curve_cond_variable.setPen(pg.mkPen(color="#6B7280", width=2, style=Qt.DashLine))
+                self.curve_cond_output.setPen(pg.mkPen(color="#9CA3AF", width=2, style=Qt.DotLine))
+
+            if hasattr(self, "curve_temp_setpoint"):
+                self.curve_temp_setpoint.setPen(pg.mkPen(color="#374151", width=2, style=Qt.SolidLine))
+                self.curve_temp_variable.setPen(pg.mkPen(color="#6B7280", width=2, style=Qt.DashLine))
+                self.curve_temp_output.setPen(pg.mkPen(color="#9CA3AF", width=2, style=Qt.DotLine))
+
+        elif is_dark:
+            inp_style = f"background: {tokens.get('bg_input', '#1E293B')}; color: {tokens.get('text_primary', '#F8FAFC')}; font-size: 18px; font-weight: bold; border: 2px solid {tokens.get('border_input', '#334155')}; border-radius: 5px; padding: 4px;"
+            ind_style = f"color: {tokens.get('primary', '#38BDF8')}; font-size: 20px; font-weight: bold; border: 2px solid {tokens.get('border_card', '#334155')}; border-radius: 5px; padding: 2px; background: {tokens.get('bg_card_alt', '#1E293B')};"
+            lbl_style = f"color: {tokens.get('text_primary', '#F8FAFC')}; font-size: 18px; font-weight: bold; border: none; background: transparent;"
+            unt_style = f"color: {tokens.get('text_muted', '#64748B')}; font-size: 16px; border: none; background: transparent;"
+
+            for plot, title_text, y_label in [
+                (getattr(self, "blood_flow_control_plot", None), "Control de Flujo de Sangre", "Flujo Qb / Salida (%)"),
+                (getattr(self, "cond_control_plot", None), "Control de Conductividad", "Conductividad (mS/cm)"),
+                (getattr(self, "temp_control_plot", None), "Control de Temperatura", "Temperatura Dializante (°C)")
+            ]:
+                if plot:
+                    plot.setBackground(tokens.get("bg_card_alt", "#1E293B"))
+                    plot.setTitle(f'<span style="font-size: 11pt; color: {tokens.get("text_primary", "#F8FAFC")};">{title_text}</span>')
+                    plot.setLabel('left', f'<span style="font-size: 9pt; color: {tokens.get("text_primary", "#F8FAFC")};">{y_label}</span>')
+                    plot.setLabel('bottom', f'<span style="font-size: 9pt; color: {tokens.get("text_primary", "#F8FAFC")};">Tiempo (s)</span>')
+
+            if hasattr(self, "curve_bf_setpoint"):
+                self.curve_bf_setpoint.setPen(pg.mkPen(color=(56, 189, 248), width=2, style=Qt.SolidLine))
+                self.curve_bf_variable.setPen(pg.mkPen(color=(74, 222, 128), width=2, style=Qt.SolidLine))
+                self.curve_bf_output.setPen(pg.mkPen(color=(248, 113, 113), width=2, style=Qt.SolidLine))
+
+            if hasattr(self, "curve_cond_setpoint"):
+                self.curve_cond_setpoint.setPen(pg.mkPen(color=(56, 189, 248), width=2, style=Qt.SolidLine))
+                self.curve_cond_variable.setPen(pg.mkPen(color=(74, 222, 128), width=2, style=Qt.SolidLine))
+                self.curve_cond_output.setPen(pg.mkPen(color=(248, 113, 113), width=2, style=Qt.SolidLine))
+
+            if hasattr(self, "curve_temp_setpoint"):
+                self.curve_temp_setpoint.setPen(pg.mkPen(color=(56, 189, 248), width=2, style=Qt.SolidLine))
+                self.curve_temp_variable.setPen(pg.mkPen(color=(74, 222, 128), width=2, style=Qt.SolidLine))
+                self.curve_temp_output.setPen(pg.mkPen(color=(248, 113, 113), width=2, style=Qt.SolidLine))
+
+        else:
+            inp_style = """
+                background: #FFFFE5; color: #0f172a; font-size: 18px; font-weight: bold;
+                border: 2px solid #000000; border-radius: 5px; padding: 4px;
+            """
+            ind_style = "color: #22d3ee; font-size: 20px; font-weight: bold; border: 2px solid #0f172a; border-radius: 5px; padding: 2px;"
+            lbl_style = "color: #0f172a; font-size: 18px; font-weight: bold; border: none; background: transparent;"
+            unt_style = "color: #94a3b8; font-size: 16px; border: none; background: transparent;"
+
+            for plot, title_text, y_label in [
+                (getattr(self, "blood_flow_control_plot", None), "Control de Flujo de Sangre", "Flujo Qb / Salida (%)"),
+                (getattr(self, "cond_control_plot", None), "Control de Conductividad", "Conductividad (mS/cm)"),
+                (getattr(self, "temp_control_plot", None), "Control de Temperatura", "Temperatura Dializante (°C)")
+            ]:
+                if plot:
+                    plot.setBackground("#e0e0e0")
+                    plot.setTitle(f'<span style="font-size: 11pt; color: black;">{title_text}</span>')
+                    plot.setLabel('left', f'<span style="font-size: 9pt; color: black;">{y_label}</span>')
+                    plot.setLabel('bottom', '<span style="font-size: 9pt; color: black;">Tiempo (s)</span>')
+
+            if hasattr(self, "curve_bf_setpoint"):
+                self.curve_bf_setpoint.setPen(pg.mkPen(color=(0, 0, 255), width=2, style=Qt.SolidLine))
+                self.curve_bf_variable.setPen(pg.mkPen(color=(0, 150, 0), width=2, style=Qt.SolidLine))
+                self.curve_bf_output.setPen(pg.mkPen(color=(255, 0, 0), width=2, style=Qt.SolidLine))
+
+            if hasattr(self, "curve_cond_setpoint"):
+                self.curve_cond_setpoint.setPen(pg.mkPen(color=(0, 0, 255), width=2, style=Qt.SolidLine))
+                self.curve_cond_variable.setPen(pg.mkPen(color=(0, 150, 0), width=2, style=Qt.SolidLine))
+                self.curve_cond_output.setPen(pg.mkPen(color=(255, 0, 0), width=2, style=Qt.SolidLine))
+
+            if hasattr(self, "curve_temp_setpoint"):
+                self.curve_temp_setpoint.setPen(pg.mkPen(color=(0, 0, 255), width=2, style=Qt.SolidLine))
+                self.curve_temp_variable.setPen(pg.mkPen(color=(0, 150, 0), width=2, style=Qt.SolidLine))
+                self.curve_temp_output.setPen(pg.mkPen(color=(255, 0, 0), width=2, style=Qt.SolidLine))
+
+        for lbl, wid, unt, is_input in getattr(self, "_calib_rows", []):
+            lbl.setStyleSheet(lbl_style)
+            unt.setStyleSheet(unt_style)
+            if is_input:
+                wid.setStyleSheet(inp_style)
+            else:
+                wid.setStyleSheet(ind_style)
+
+        # Fallback to style all ClickableLineEdit and indicators
+        for wid in self.findChildren(ClickableLineEdit):
+            wid.setStyleSheet(inp_style)
+        if hasattr(self, "control_area"):
+            for lbl in self.control_area.findChildren(QLabel):
+                if lbl.property("class") == "highlighted":
+                    lbl.setStyleSheet(ind_style)
+
+        # Update DoubleToggleBox widgets
+        for box in self.findChildren(DoubleToggleBox):
+            try:
+                box.apply_theme_styles()
+            except Exception:
+                pass

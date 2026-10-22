@@ -98,15 +98,22 @@ class ConductivityBar(QWidget):
         inactive_bg = QColor(tokens["gauge_tank_bg"])
         inactive_bg.setAlpha(90 if not tokens.get("is_dark") else 150)
 
+        is_mono = bool(tokens.get("monochrome", False))
         for i in range(self.n_steps):
             y_pos = bar_y + bar_height - ((i + 1) * step_size) + (step_size * (1 - self._bar_solid_percent) / 2)
             rh_w = max(1, int(bar_width))
             rh_h = max(1, int(bar_height_step))
 
             if i < steps_to_draw:
-                color = QColor(self.colors[i])
-                painter.setBrush(color)
-                painter.setPen(QPen(color.darker(140), 1.5))
+                if is_mono:
+                    gray_val = int(210 - (i / max(1, self.n_steps - 1)) * 140)
+                    color = QColor(gray_val, gray_val, gray_val)
+                    painter.setBrush(color)
+                    painter.setPen(QPen(color.darker(120), 1.5))
+                else:
+                    color = QColor(self.colors[i])
+                    painter.setBrush(color)
+                    painter.setPen(QPen(color.darker(140), 1.5))
             else:
                 painter.setBrush(inactive_bg)
                 painter.setPen(QPen(QColor(tokens["border_card"]), 1))

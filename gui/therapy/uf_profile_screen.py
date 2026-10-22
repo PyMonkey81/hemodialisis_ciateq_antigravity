@@ -158,6 +158,11 @@ class UFProfileScreen(QWidget):
             slider.setValue(int(round(self._slider_values[idx] * 100.0)))
         self._update_selected_value_label()
         self.refresh_from_parent()
+        self.apply_theme_styles()
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self.apply_theme_styles())
+        except Exception:
+            pass
 
     def _build_top_card(self, card_style: str) -> QFrame:
         card = QFrame()
@@ -293,9 +298,22 @@ class UFProfileScreen(QWidget):
         return card
 
     def _slider_style(self, selected: bool) -> str:
-        accent = "#14b8a6" if selected else "#2dd4bf"
-        empty = "#dfe7ee"
-        border = "#0f766e" if selected else "#cbd5e1"
+        tokens = ThemeManager.get_tokens()
+        is_mono = bool(tokens.get("monochrome", False))
+        is_dark = bool(tokens.get("is_dark", False))
+        if is_mono:
+            # "El relleno de la barra pasa a gris medio y el contorno a gris."
+            accent = "#9CA3AF" if selected else "#B0B8C4"
+            empty = "#E5E7EB"
+            border = "#6B7280" if selected else "#D1D5DB"
+        elif is_dark:
+            accent = tokens.get("primary", "#38BDF8") if selected else tokens.get("primary_hover", "#0284C7")
+            empty = tokens.get("bg_card_alt", "#1E293B")
+            border = tokens.get("primary", "#38BDF8") if selected else tokens.get("border_card", "#334155")
+        else:
+            accent = "#14b8a6" if selected else "#2dd4bf"
+            empty = "#dfe7ee"
+            border = "#0f766e" if selected else "#cbd5e1"
 
         return (
             "QSlider { background: transparent; min-height: 220px; }"
@@ -375,6 +393,11 @@ class UFProfileScreen(QWidget):
 
     def _on_cancel_profile(self):
         self.refresh_from_parent()
+        self.apply_theme_styles()
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self.apply_theme_styles())
+        except Exception:
+            pass
         self._on_back()
 
     def _on_back(self):
@@ -560,3 +583,230 @@ class UFProfileScreen(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         self.refresh_from_parent()
+        self.apply_theme_styles()
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self.apply_theme_styles())
+        except Exception:
+            pass
+
+
+    def apply_theme_styles(self, theme_name: str | None = None):
+        tokens = ThemeManager.get_tokens(theme_name)
+        is_mono = bool(tokens.get("monochrome", False))
+        is_dark = bool(tokens.get("is_dark", False))
+
+        if is_mono:
+            self.setStyleSheet(f"background-color: {tokens['bg_main']};")
+            card_style = """
+                QFrame#Card {
+                    background-color: #FFFFFF;
+                    border: 1px solid #D1D5DB;
+                    border-radius: 14px;
+                }
+            """
+            self.style_primary_btn = """
+                QPushButton {
+                    background: #9CA3AF;
+                    color: #111827;
+                    font-weight: bold;
+                    font-size: 18px;
+                    border-radius: 12px;
+                    border: 2px solid #6B7280;
+                    min-height: 52px;
+                    padding: 6px 12px;
+                }
+                QPushButton:hover { background: #6B7280; color: #FFFFFF; }
+            """
+            self.style_secondary_btn = """
+                QPushButton {
+                    background: #D9E0E8;
+                    color: #374151;
+                    font-weight: bold;
+                    font-size: 18px;
+                    border-radius: 12px;
+                    border: 2px solid #C5CDD6;
+                    min-height: 52px;
+                    padding: 6px 12px;
+                }
+                QPushButton:hover { background: #C5CED6; }
+            """
+            self.style_toggle_btn = """
+                QPushButton {
+                    background: #D9E0E8;
+                    color: #374151;
+                    font-weight: 600;
+                    font-size: 18px;
+                    border-radius: 10px;
+                    border: 2px solid #C5CDD6;
+                    min-height: 52px;
+                    padding: 8px 10px;
+                }
+                QPushButton:checked {
+                    background: #9CA3AF;
+                    color: #111827;
+                    border: 2px solid #6B7280;
+                    font-weight: bold;
+                }
+            """
+            lbl_color = "#374151"
+            btn_pm_style = """
+                QPushButton { background: #D9E0E8; color: #374151; font-size: 42px; font-weight: bold; border-radius: 14px; border: 2px solid #C5CDD6; }
+                QPushButton:hover { background: #C5CED6; }
+                QPushButton:pressed { background: #B0B8C4; }
+            """
+            btn_adj_style = """
+                QPushButton { background: #D9E0E8; color: #374151; font-size: 18px; font-weight: bold; border-radius: 12px; border: 2px solid #C5CDD6; }
+                QPushButton:hover { background: #C5CED6; }
+                QPushButton:pressed { background: #B0B8C4; }
+            """
+        elif is_dark:
+            self.setStyleSheet(f"background-color: {tokens['bg_main']};")
+            card_style = f"""
+                QFrame#Card {{
+                    background-color: {tokens['bg_card']};
+                    border: 1px solid {tokens['border_card']};
+                    border-radius: 14px;
+                }}
+            """
+            self.style_primary_btn = f"""
+                QPushButton {{
+                    background: {tokens['primary']};
+                    color: #FFFFFF;
+                    font-weight: bold;
+                    font-size: 18px;
+                    border-radius: 12px;
+                    border: 2px solid {tokens['primary_hover']};
+                    min-height: 52px;
+                    padding: 6px 12px;
+                }}
+                QPushButton:hover {{ background: {tokens['primary_hover']}; }}
+            """
+            self.style_secondary_btn = f"""
+                QPushButton {{
+                    background: {tokens['bg_card_alt']};
+                    color: {tokens['text_primary']};
+                    font-weight: bold;
+                    font-size: 18px;
+                    border-radius: 12px;
+                    border: 2px solid {tokens['border_card']};
+                    min-height: 52px;
+                    padding: 6px 12px;
+                }}
+                QPushButton:hover {{ background: {tokens['border_card']}; }}
+            """
+            self.style_toggle_btn = f"""
+                QPushButton {{
+                    background: {tokens['bg_card_alt']};
+                    color: {tokens['text_secondary']};
+                    font-weight: 600;
+                    font-size: 18px;
+                    border-radius: 10px;
+                    border: 2px solid {tokens['border_card']};
+                    min-height: 52px;
+                    padding: 8px 10px;
+                }}
+                QPushButton:checked {{
+                    background: {tokens['primary']};
+                    color: #FFFFFF;
+                    border: 2px solid {tokens['primary_hover']};
+                }}
+            """
+            lbl_color = tokens['text_primary']
+            btn_pm_style = f"""
+                QPushButton {{ background: {tokens['primary']}; color: #FFFFFF; font-size: 42px; font-weight: bold; border-radius: 14px; border: 2px solid {tokens['primary_hover']}; }}
+                QPushButton:hover {{ background: {tokens['primary_hover']}; }}
+            """
+            btn_adj_style = f"""
+                QPushButton {{ background: {tokens['bg_card_alt']}; color: {tokens['text_primary']}; font-size: 18px; font-weight: bold; border-radius: 12px; border: 2px solid {tokens['border_card']}; }}
+                QPushButton:hover {{ background: {tokens['border_card']}; }}
+            """
+        else:
+            self.setStyleSheet("")
+            card_style = """
+                QFrame#Card {
+                    background-color: #ffffff;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 14px;
+                }
+            """
+            self.style_primary_btn = """
+                QPushButton {
+                    background: #39ec21;
+                    color: #ffffff;
+                    font-weight: bold;
+                    font-size: 18px;
+                    border-radius: 12px;
+                    border: 2px solid #1e293b;
+                    min-height: 52px;
+                    padding: 6px 12px;
+                }
+                QPushButton:pressed { background: #334155; }
+            """
+            self.style_secondary_btn = """
+                QPushButton {
+                    background: #0f172a;
+                    color: #ffffff;
+                    font-weight: bold;
+                    font-size: 18px;
+                    border-radius: 12px;
+                    border: 2px solid #1e293b;
+                    min-height: 52px;
+                    padding: 6px 12px;
+                }
+                QPushButton:pressed { background: #334155; }
+            """
+            self.style_toggle_btn = """
+                QPushButton {
+                    background: #f1f5f9;
+                    color: #0f172a;
+                    font-weight: 600;
+                    font-size: 18px;
+                    border-radius: 10px;
+                    border: 2px solid #94a3b8;
+                    min-height: 52px;
+                    padding: 8px 10px;
+                }
+                QPushButton:checked {
+                    background: #0f766e;
+                    color: #ffffff;
+                    border: 2px solid #134e4a;
+                }
+                QPushButton:pressed { background: #115e59; color: #ffffff; }
+            """
+            lbl_color = "#1e3a8a"
+            btn_pm_style = """
+                QPushButton { background: #0f172a; color: #ffffff; font-size: 42px; font-weight: bold; border-radius: 14px; }
+                QPushButton:pressed { background: #334155; }
+            """
+            btn_adj_style = """
+                QPushButton { background: #0f766e; color: #ffffff; font-size: 18px; font-weight: bold; border-radius: 12px; }
+                QPushButton:pressed { background: #115e59; }
+            """
+
+        if hasattr(self, "top_card"):
+            self.top_card.setStyleSheet(card_style)
+        if hasattr(self, "main_card"):
+            self.main_card.setStyleSheet(card_style)
+        if hasattr(self, "btn_accept"):
+            self.btn_accept.setStyleSheet(self.style_primary_btn)
+        if hasattr(self, "btn_cancel"):
+            self.btn_cancel.setStyleSheet(self.style_secondary_btn)
+        if hasattr(self, "btn_plus"):
+            self.btn_plus.setStyleSheet(btn_pm_style)
+        if hasattr(self, "btn_minus"):
+            self.btn_minus.setStyleSheet(btn_pm_style)
+        if hasattr(self, "btn_adjust"):
+            self.btn_adjust.setStyleSheet(btn_adj_style)
+        if hasattr(self, "lbl_screen"):
+            self.lbl_screen.setStyleSheet(f"font-size: 26px; font-weight: bold; color: {lbl_color};")
+        if hasattr(self, "lbl_therapy_time"):
+            self.lbl_therapy_time.setStyleSheet(f"font-size: 22px; font-weight: 600; color: {lbl_color};")
+        if hasattr(self, "lbl_selected_value"):
+            self.lbl_selected_value.setStyleSheet(f"font-size: 30px; font-weight: bold; color: {lbl_color};")
+
+        for b in getattr(self, "type_button_group", []).buttons() if hasattr(self, "type_button_group") else []:
+            b.setStyleSheet(self.style_toggle_btn)
+
+        if hasattr(self, "slider_widgets"):
+            for i, slider in enumerate(self.slider_widgets):
+                slider.setStyleSheet(self._slider_style(i == getattr(self, "_selected_index", 0)))

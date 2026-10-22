@@ -275,8 +275,6 @@ class PatientConfigScreen(QWidget):
     #     self.scroll_area.setWidget(self.content_widget)
     #     main_window_layout.addWidget(self.scroll_area)
 
-    #     self._apply_theme_styles()
-
     def setup_ui(self):
         root = QVBoxLayout(self)
         root.setContentsMargins(12, 6, 12, 6)
@@ -465,8 +463,8 @@ class PatientConfigScreen(QWidget):
                 border: 1px solid {border};
             }}
             QListWidget::item:selected {{
-                background-color: {accent};
-                color: #ffffff;
+            background-color: {t.get('table_sel_bg', '#3b82f6')};
+            color: {t.get('table_sel_text', '#ffffff')};
                 border-radius: 6px;
             }}
         """)
@@ -480,43 +478,137 @@ class PatientConfigScreen(QWidget):
                             "QLineEdit:disabled, QComboBox:disabled {"
                             "background-color: #e2e8f0; color: #94a3b8; }")
 
-        self.btn_new.setStyleSheet("""
-            QPushButton {
-                font-size: 24px;
-                font-weight: bold;
-                background: #10b981;
-                color: white;
-                border-radius: 10px;
-                padding: 5px;
-            }
-            QPushButton:hover { background: #059669; }
-            QPushButton:pressed { background: #047857; }
-        """)
-        self.btn_delete.setStyleSheet("""
-            QPushButton {
-                font-size: 24px;
-                font-weight: bold;
-                background: #dc2626;
-                color: white;
-                border-radius: 10px;
-                padding: 5px;
-            }
-            QPushButton:hover { background: #b91c1c; }
-            QPushButton:pressed { background: #991b1b; }
-            QPushButton:disabled { background: #64748b; color: #cbd5e1; }
-        """)
-        self.btn_save.setStyleSheet(f"""
-            QPushButton {{
-                font-size: 24px;
-                background: {accent};
-                color: white;
-                font-weight: bold;
-                border-radius: 10px;
-                padding: 5px;
-            }}
-            QPushButton:hover {{ background: {t.get('btn_primary_hover', '#2563eb')}; }}
-            QPushButton:disabled {{ background: #94a3b8; }}
-        """)
+        is_mono = bool(t.get("monochrome", False))
+        is_dark = bool(t.get("is_dark", False))
+        if is_mono:
+            self.patient_list.setStyleSheet(f"""
+                QListWidget {{
+                    color: {text_primary};
+                    font-size: 22px;
+                    padding: 6px;
+                    border-radius: 8px;
+                    background-color: {bg_input};
+                    border: 1px solid {border};
+                }}
+                QListWidget::item:selected {{
+                    background-color: #9CA3AF;
+                    color: #111827;
+                    border-radius: 6px;
+                }}
+            """)
+            self.btn_new.setStyleSheet("""
+                QPushButton {
+                    font-size: 22px;
+                    font-weight: bold;
+                    background: #D9E0E8;
+                    color: #374151;
+                    border-radius: 10px;
+                    padding: 5px;
+                    border: 2px solid #C5CDD6;
+                }
+                QPushButton:hover { background: #C5CED6; }
+                QPushButton:pressed { background: #B0B8C4; }
+            """)
+            self.btn_delete.setStyleSheet("""
+                QPushButton {
+                    font-size: 22px;
+                    font-weight: bold;
+                    background: #D9E0E8;
+                    color: #374151;
+                    border-radius: 10px;
+                    padding: 5px;
+                    border: 2px solid #C5CDD6;
+                }
+                QPushButton:hover { background: #C5CED6; }
+                QPushButton:pressed { background: #B0B8C4; }
+                QPushButton:disabled { background: #E5E7EB; color: #B0B8C2; border: 1px solid #D1D5DB; }
+            """)
+            self.btn_save.setStyleSheet("""
+                QPushButton {
+                    font-size: 22px;
+                    background: #D9E0E8;
+                    color: #374151;
+                    font-weight: bold;
+                    border-radius: 10px;
+                    padding: 5px;
+                    border: 2px solid #C5CDD6;
+                }
+                QPushButton:hover { background: #C5CED6; }
+                QPushButton:pressed { background: #B0B8C4; }
+                QPushButton:disabled { background: #E5E7EB; color: #B0B8C2; border: 1px solid #D1D5DB; }
+            """)
+        elif is_dark:
+            self.btn_new.setStyleSheet(f"""
+                QPushButton {{
+                    font-size: 24px;
+                    font-weight: bold;
+                    background: {t.get('primary', '#3b82f6')};
+                    color: white;
+                    border-radius: 10px;
+                    padding: 5px;
+                }}
+                QPushButton:hover {{ background: {t.get('primary_hover', '#60a5fa')}; }}
+            """)
+            self.btn_delete.setStyleSheet(f"""
+                QPushButton {{
+                    font-size: 24px;
+                    font-weight: bold;
+                    background: {t.get('danger', '#ef4444')};
+                    color: white;
+                    border-radius: 10px;
+                    padding: 5px;
+                }}
+                QPushButton:disabled {{ background: #334155; color: #64748b; }}
+            """)
+            self.btn_save.setStyleSheet(f"""
+                QPushButton {{
+                    font-size: 24px;
+                    background: {t.get('primary', '#3b82f6')};
+                    color: white;
+                    font-weight: bold;
+                    border-radius: 10px;
+                    padding: 5px;
+                }}
+                QPushButton:disabled {{ background: #334155; }}
+            """)
+        else:
+            self.btn_new.setStyleSheet("""
+                QPushButton {
+                    font-size: 24px;
+                    font-weight: bold;
+                    background: #10b981;
+                    color: white;
+                    border-radius: 10px;
+                    padding: 5px;
+                }
+                QPushButton:hover { background: #059669; }
+                QPushButton:pressed { background: #047857; }
+            """)
+            self.btn_delete.setStyleSheet("""
+                QPushButton {
+                    font-size: 24px;
+                    font-weight: bold;
+                    background: #dc2626;
+                    color: white;
+                    border-radius: 10px;
+                    padding: 5px;
+                }
+                QPushButton:hover { background: #b91c1c; }
+                QPushButton:pressed { background: #991b1b; }
+                QPushButton:disabled { background: #64748b; color: #cbd5e1; }
+            """)
+            self.btn_save.setStyleSheet(f"""
+                QPushButton {{
+                    font-size: 24px;
+                    background: {accent};
+                    color: white;
+                    font-weight: bold;
+                    border-radius: 10px;
+                    padding: 5px;
+                }}
+                QPushButton:hover {{ background: {t.get('btn_primary_hover', '#2563eb')}; }}
+                QPushButton:disabled {{ background: #94a3b8; }}
+            """)
 
     def open_touch_input(self, field_key: str, input_widget, mode: str = 'numeric'):
         """

@@ -20,7 +20,7 @@ VSVersionInfo(
                                          StringStruct('FileVersion', '2.30.0'),
                                          StringStruct('InternalName', 'HemodialisisApp'),
                                          StringStruct('LegalCopyright', '© 2026 CIATEQ A.C. All rights reserved.'),
-                                         StringStruct('OriginalFilename', 'HemodialisisApp_v2.30.0_b20261020_145415.exe'),
+                                         StringStruct('OriginalFilename', 'HemodialisisApp_v2.30.0_b20261022_111110.exe'),
                                          StringStruct('ProductName', 'HemodialisisApp'),
                                          StringStruct('ProductVersion', '2.30.0')])
                                 ]

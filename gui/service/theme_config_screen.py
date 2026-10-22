@@ -61,12 +61,18 @@ class ThemePreviewCard(QFrame):
         swatch_layout.setContentsMargins(12, 8, 12, 8)
         swatch_layout.setSpacing(10)
 
+        is_mono_card = bool(self.tokens.get("monochrome", False))
+        fg_accent = self.tokens["text_on_primary"] if is_mono_card else "#FFFFFF"
+        fg_art = self.tokens["text_primary"] if is_mono_card else "#FFFFFF"
+        fg_temp = self.tokens["text_primary"] if is_mono_card else "#FFFFFF"
+        fg_nav = self.tokens["text_on_primary"] if is_mono_card else "#FFFFFF"
+
         colors_to_show = [
             ("Fondo", self.tokens["bg_card"], self.tokens["text_primary"]),
-            ("Acento", self.tokens["primary"], "#FFFFFF"),
-            ("Art.", self.tokens["val_blood"], "#FFFFFF"),
-            ("Temp.", self.tokens["val_temp"], "#FFFFFF"),
-            ("Nav.", self.tokens["nav_btn_bg"], "#FFFFFF"),
+            ("Acento", self.tokens["primary"], fg_accent),
+            ("Art.", self.tokens["val_blood"], fg_art),
+            ("Temp.", self.tokens["val_temp"], fg_temp),
+            ("Nav.", self.tokens["nav_btn_bg"], fg_nav),
         ]
         for label_txt, bg_hex, fg_hex in colors_to_show:
             pill = QLabel(label_txt)
@@ -104,16 +110,22 @@ class ThemePreviewCard(QFrame):
         self.desc_lbl.setStyleSheet(
             f"color: {ui_tokens['text_secondary']}; font-size: 17px; font-weight: normal; border: none;"
         )
+        is_mono = bool(ui_tokens.get("monochrome", False))
         if is_active:
             self.badge_lbl.setText("● ACTIVO")
+            badge_bg = ui_tokens["nav_btn_active"] if is_mono else ui_tokens["success"]
+            badge_fg = ui_tokens["text_primary"] if is_mono else "#FFFFFF"
             self.badge_lbl.setStyleSheet(
-                f"background-color: {ui_tokens['success']}; color: #FFFFFF; "
+                f"background-color: {badge_bg}; color: {badge_fg}; "
                 f"font-size: 15px; font-weight: bold; border-radius: 8px; border: none;"
             )
             self.btn_apply.setText("Tema Seleccionado ✓")
+            btn_bg = ui_tokens["nav_btn_active"] if is_mono else ui_tokens["success"]
+            btn_fg = ui_tokens["text_primary"] if is_mono else "#FFFFFF"
+            btn_border = f"border: 1px solid {ui_tokens['border_strong']};" if is_mono else "border: none;"
             self.btn_apply.setStyleSheet(
-                f"QPushButton {{ background-color: {ui_tokens['success']}; color: #FFFFFF; "
-                f"font-size: 20px; font-weight: bold; border-radius: 10px; border: none; }}"
+                f"QPushButton {{ background-color: {btn_bg}; color: {btn_fg}; "
+                f"font-size: 20px; font-weight: bold; border-radius: 10px; {btn_border} }}"
             )
         else:
             self.badge_lbl.setText("DISPONIBLE")
@@ -123,10 +135,13 @@ class ThemePreviewCard(QFrame):
                 f"border: 1px solid {ui_tokens['border_card']};"
             )
             self.btn_apply.setText(f"Activar {self.theme_name}")
+            btn_bg = ui_tokens["nav_btn_bg"]
+            btn_fg = ui_tokens["text_on_primary"] if is_mono else "#FFFFFF"
+            btn_border = f"border: 1px solid {ui_tokens['border_input']};" if is_mono else "border: none;"
             self.btn_apply.setStyleSheet(
-                f"QPushButton {{ background-color: {ui_tokens['nav_btn_bg']}; color: #FFFFFF; "
-                f"font-size: 20px; font-weight: bold; border-radius: 10px; border: none; }}"
-                f"QPushButton:hover {{ background-color: {ui_tokens['primary']}; }}"
+                f"QPushButton {{ background-color: {btn_bg}; color: {btn_fg}; "
+                f"font-size: 20px; font-weight: bold; border-radius: 10px; {btn_border} }}"
+                f"QPushButton:hover {{ background-color: {ui_tokens['primary_hover'] if is_mono else ui_tokens['primary']}; }}"
             )
 
 
@@ -183,7 +198,7 @@ class ThemeConfigScreen(QWidget):
                 parent=self,
             )
             self.theme_cards[theme_name] = card
-            cards_grid.addWidget(card, idx // 2, idx % 2)
+            cards_grid.addWidget(card, idx // 3, idx % 3)
 
         main_layout.addLayout(cards_grid, stretch=1)
 
@@ -236,10 +251,13 @@ class ThemeConfigScreen(QWidget):
         self.title_label.setStyleSheet(
             f"color: {tokens['title_color']}; font-size: 34px; font-weight: bold; background: transparent;"
         )
+        is_mono = bool(tokens.get("monochrome", False))
+        btn_back_fg = tokens["text_on_primary"] if is_mono else "#FFFFFF"
+        btn_back_border = f"border: 1px solid {tokens['border_input']};" if is_mono else "border: none;"
         self.btn_back.setStyleSheet(
-            f"QPushButton {{ background-color: {tokens['nav_btn_bg']}; color: #FFFFFF; "
-            f"font-size: 20px; font-weight: bold; border-radius: 10px; padding: 8px 16px; }}"
-            f"QPushButton:hover {{ background-color: {tokens['primary']}; }}"
+            f"QPushButton {{ background-color: {tokens['nav_btn_bg']}; color: {btn_back_fg}; "
+            f"font-size: 20px; font-weight: bold; border-radius: 10px; padding: 8px 16px; {btn_back_border} }}"
+            f"QPushButton:hover {{ background-color: {tokens['primary_hover'] if is_mono else tokens['primary']}; }}"
         )
         self.font_bar.setStyleSheet(
             f"QFrame {{ background-color: {tokens['bg_card']}; "

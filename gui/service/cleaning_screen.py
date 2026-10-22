@@ -1,3 +1,5 @@
+from gui.theme_manager import ThemeManager
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QWidget, QLabel, QPushButton, QProgressBar, QVBoxLayout, QHBoxLayout,
     QSizePolicy, QFrame, QButtonGroup, QMessageBox
@@ -83,6 +85,11 @@ class CleaningScreen(QWidget):
         self.setStyleSheet("background: #0f172a;")
 
         self.setup_ui()
+        self.apply_theme_styles()
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self.apply_theme_styles())
+        except Exception:
+            pass
         self._load_config_defaults_if_needed() # Asegura que el archivo de configuración exista
         self._reset_to_initial_state()        # Inicializa la UI y el estado de forma limpia
 
@@ -91,15 +98,15 @@ class CleaningScreen(QWidget):
         main_layout.setContentsMargins(60, 40, 60, 40)
         main_layout.setSpacing(30)
 
-        title_label = QLabel("Limpieza / Desinfección")
-        title_label.setStyleSheet("color: #cbd5e1; font-size: 52px; font-weight: bold; background: transparent;")
-        title_label.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(title_label)
+        self.title_label = QLabel("Limpieza / Desinfección")
+        self.title_label.setStyleSheet("color: #cbd5e1; font-size: 52px; font-weight: bold; background: transparent;")
+        self.title_label.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(self.title_label)
 
         # Frame para Selección de Modo
-        mode_frame = QFrame()
-        mode_frame.setStyleSheet("background: #fcfcfc; border-radius: 10px; padding: 15px;")
-        mode_layout = QHBoxLayout(mode_frame)
+        self.mode_frame = QFrame()
+        self.mode_frame.setStyleSheet("background: #fcfcfc; border-radius: 10px; padding: 15px;")
+        mode_layout = QHBoxLayout(self.mode_frame)
         mode_layout.setSpacing(20)
 
         self.btn_mode_group = QButtonGroup(self)
@@ -137,7 +144,7 @@ class CleaningScreen(QWidget):
             mode_layout.addWidget(btn)
             self.btn_mode_group.addButton(btn)
 
-        main_layout.addWidget(mode_frame)
+        main_layout.addWidget(self.mode_frame)
 
         # Etiqueta para mostrar la fase actual de la limpieza
         self.phase_label = QLabel("Esperando selección de modo...")
@@ -807,3 +814,198 @@ class CleaningScreen(QWidget):
         self.request_setpoint_change.emit(tag, value)
 
 
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.apply_theme_styles()
+
+    def apply_theme_styles(self, theme_name: str | None = None):
+        tokens = ThemeManager.get_tokens(theme_name)
+        is_mono = bool(tokens.get("monochrome", False))
+        is_dark = bool(tokens.get("is_dark", False))
+
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), QColor(tokens.get("bg_main", "#FCFCFC")))
+        self.setPalette(palette)
+        self.setStyleSheet(f"background: {tokens.get('bg_main', '#FCFCFC')};")
+
+        if is_mono:
+            title_color = "#374151"
+            mode_frame_style = "background: #FFFFFF; border: 1px solid #D1D5DB; border-radius: 10px; padding: 15px;"
+            self.style_unchecked = """
+                QPushButton {
+                    background: #D9E0E8; color: #374151; font-size: 24px; font-weight: bold;
+                    border-radius: 12px; padding: 15px; border: 2px solid #C5CDD6;
+                }
+                QPushButton:hover { background: #C5CED6; }
+                QPushButton:pressed { background: #B0B8C4; }
+            """
+            self.style_checked = """
+                QPushButton {
+                    background: #9CA3AF; color: #111827; font-size: 24px; font-weight: bold;
+                    border-radius: 12px; padding: 15px; border: 2px solid #6B7280;
+                }
+            """
+            self.style_disabled = """
+                QPushButton {
+                    background: #E5E7EB; color: #B0B8C2; font-size: 24px; font-weight: bold;
+                    border-radius: 12px; padding: 15px; border: 2px solid #D1D5DB;
+                }
+            """
+            phase_lbl_style = "color: #374151; font-size: 32px; font-weight: bold; background: transparent; min-height: 60px;"
+            config_lbl_style = "color: #374151; font-size: 28px; font-weight: bold; background: transparent;"
+            progress_bar_style = """
+                QProgressBar {
+                    background: #E5E7EB; border: 2px solid #D1D5DB; border-radius: 10px;
+                    text-align: center; color: #111827; font-size: 24px; font-weight: bold;
+                }
+                QProgressBar::chunk {
+                    background: #9CA3AF;
+                    border-radius: 8px;
+                }
+            """
+            btn_start_style = """
+                QPushButton {
+                    background: #D9E0E8; color: #374151; font-size: 38px; font-weight: bold;
+                    border: 2px solid #C5CDD6; border-radius: 16px; padding: 10px;
+                }
+                QPushButton:hover { background: #C5CED6; }
+                QPushButton:pressed { background: #B0B8C4; }
+                QPushButton:disabled { background: #E5E7EB; color: #B0B8C2; border: 2px solid #D1D5DB; }
+            """
+            btn_stop_style = """
+                QPushButton {
+                    background: #D9E0E8; color: #374151; font-size: 38px; font-weight: bold;
+                    border: 2px solid #C5CDD6; border-radius: 16px; padding: 10px;
+                }
+                QPushButton:hover { background: #C5CED6; }
+                QPushButton:pressed { background: #B0B8C4; }
+                QPushButton:disabled { background: #E5E7EB; color: #B0B8C2; border: 2px solid #D1D5DB; }
+            """
+        elif is_dark:
+            title_color = tokens.get('text_primary', '#F8FAFC')
+            mode_frame_style = f"background: {tokens.get('bg_card', '#1E293B')}; border: 1px solid {tokens.get('border_card', '#334155')}; border-radius: 10px; padding: 15px;"
+            self.style_unchecked = f"""
+                QPushButton {{
+                    background: {tokens.get('primary', '#38BDF8')}; color: #ffffff; font-size: 24px; font-weight: bold;
+                    border-radius: 12px; padding: 15px; border: 2px solid {tokens.get('primary_hover', '#0284C7')};
+                }}
+                QPushButton:hover {{ background: {tokens.get('primary_hover', '#0284C7')}; }}
+            """
+            self.style_checked = f"""
+                QPushButton {{
+                    background: {tokens.get('success', '#10B981')}; color: #ffffff; font-size: 24px; font-weight: bold;
+                    border-radius: 12px; padding: 15px; border: 2px solid {tokens.get('border_strong', '#059669')};
+                }}
+            """
+            self.style_disabled = f"""
+                QPushButton {{
+                    background: {tokens.get('btn_disabled_bg', '#334155')}; color: {tokens.get('btn_disabled_text', '#64748b')}; font-size: 24px; font-weight: bold;
+                    border-radius: 12px; padding: 15px; border: 2px solid {tokens.get('border_card', '#475569')};
+                }}
+            """
+            phase_lbl_style = f"color: {tokens.get('text_secondary', '#94A3B8')}; font-size: 32px; font-weight: bold; background: transparent; min-height: 60px;"
+            config_lbl_style = f"color: {tokens.get('text_secondary', '#cbd5e1')}; font-size: 28px; font-weight: bold; background: transparent;"
+            progress_bar_style = f"""
+                QProgressBar {{
+                    background: {tokens.get('bg_card_alt', '#1E293B')}; border: 2px solid {tokens.get('border_card', '#475569')}; border-radius: 10px;
+                    text-align: center; color: {tokens.get('text_primary', '#FFFFFF')}; font-size: 24px; font-weight: bold;
+                }}
+                QProgressBar::chunk {{
+                    background: {tokens.get('primary', '#38BDF8')};
+                    border-radius: 8px;
+                }}
+            """
+            btn_start_style = f"""
+                QPushButton {{
+                    background: {tokens.get('success', '#047857')}; color: #ffffff; font-size: 38px; font-weight: bold;
+                    border: none; border-radius: 16px; padding: 10px;
+                }}
+                QPushButton:hover {{ background: {tokens.get('success_bright', '#065f46')}; }}
+                QPushButton:disabled {{ background: {tokens.get('btn_disabled_bg', '#334155')}; color: {tokens.get('btn_disabled_text', '#64748b')}; }}
+            """
+            btn_stop_style = f"""
+                QPushButton {{
+                    background: {tokens.get('danger', '#dc2626')}; color: #ffffff; font-size: 38px; font-weight: bold;
+                    border: none; border-radius: 16px; padding: 10px;
+                }}
+                QPushButton:hover {{ background: #b91c1c; }}
+                QPushButton:disabled {{ background: {tokens.get('btn_disabled_bg', '#334155')}; color: {tokens.get('btn_disabled_text', '#64748b')}; }}
+            """
+        else:
+            title_color = "#cbd5e1"
+            mode_frame_style = "background: #fcfcfc; border-radius: 10px; padding: 15px;"
+            self.style_unchecked = """
+                QPushButton {
+                    background: #3b82f6; color: #ffffff; font-size: 24px; font-weight: bold;
+                    border-radius: 12px; padding: 15px; border: 2px solid #2563eb;
+                }
+                QPushButton:hover { background: #60a5fa; }
+            """
+            self.style_checked = """
+                QPushButton {
+                    background: #22c55e; color: #ffffff; font-size: 24px; font-weight: bold;
+                    border-radius: 12px; padding: 15px; border: 2px solid #16a34a;
+                }
+            """
+            self.style_disabled = """
+                QPushButton {
+                    background: #334155; color: #64748b; font-size: 24px; font-weight: bold;
+                    border-radius: 12px; padding: 15px; border: 2px solid #475569;
+                }
+            """
+            phase_lbl_style = "color: #94a3b8; font-size: 32px; font-weight: bold; background: transparent; min-height: 60px;"
+            config_lbl_style = "color: #cbd5e1; font-size: 28px; font-weight: bold; background: transparent;"
+            progress_bar_style = """
+                QProgressBar {
+                    background: #1e293b; border: 2px solid #475569; border-radius: 10px;
+                    text-align: center; color: #ffffff; font-size: 24px; font-weight: bold;
+                }
+                QProgressBar::chunk {
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3b82f6, stop:1 #60a5fa);
+                    border-radius: 8px;
+                }
+            """
+            btn_start_style = """
+                QPushButton {
+                    background: #047857; color: #ffffff; font-size: 38px; font-weight: bold;
+                    border: none; border-radius: 16px; padding: 10px;
+                }
+                QPushButton:hover { background: #065f46; }
+                QPushButton:disabled { background: #334155; color: #64748b; }
+            """
+            btn_stop_style = """
+                QPushButton {
+                    background: #dc2626; color: #ffffff; font-size: 38px; font-weight: bold;
+                    border: none; border-radius: 16px; padding: 10px;
+                }
+                QPushButton:hover { background: #b91c1c; }
+                QPushButton:disabled { background: #334155; color: #64748b; }
+            """
+
+        if hasattr(self, "title_label"):
+            self.title_label.setStyleSheet(f"color: {title_color}; font-size: 52px; font-weight: bold; background: transparent;")
+        if hasattr(self, "mode_frame"):
+            self.mode_frame.setStyleSheet(mode_frame_style)
+        if hasattr(self, "phase_label"):
+            self.phase_label.setStyleSheet(phase_lbl_style)
+        if hasattr(self, "progress_bar"):
+            self.progress_bar.setStyleSheet(progress_bar_style)
+        for attr in ("time_label", "temp_label", "flow_label"):
+            lbl = getattr(self, attr, None)
+            if lbl:
+                lbl.setStyleSheet(config_lbl_style)
+
+        if hasattr(self, "btn_short") and hasattr(self, "btn_long"):
+            for b in [self.btn_short, self.btn_long]:
+                if not b.isEnabled():
+                    b.setStyleSheet(self.style_disabled)
+                elif b.isChecked():
+                    b.setStyleSheet(self.style_checked)
+                else:
+                    b.setStyleSheet(self.style_unchecked)
+
+        if hasattr(self, "start_button"):
+            self.start_button.setStyleSheet(btn_start_style)
+        if hasattr(self, "stop_button"):
+            self.stop_button.setStyleSheet(btn_stop_style)

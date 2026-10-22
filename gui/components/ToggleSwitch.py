@@ -1,3 +1,4 @@
+from gui.theme_manager import ThemeManager
 # gui/components/toggle_switch.py
 
 """
@@ -55,7 +56,7 @@ Uso:
 
 from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Qt, Property, QEasingCurve, QPropertyAnimation, Signal
-from PySide6.QtGui import QPainter, QColor
+from PySide6.QtGui import QPainter, QColor, QPen
 import logging
 logger = logging.getLogger(__name__)
 
@@ -91,7 +92,11 @@ class ToggleSwitch(QWidget):
         self._circle_x = 4  # Initial left margin
         self.animation = QPropertyAnimation(self, b"circle_x", self)
         self.animation.setEasingCurve(QEasingCurve.InOutCubic)
-        self.animation.setDuration(300)  # 300ms smooth transition
+        self.animation.setDuration(300)
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self.update())
+        except Exception:
+            pass  # 300ms smooth transition
 
     # Property for animation binding
     @Property(float)
@@ -138,14 +143,23 @@ class ToggleSwitch(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
 
         # 1. Background (rounded rect)
-        current_bg = self._bg_color_on if self._is_checked else self._bg_color_off
-        painter.setPen(Qt.NoPen)
+        tokens = ThemeManager.get_tokens()
+        is_mono = bool(tokens.get("monochrome", False))
+        if is_mono:
+            current_bg = "#9CA3AF" if self._is_checked else "#E5E7EB"
+            circle_color = "#111827" if self._is_checked else "#6B7280"
+        else:
+            current_bg = self._bg_color_on if self._is_checked else self._bg_color_off
+            circle_color = self._circle_color
+
+        painter.setPen(QPen(QColor("#6B7280" if is_mono else current_bg), 1) if is_mono else Qt.NoPen)
         painter.setBrush(QColor(current_bg))
         painter.drawRoundedRect(0, 0, self.width(), self.height(),
                                 self.height() // 2, self.height() // 2)
 
         # 2. Circle (animated position)
-        painter.setBrush(QColor(self._circle_color))
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(circle_color))
         circle_radius = self.height() - 8
         painter.drawEllipse(int(self._circle_x), 4, circle_radius, circle_radius)
 

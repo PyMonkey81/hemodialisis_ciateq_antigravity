@@ -1,3 +1,4 @@
+from gui.theme_manager import ThemeManager
 # gui/components/led.py
 """
 Módulo para un widget de indicador LED simple.
@@ -69,6 +70,10 @@ class LED(QWidget):
         # Colors (configurable if needed later)
         self._color_on = QColor(0, 255, 0)   # Green
         self._color_off = QColor(255, 0, 0)  # Red
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self.update())
+        except Exception:
+            pass
 
     def set_state(self, state: str):
         """
@@ -90,8 +95,13 @@ class LED(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
-        # Select color based on state
-        color = self._color_on if self._state == 'on' else self._color_off
+        # Select color based on state and theme
+        tokens = ThemeManager.get_tokens()
+        if bool(tokens.get("monochrome", False)):
+            # Encendido: gris oscuro (#374151 / #4B5563), Apagado: gris claro (#D1D5DB / #E5E7EB)
+            color = QColor("#374151") if self._state == 'on' else QColor("#D1D5DB")
+        else:
+            color = self._color_on if self._state == 'on' else self._color_off
 
         # Draw filled circle (centered, 30px diameter)
         painter.setPen(Qt.NoPen)

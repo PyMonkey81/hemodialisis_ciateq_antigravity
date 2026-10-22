@@ -1,3 +1,4 @@
+from gui.theme_manager import ThemeManager
 # gui/service/comm_port_screen.py
 
 import serial.tools.list_ports
@@ -41,6 +42,11 @@ class CommPortScreen(QWidget):
         
         self.setup_ui()
         self._apply_loaded_settings_to_ui()
+        self.apply_theme_styles()
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self.apply_theme_styles())
+        except Exception:
+            pass
         
         # Señales de cambio de puerto
         self.cmb_main_port.currentIndexChanged.connect(lambda: self._handle_port_change('main'))
@@ -106,10 +112,10 @@ class CommPortScreen(QWidget):
         main_layout.setContentsMargins(7, 7, 7, 7)
         main_layout.setSpacing(10)
         # Título principal
-        title = QLabel("Configuración de Puertos de Comunicación")
-        title.setStyleSheet("font-size: 28px; font-weight: bold; color: #0f172a; background: transparent;")
+        self.title_label = QLabel("Configuración de Puertos de Comunicación")
+        self.title_label.setStyleSheet("font-size: 28px; font-weight: bold; color: #0f172a; background: transparent;")
 
-        main_layout.addWidget(title, alignment=Qt.AlignTop | Qt.AlignHCenter)
+        main_layout.addWidget(self.title_label, alignment=Qt.AlignTop | Qt.AlignHCenter)
 
 
         layout = QGridLayout()
@@ -690,3 +696,214 @@ class CommPortScreen(QWidget):
         self._floating_msg.show_error_message(text, timeout_ms)
 
 
+
+
+    def apply_theme_styles(self, theme_name: str | None = None):
+        tokens = ThemeManager.get_tokens(theme_name)
+        is_mono = bool(tokens.get("monochrome", False))
+        is_dark = bool(tokens.get("is_dark", False))
+
+        self.setStyleSheet(f"QWidget#CommPortScreen {{ background-color: {tokens['bg_main']}; }}")
+
+        if is_mono:
+            if hasattr(self, "title_label"):
+                self.title_label.setStyleSheet("font-size: 28px; font-weight: bold; color: #4B5563; background: transparent;")
+            card_qss = """
+                QFrame#card {
+                    background-color: #FFFFFF;
+                    border: 1px solid #D1D5DB;
+                    border-radius: 12px;
+                }
+                QLabel#card_title {
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #111827;
+                    background: transparent;
+                }
+            """
+            combo_qss = """
+                QComboBox {
+                    font-size: 22px;
+                    min-width: 200px;
+                    color: #374151;
+                    background-color: #F8F9FA;
+                    border: 1px solid #C5CDD6;
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                }
+                QComboBox QAbstractItemView {
+                    background-color: #FFFFFF;
+                    color: #374151;
+                    selection-background-color: #9CA3AF;
+                    selection-color: #111827;
+                    border: 1px solid #D1D5DB;
+                }
+            """
+            chk_qss = """
+                QCheckBox { color: #374151; font-size: 20px; background: transparent; }
+                QCheckBox::indicator { width: 28px; height: 28px; border: 2px solid #6B7280; border-radius: 4px; background: #FFFFFF; }
+                QCheckBox::indicator:checked { background-color: #374151; }
+            """
+            btn_qss = """
+                QPushButton {
+                    background-color: #D9E0E8;
+                    color: #374151;
+                    font-size: 22px;
+                    font-weight: bold;
+                    padding: 12px 28px;
+                    border-radius: 10px;
+                    border: 2px solid #C5CDD6;
+                    min-height: 70px;
+                    min-width: 220px;
+                }
+                QPushButton:hover { background-color: #C5CED6; }
+                QPushButton:pressed { background-color: #B0B8C4; }
+            """
+            lbl_color = "#374151"
+
+        elif is_dark:
+            if hasattr(self, "title_label"):
+                self.title_label.setStyleSheet(f"font-size: 28px; font-weight: bold; color: {tokens.get('text_primary', '#F8FAFC')}; background: transparent;")
+            card_qss = f"""
+                QFrame#card {{
+                    background-color: {tokens.get('bg_card', '#1E293B')};
+                    border: 1px solid {tokens.get('border_card', '#334155')};
+                    border-radius: 12px;
+                }}
+                QLabel#card_title {{
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: {tokens.get('text_primary', '#F8FAFC')};
+                    background: transparent;
+                }}
+            """
+            combo_qss = f"""
+                QComboBox {{
+                    font-size: 22px;
+                    min-width: 200px;
+                    color: {tokens.get('text_primary', '#F8FAFC')};
+                    background-color: {tokens.get('bg_input', '#1E293B')};
+                    border: 1px solid {tokens.get('border_input', '#334155')};
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                }}
+                QComboBox QAbstractItemView {{
+                    background-color: {tokens.get('bg_card', '#1E293B')};
+                    color: {tokens.get('text_primary', '#F8FAFC')};
+                    selection-background-color: {tokens.get('primary', '#38BDF8')};
+                    selection-color: #FFFFFF;
+                    border: 1px solid {tokens.get('border_card', '#334155')};
+                }}
+            """
+            chk_qss = f"""
+                QCheckBox {{ color: {tokens.get('text_primary', '#F8FAFC')}; font-size: 20px; background: transparent; }}
+                QCheckBox::indicator {{ width: 28px; height: 28px; border: 2px solid {tokens.get('border_input', '#334155')}; border-radius: 4px; background: {tokens.get('bg_input', '#1E293B')}; }}
+                QCheckBox::indicator:checked {{ background-color: {tokens.get('primary', '#38BDF8')}; }}
+            """
+            btn_qss = f"""
+                QPushButton {{
+                    background-color: {tokens.get('primary', '#38BDF8')};
+                    color: #FFFFFF;
+                    font-size: 22px;
+                    font-weight: bold;
+                    padding: 12px 28px;
+                    border-radius: 10px;
+                    min-height: 70px;
+                    min-width: 220px;
+                }}
+                QPushButton:hover {{ background-color: {tokens.get('primary_hover', '#0284C7')}; }}
+            """
+            lbl_color = tokens.get('text_primary', '#F8FAFC')
+
+        else:
+            if hasattr(self, "title_label"):
+                self.title_label.setStyleSheet("font-size: 28px; font-weight: bold; color: #0f172a; background: transparent;")
+            card_qss = """
+                QFrame#card {
+                    background-color: #ffffff;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 12px;
+                }
+                QLabel#card_title {
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #0f172a;
+                    background: transparent;
+                }
+            """
+            combo_qss = """
+                QComboBox {
+                    font-size: 22px;
+                    min-width: 200px;
+                    color: #0f172a;
+                    background-color: #ffffff;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                }
+                QComboBox QAbstractItemView {
+                    background-color: #ffffff;
+                    color: #0f172a;
+                    selection-background-color: #cbd5e1;
+                    selection-color: #0f172a;
+                    border: 1px solid #cbd5e1;
+                }
+            """
+            chk_qss = """
+                QCheckBox { color: #0f172a; font-size: 20px; background: transparent; }
+                QCheckBox::indicator { width: 28px; height: 28px; border: 2px solid #334155; border-radius: 4px; }
+                QCheckBox::indicator:checked { background-color: #0f172a; }
+            """
+            btn_qss = """
+                QPushButton {
+                    background-color: #06298a;
+                    color: #ffffff;
+                    font-size: 22px;
+                    font-weight: bold;
+                    padding: 12px 28px;
+                    border-radius: 10px;
+                    min-height: 70px;
+                    min-width: 220px;
+                }
+                QPushButton:hover { background-color: #1e293b; }
+                QPushButton:pressed { background-color: #334155; }
+            """
+            lbl_color = "#0f172a"
+
+        for card in self.findChildren(QFrame):
+            if card.objectName() == "card":
+                card.setStyleSheet(card_qss)
+
+        for combo in (
+            getattr(self, "cmb_main_port", None),
+            getattr(self, "cmb_cond_port", None),
+            getattr(self, "cmb_mega_port", None),
+            getattr(self, "cmb_bioz_port", None),
+            getattr(self, "cmb_led_port", None),
+            getattr(self, "cmb_nibp_port", None),
+        ):
+            if combo:
+                combo.setStyleSheet(combo_qss)
+
+        for chk in (
+            getattr(self, "chk_main", None),
+            getattr(self, "chk_main_simulation", None),
+            getattr(self, "chk_cond", None),
+            getattr(self, "chk_mega", None),
+            getattr(self, "chk_bioz", None),
+            getattr(self, "chk_led", None),
+            getattr(self, "chk_nibp", None),
+        ):
+            if chk:
+                chk.setStyleSheet(chk_qss)
+
+        if hasattr(self, "btn_apply"):
+            self.btn_apply.setStyleSheet(btn_qss)
+        if hasattr(self, "btn_refresh"):
+            self.btn_refresh.setStyleSheet(btn_qss)
+
+        for lbl in self.findChildren(QLabel):
+            if lbl.objectName() not in ("card_title",) and lbl != getattr(self, "title_label", None):
+                txt = lbl.text()
+                if "Puerto" in txt or "19200" in txt or "Desconectado" in txt or "Conectado" in txt:
+                    lbl.setStyleSheet(f"font-size: 20px; color: {lbl_color}; background: transparent;")

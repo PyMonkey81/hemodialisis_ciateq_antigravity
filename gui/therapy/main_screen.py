@@ -123,7 +123,10 @@ class MainScreen(QWidget):
             f"font-size: 50px; font-weight: bold; color: {tokens['text_primary']}; "
             f"background: transparent; border: none; padding-top: 8px;"
         )
-        brand_color = "#9F1239" if not tokens.get("is_dark") else "#FB7185"
+        if bool(tokens.get("monochrome", False)):
+            brand_color = tokens.get("text_primary", "#374151")
+        else:
+            brand_color = "#9F1239" if not tokens.get("is_dark") else "#FB7185"
         self.subtitle_label.setStyleSheet(
             f"font-size: 62px; font-weight: bold; color: {brand_color}; "
             f"background: transparent; border: none;"

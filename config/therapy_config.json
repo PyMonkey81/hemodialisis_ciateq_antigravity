@@ -2,11 +2,11 @@
   "schema_version": 1,
   "local": {
     "heparineInfusionEnabled": 1.0,
-    "heparineTherapyHours": 3.0,
-    "heparineTherapyMinutes": 0.0
+    "heparineTherapyHours": 0.0,
+    "heparineTherapyMinutes": 2.0
   },
   "firmware": {
-    "balanceChamberSetTiming": 0.0,
+    "balanceChamberSetTiming": 500.0,
     "bloodFlowControlSetPoint": 0.0,
     "dialyCondControlSetPoint": 13.0,
     "dialyTempControlSetPoint": 35.0,

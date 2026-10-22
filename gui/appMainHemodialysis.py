@@ -60,7 +60,7 @@ from typing import List, Tuple
 
 from PySide6.QtWidgets import *
 from PySide6.QtCore import Qt, QTimer, QDateTime, QPropertyAnimation, QEasingCurve, QPoint
-from PySide6.QtGui import QPixmap, QColor
+from PySide6.QtGui import QPixmap, QColor, QImage
 
 # === MODULES ===
 from connection.mega_conductivity_sensor import MegaConductivitySensor
@@ -262,17 +262,77 @@ class HemodialysisHMI(QMainWindow):
         }
     """
 
-    def _build_header_label_style(self, background: str) -> str:
-        return f"""
-            QLabel {{
-                background: {background};
-                font-family: 'Segoe UI', Arial, sans-serif;
-                font-weight: bold;
-                font-size: 32px;
-                color: #ffffff;
-                border-radius: 8px;
-            }}
-        """
+    @staticmethod
+    def _desaturate_pixmap(pixmap: QPixmap) -> QPixmap:
+        if pixmap.isNull():
+            return pixmap
+        img = pixmap.toImage().convertToFormat(QImage.Format_ARGB32)
+        for y in range(img.height()):
+            for x in range(img.width()):
+                c = img.pixelColor(x, y)
+                gray = int(0.299 * c.red() + 0.587 * c.green() + 0.114 * c.blue())
+                c.setRed(gray)
+                c.setGreen(gray)
+                c.setBlue(gray)
+                img.setPixelColor(x, y, c)
+        return QPixmap.fromImage(img)
+
+    def _build_header_label_style(self, background: str = "", is_process: bool = False) -> str:
+        tokens = ThemeManager.get_tokens()
+        is_mono = bool(tokens.get("monochrome", False))
+        is_dark = bool(tokens.get("is_dark", False))
+
+        if is_mono:
+            if is_process:
+                return """
+                    QLabel {
+                        background: #9CA3AF;
+                        font-family: 'Segoe UI', Arial, sans-serif;
+                        font-weight: bold;
+                        font-size: 25px;
+                        color: #111827;
+                        border-radius: 8px;
+                        border: 1px solid #6B7280;
+                    }
+                """
+            else:
+                return """
+                    QLabel {
+                        background: #D9E0E8;
+                        font-family: 'Segoe UI', Arial, sans-serif;
+                        font-weight: bold;
+                        font-size: 25px;
+                        color: #374151;
+                        border-radius: 8px;
+                        border: 1px solid #C5CDD6;
+                    }
+                """
+        elif is_dark:
+            border_c = tokens.get('border_card', '#334155')
+            bg_c = tokens.get('bg_card_alt', '#1E293B')
+            text_c = tokens.get('text_primary', '#F8FAFC')
+            return f"""
+                QLabel {{
+                    background: {bg_c};
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    font-weight: bold;
+                    font-size: 25px;
+                    color: {text_c};
+                    border-radius: 8px;
+                    border: 1px solid {border_c};
+                }}
+            """
+        else:
+            return f"""
+                QLabel {{
+                    background: {background};
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    font-weight: bold;
+                    font-size: 25px;
+                    color: #ffffff;
+                    border-radius: 8px;
+                }}
+            """
 
 
     def __init__(self):
@@ -1003,7 +1063,8 @@ class HemodialysisHMI(QMainWindow):
         logo1 = QLabel()
         logo1.setObjectName("header_logo_left")
         logo1.setAlignment(Qt.AlignCenter)
-        logo1.setPixmap(QPixmap(resource_path("resources/images/logo_ciateq__.png")).scaled(180, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self._orig_pixmap_logo1 = QPixmap(resource_path("resources/images/logo_ciateq__.png")).scaled(180, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        logo1.setPixmap(self._orig_pixmap_logo1)
         self.logo1 = logo1
         header_layout.addWidget(logo1)
         header_layout.addStretch(1)
@@ -1027,10 +1088,10 @@ class HemodialysisHMI(QMainWindow):
         self.remaining_time_display.setObjectName("header_remaining_label")
         self.date_time_label.setObjectName("header_datetime_label")
 
-        self.current_process_status.setStyleSheet(self._build_header_label_style("#2bbd37"))
-        self.treatment_mode_selected.setStyleSheet(self._build_header_label_style("#06298a"))
-        self.remaining_time_display.setStyleSheet(self._build_header_label_style("#06298a"))
-        self.date_time_label.setStyleSheet(self._build_header_label_style("#06298a"))
+        self.current_process_status.setStyleSheet(self._build_header_label_style("#2bbd37", is_process=True))
+        self.treatment_mode_selected.setStyleSheet(self._build_header_label_style("#06298a", is_process=False))
+        self.remaining_time_display.setStyleSheet(self._build_header_label_style("#06298a", is_process=False))
+        self.date_time_label.setStyleSheet(self._build_header_label_style("#06298a", is_process=False))
 
         header_pieces = [
             ("header_frame_status", self.status_label, 260),
@@ -1063,7 +1124,8 @@ class HemodialysisHMI(QMainWindow):
         logo2 = QLabel()
         logo2.setObjectName("header_logo_right")
         logo2.setAlignment(Qt.AlignCenter)
-        logo2.setPixmap(QPixmap(resource_path("resources/images/Logo_secihti_.png")).scaled(180, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        self._orig_pixmap_logo2 = QPixmap(resource_path("resources/images/Logo_secihti_.png")).scaled(180, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        logo2.setPixmap(self._orig_pixmap_logo2)
         self.logo2 = logo2
         header_layout.addStretch(1)
         header_layout.addWidget(logo2)
@@ -1500,20 +1562,84 @@ class HemodialysisHMI(QMainWindow):
         nav_btn_disabled = t.get("nav_btn_disabled", "#334155")
         header_pill = t.get("header_pill_bg", "#06298a")
 
-        self.BTN_ENABLED_DEFAULT_STYLE = (
-            f"QPushButton {{ background: {nav_btn_bg}; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; "
-            f"font-weight: bold; font-size: 30px; border-radius: 10px; }}"
-            f"QPushButton:pressed {{ background: {nav_btn_active}; }}"
-        )
-        self.BTN_ACTIVE_STYLE = (
-            f"QPushButton {{ background: {nav_btn_active}; color: white; font-family: 'Segoe UI', Arial, sans-serif; "
-            f"font-weight: bold; font-size: 30px; border-radius: 10px; border: 2px solid #93c5fd;}}"
-            f"QPushButton:pressed {{ background: {nav_btn_bg}; }}"
-        )
-        self.BTN_DISABLED_STYLE = (
-            f"QPushButton {{ background: {nav_btn_disabled}; color: #94a3b8; font-family: 'Segoe UI', Arial, sans-serif; "
-            f"font-weight: bold; font-size: 30px; border-radius: 10px; }}"
-        )
+        is_mono = bool(t.get("monochrome", False))
+        is_dark = bool(t.get("is_dark", False))
+
+        if is_mono:
+            self.BTN_ENABLED_DEFAULT_STYLE = (
+                "QPushButton { background: #D9E0E8; color: #374151; font-family: 'Segoe UI', Arial, sans-serif; "
+                "font-weight: bold; font-size: 30px; border-radius: 10px; border: 1px solid #C5CDD6; }"
+                "QPushButton:hover { background: #C5CED6; }"
+                "QPushButton:pressed { background: #B0B8C4; }"
+            )
+            self.BTN_ACTIVE_STYLE = (
+                "QPushButton { background: #9CA3AF; color: #111827; font-family: 'Segoe UI', Arial, sans-serif; "
+                "font-weight: bold; font-size: 30px; border-radius: 10px; border: 1px solid #6B7280; }"
+            )
+            self.BTN_DISABLED_STYLE = (
+                "QPushButton { background: #E5E7EB; color: #B0B8C2; font-family: 'Segoe UI', Arial, sans-serif; "
+                "font-weight: bold; font-size: 30px; border-radius: 10px; }"
+            )
+            self.BTN_ENABLED_EXIT_STYLE = (
+                "QPushButton { background: #D9E0E8; color: #374151; font-family: 'Segoe UI', Arial, sans-serif; "
+                "font-weight: bold; font-size: 30px; border-radius: 10px; border: 1px solid #C5CDD6; }"
+                "QPushButton:hover { background: #C5CED6; }"
+                "QPushButton:pressed { background: #B0B8C4; }"
+            )
+            self.BTN_ENABLED_START_TREATMENT_STYLE = (
+                "QPushButton { background: #D9E0E8; color: #374151; font-family: 'Segoe UI', Arial, sans-serif; "
+                "font-weight: bold; font-size: 30px; border-radius: 10px; border: 1px solid #C5CDD6; }"
+                "QPushButton:hover { background: #C5CED6; }"
+                "QPushButton:pressed { background: #B0B8C4; }"
+            )
+        elif is_dark:
+            self.BTN_ENABLED_DEFAULT_STYLE = (
+                f"QPushButton {{ background: {nav_btn_bg}; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; "
+                f"font-weight: bold; font-size: 30px; border-radius: 10px; }}"
+                f"QPushButton:pressed {{ background: {nav_btn_active}; }}"
+            )
+            self.BTN_ACTIVE_STYLE = (
+                f"QPushButton {{ background: {nav_btn_active}; color: white; font-family: 'Segoe UI', Arial, sans-serif; "
+                f"font-weight: bold; font-size: 30px; border-radius: 10px; border: 2px solid #93c5fd;}}"
+                f"QPushButton:pressed {{ background: {nav_btn_bg}; }}"
+            )
+            self.BTN_DISABLED_STYLE = (
+                f"QPushButton {{ background: {nav_btn_disabled}; color: #94a3b8; font-family: 'Segoe UI', Arial, sans-serif; "
+                f"font-weight: bold; font-size: 30px; border-radius: 10px; }}"
+            )
+            self.BTN_ENABLED_EXIT_STYLE = (
+                f"QPushButton {{ background: {t.get('danger', '#ef4444')}; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; "
+                f"font-weight: bold; font-size: 30px; border-radius: 10px; }}"
+                f"QPushButton:pressed {{ background: #991b1b; }}"
+            )
+            self.BTN_ENABLED_START_TREATMENT_STYLE = (
+                f"QPushButton {{ background: {t.get('success', '#10b981')}; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; "
+                f"border-radius: 8px; font-weight: bold; font-size: 30px; }}"
+                f"QPushButton:pressed {{ background: #065f46; }}"
+            )
+        else:
+            self.BTN_ENABLED_DEFAULT_STYLE = (
+                f"QPushButton {{ background: {nav_btn_bg}; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; "
+                f"font-weight: bold; font-size: 30px; border-radius: 10px; }}"
+                f"QPushButton:pressed {{ background: {nav_btn_active}; }}"
+            )
+            self.BTN_ACTIVE_STYLE = (
+                f"QPushButton {{ background: {nav_btn_active}; color: white; font-family: 'Segoe UI', Arial, sans-serif; "
+                f"font-weight: bold; font-size: 30px; border-radius: 10px; border: 2px solid #93c5fd;}}"
+                f"QPushButton:pressed {{ background: {nav_btn_bg}; }}"
+            )
+            self.BTN_DISABLED_STYLE = (
+                f"QPushButton {{ background: {nav_btn_disabled}; color: #94a3b8; font-family: 'Segoe UI', Arial, sans-serif; "
+                f"font-weight: bold; font-size: 30px; border-radius: 10px; }}"
+            )
+            self.BTN_ENABLED_EXIT_STYLE = """
+                QPushButton { background: #dc2626; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; font-size: 30px; border-radius: 10px; }
+                QPushButton:pressed { background: #b91c1c; }
+            """
+            self.BTN_ENABLED_START_TREATMENT_STYLE = """
+                QPushButton { background: #39ec21; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; border-radius: 8px; font-weight: bold; font-size: 30px;}
+                QPushButton:pressed { background: #1e40af; }
+            """
 
         cw = self.centralWidget()
         if cw is not None:
@@ -1533,10 +1659,31 @@ class HemodialysisHMI(QMainWindow):
             if logo_lbl is not None:
                 logo_lbl.setStyleSheet(logo_style)
 
+        # Dynamic in-memory desaturation of logos for monochrome theme
+        is_mono = bool(t.get("monochrome", False))
+        if hasattr(self, "_orig_pixmap_logo1") and hasattr(self, "_orig_pixmap_logo2"):
+            if is_mono:
+                if not hasattr(self, "_mono_pixmap_logo1"):
+                    self._mono_pixmap_logo1 = self._desaturate_pixmap(self._orig_pixmap_logo1)
+                    self._mono_pixmap_logo2 = self._desaturate_pixmap(self._orig_pixmap_logo2)
+                self.logo1.setPixmap(self._mono_pixmap_logo1)
+                self.logo2.setPixmap(self._mono_pixmap_logo2)
+            else:
+                self.logo1.setPixmap(self._orig_pixmap_logo1)
+                self.logo2.setPixmap(self._orig_pixmap_logo2)
+
         for lbl_attr in ("treatment_mode_selected", "remaining_time_display", "date_time_label"):
             lbl = getattr(self, lbl_attr, None)
             if lbl is not None:
-                lbl.setStyleSheet(self._build_header_label_style(header_pill))
+                lbl.setStyleSheet(self._build_header_label_style(header_pill, is_process=False))
+
+        if hasattr(self, "current_process_status") and self.current_process_status is not None:
+            self.current_process_status.setStyleSheet(self._build_header_label_style("#2bbd37", is_process=True))
+        if hasattr(self, "status_label") and self.status_label is not None:
+            self.refresh_alarms_label()
+        if hasattr(self, "_update_navigation_bar"):
+            self._update_navigation_bar()
+
 
         if hasattr(self, "nav_bar") and self.nav_bar is not None:
             self.nav_bar.setStyleSheet(f"background: {bg_nav}; border-top: 1px solid {border};")
@@ -2865,27 +3012,62 @@ class HemodialysisHMI(QMainWindow):
                     self._last_status_prompt = None
 
                 # ==================== COLORES ====================
-                if status_code in [6, 7, 13]:
-                    color = "#2bbd37"
-                elif status_code in [1, 2, 3, 4, 5, 8]:
-                    color = "#06298a"
-                elif status_code == 14:
-                    color = "#2bbd37"
-                elif status_code in [15, 16]:
-                    color = "#ef4444"
-                else:
-                    color = "#C6E3E6"
+                tokens = ThemeManager.get_tokens()
+                is_mono = bool(tokens.get("monochrome", False))
+                is_dark = bool(tokens.get("is_dark", False))
 
-                self.current_process_status.setStyleSheet(f"""
-                    QLabel {{
-                        color: #ffffff;
-                        background: {color};
-                        font-weight: bold;
-                        font-size: 25px;
-                        border-radius: 10px;
-                    }}
-                """)    
-   
+                if is_mono:
+                    self.current_process_status.setStyleSheet("""
+                        QLabel {
+                            color: #111827;
+                            background: #9CA3AF;
+                            font-weight: bold;
+                            font-size: 25px;
+                            border-radius: 10px;
+                            border: 1px solid #6B7280;
+                        }
+                    """)
+                elif is_dark:
+                    if status_code in [15, 16]:
+                        c_bg = tokens.get('danger', '#ef4444')
+                        c_text = '#ffffff'
+                    elif status_code in [6, 7, 13, 14]:
+                        c_bg = tokens.get('success', '#10b981')
+                        c_text = '#ffffff'
+                    else:
+                        c_bg = tokens.get('bg_card_alt', '#1E293B')
+                        c_text = tokens.get('text_primary', '#F8FAFC')
+                    self.current_process_status.setStyleSheet(f"""
+                        QLabel {{
+                            color: {c_text};
+                            background: {c_bg};
+                            font-weight: bold;
+                            font-size: 25px;
+                            border-radius: 10px;
+                            border: 1px solid {tokens.get('border_card', '#334155')};
+                        }}
+                    """)
+                else:
+                    if status_code in [6, 7, 13]:
+                        color = "#2bbd37"
+                    elif status_code in [1, 2, 3, 4, 5, 8]:
+                        color = "#06298a"
+                    elif status_code == 14:
+                        color = "#2bbd37"
+                    elif status_code in [15, 16]:
+                        color = "#ef4444"
+                    else:
+                        color = "#C6E3E6"
+
+                    self.current_process_status.setStyleSheet(f"""
+                        QLabel {{
+                            color: #ffffff;
+                            background: {color};
+                            font-weight: bold;
+                            font-size: 25px;
+                            border-radius: 10px;
+                        }}
+                    """)
     def _update_gauges(self):
         
         gauge_mapping = {
@@ -2907,34 +3089,75 @@ class HemodialysisHMI(QMainWindow):
     def refresh_alarms_label(self):
         """
         Reutiliza status_label para mostrar conexión/estado/alarmas.
-        """      
+        """
+        tokens = ThemeManager.get_tokens()
+        is_mono = bool(tokens.get("monochrome", False))
+        is_dark = bool(tokens.get("is_dark", False))
+
         if not self.serial_comm or not self.serial_comm.is_connected:
             self.status_label.setText("RECONECTANDO")
-            self.status_label.setStyleSheet("""
-                QLabel { color: #ffffff; background: #f39c12; font-weight: bold; font-size: 20px; border-radius: 8px; }
-            """)
+            if is_mono:
+                self.status_label.setStyleSheet("""
+                    QLabel { color: #374151; background: #D9E0E8; font-weight: bold; font-size: 20px; border-radius: 8px; border: 1px solid #C5CDD6; }
+                """)
+            elif is_dark:
+                self.status_label.setStyleSheet(f"""
+                    QLabel {{ color: #ffffff; background: {tokens.get('warning', '#f59e0b')}; font-weight: bold; font-size: 20px; border-radius: 8px; }}
+                """)
+            else:
+                self.status_label.setStyleSheet("""
+                    QLabel { color: #ffffff; background: #f39c12; font-weight: bold; font-size: 20px; border-radius: 8px; }
+                """)
             return
 
         if getattr(self, "_connection_just_established_ticks", 0) > 0:
             self._connection_just_established_ticks -= 1
             self.status_label.setText("CONEXION\nESTABLECIDA")
-            self.status_label.setStyleSheet("""
-                QLabel { color: #ffffff; background: #0ea5e9; font-weight: bold; font-size: 20px; border-radius: 8px; }
-            """)
+            if is_mono:
+                self.status_label.setStyleSheet("""
+                    QLabel { color: #374151; background: #D9E0E8; font-weight: bold; font-size: 20px; border-radius: 8px; border: 1px solid #C5CDD6; }
+                """)
+            elif is_dark:
+                self.status_label.setStyleSheet(f"""
+                    QLabel {{ color: {tokens.get('text_primary', '#F8FAFC')}; background: {tokens.get('bg_card_alt', '#1E293B')}; font-weight: bold; font-size: 20px; border-radius: 8px; border: 1px solid {tokens.get('border_card', '#334155')}; }}
+                """)
+            else:
+                self.status_label.setStyleSheet("""
+                    QLabel { color: #ffffff; background: #0ea5e9; font-weight: bold; font-size: 20px; border-radius: 8px; }
+                """)
             return
 
         if self._last_priming_status < 0 and not self.active_alarms:
             self.status_label.setText("MAQUINA\nCONECTADA")
-            self.status_label.setStyleSheet("""
-                QLabel { color: #ffffff; background: #0891b2; font-weight: bold; font-size: 20px; border-radius: 8px; }
-            """)
+            if is_mono:
+                self.status_label.setStyleSheet("""
+                    QLabel { color: #374151; background: #D9E0E8; font-weight: bold; font-size: 20px; border-radius: 8px; border: 1px solid #C5CDD6; }
+                """)
+            elif is_dark:
+                self.status_label.setStyleSheet(f"""
+                    QLabel {{ color: {tokens.get('text_primary', '#F8FAFC')}; background: {tokens.get('bg_card_alt', '#1E293B')}; font-weight: bold; font-size: 20px; border-radius: 8px; border: 1px solid {tokens.get('border_card', '#334155')}; }}
+                """)
+            else:
+                self.status_label.setStyleSheet("""
+                    QLabel { color: #ffffff; background: #0891b2; font-weight: bold; font-size: 20px; border-radius: 8px; }
+                """)
             return
 
         if not self.active_alarms:
             self.status_label.setText("ESTADO: OK")
-            self.status_label.setStyleSheet("""
-                QLabel { color: #ffffff; background: #2bbd37; font-weight: bold; font-size: 22px; border-radius: 8px; }
-            """)
+            if is_mono:
+                # En Escala de grises ESTADO: OK deja el verde -> usa gris #D9E0E8 y texto #374151
+                self.status_label.setStyleSheet("""
+                    QLabel { color: #374151; background: #D9E0E8; font-weight: bold; font-size: 22px; border-radius: 8px; border: 1px solid #C5CDD6; }
+                """)
+            elif is_dark:
+                self.status_label.setStyleSheet(f"""
+                    QLabel {{ color: #ffffff; background: {tokens.get('success', '#10b981')}; font-weight: bold; font-size: 22px; border-radius: 8px; }}
+                """)
+            else:
+                self.status_label.setStyleSheet("""
+                    QLabel { color: #ffffff; background: #2bbd37; font-weight: bold; font-size: 22px; border-radius: 8px; }
+                """)
             self._alarm_flash_toggle = False
             return
 
@@ -2943,14 +3166,14 @@ class HemodialysisHMI(QMainWindow):
         top_alarm = max(self.active_alarms, key=lambda x: priority_map.get(x[2], 0))
         name, value, level = top_alarm
 
-        short_label = name 
+        short_label = name
         is_boolean = False
 
         for group in VARIABLES.values():
             if isinstance(group, dict):
                 for info in group.values():
                     if info.get("name") == name:
-                        short_label = info.get("label", name) 
+                        short_label = info.get("label", name)
                         if info.get("type") == "bool":
                             is_boolean = True
                         break
@@ -2958,7 +3181,6 @@ class HemodialysisHMI(QMainWindow):
         display_text = short_label.upper()
         if not is_boolean and value is not None and isinstance(value, (int, float)):
             display_text += f" {value:.1f}"
-
 
         color_map = {"rojo": "#dc2626", "naranja": "#f97316", "amarillo": "#eab308", "cian": "#06b6d4"}
         bg_color = color_map.get(level, "#1e293b")
@@ -2968,9 +3190,14 @@ class HemodialysisHMI(QMainWindow):
         flash_text = "ALARMA" if self._alarm_flash_toggle else display_text
 
         self.status_label.setText(flash_text)
-        self.status_label.setStyleSheet(f"""
-            QLabel {{ background: {bg_color}; color: #ffffff; font-weight: bold; font-size: 22px; border-radius: 8px; }}
-        """)                                         
+        if is_mono:
+            self.status_label.setStyleSheet("""
+                QLabel { background: #9CA3AF; color: #111827; font-weight: bold; font-size: 22px; border-radius: 8px; border: 1px solid #6B7280; }
+            """)
+        else:
+            self.status_label.setStyleSheet(f"""
+                QLabel {{ background: {bg_color}; color: #ffffff; font-weight: bold; font-size: 22px; border-radius: 8px; }}
+            """)
 
 
     def refresh_treatment_selected(self):
@@ -2984,7 +3211,7 @@ class HemodialysisHMI(QMainWindow):
         mode_text = short_mode_map.get(mode_code, "HD")
         self.treatment_mode_selected.setText(mode_text)
         self.treatment_mode_selected.setAlignment(Qt.AlignCenter)
-        self.treatment_mode_selected.setStyleSheet(self._build_header_label_style("#1d4ed8"))
+        self.treatment_mode_selected.setStyleSheet(self._build_header_label_style("#1d4ed8", is_process=False))
 
     def update_remaining_time_header(self, remaining_str: str):
         if hasattr(self, "remaining_time_display") and self.remaining_time_display:

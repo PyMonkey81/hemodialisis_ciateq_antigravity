@@ -106,17 +106,25 @@ class TankGauge(QWidget):
             y_pos = (tank_y + tank_h) - fill_h
             fill_rect = QRectF(tank_x, y_pos, tank_w, fill_h)
 
-            grad = QLinearGradient(tank_x, y_pos, tank_x + tank_w, y_pos + fill_h)
-            grad.setColorAt(0.0, self.color_liquido.lighter(125))
-            grad.setColorAt(0.5, self.color_liquido)
-            grad.setColorAt(1.0, self.color_liquido.darker(125))
+            is_mono = bool(tokens.get("monochrome", False))
+            if is_mono:
+                grad = QLinearGradient(tank_x, y_pos, tank_x, y_pos + fill_h)
+                grad.setColorAt(0.0, QColor("#9CA3AF"))
+                grad.setColorAt(1.0, QColor("#4B5563"))
+                meniscus_color = QColor("#D1D5DB")
+            else:
+                grad = QLinearGradient(tank_x, y_pos, tank_x + tank_w, y_pos + fill_h)
+                grad.setColorAt(0.0, self.color_liquido.lighter(125))
+                grad.setColorAt(0.5, self.color_liquido)
+                grad.setColorAt(1.0, self.color_liquido.darker(125))
+                meniscus_color = self.color_liquido.lighter(160)
 
             painter.setPen(Qt.NoPen)
             painter.setBrush(QBrush(grad))
             painter.drawRect(fill_rect)
 
             # Línea brillante de menisco superior
-            painter.setPen(QPen(self.color_liquido.lighter(160), 2.5))
+            painter.setPen(QPen(meniscus_color, 2.5))
             painter.drawLine(int(tank_x), int(y_pos), int(tank_x + tank_w), int(y_pos))
             painter.restore()
 

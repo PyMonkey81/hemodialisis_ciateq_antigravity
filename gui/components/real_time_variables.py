@@ -1,3 +1,4 @@
+from gui.theme_manager import ThemeManager
 # gui/components/real_time_variables_monitor.py
 """
 Módulo para el monitor de variables en tiempo real de la máquina de hemodiálisis.
@@ -94,13 +95,10 @@ class RealTimeVariablesMonitor(QWidget):
         layout = QVBoxLayout(self)
 
         # Title
-        title = QLabel("MONITOR DE VARIABLES - MÁQUINA HEMODIÁLISIS")
-        title.setStyleSheet(
-            "font-size: 20px; font-weight: bold; color: #1e40af; "
-            "padding: 15px; background: #e0e7ff; border-radius: 10px;"
-        )
-        title.setAlignment(Qt.AlignCenter)
-        layout.addWidget(title)
+                # Title
+        self.title_label = QLabel("MONITOR DE VARIABLES - MÁQUINA HEMODIÁLISIS")
+        self.title_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(self.title_label)
 
         
         columns = ["#", "Grupo", "Nombre", "Tag", "Tipo", "Valor", "Límites", "Unidad", "Estado", "R/W"]
@@ -150,6 +148,11 @@ class RealTimeVariablesMonitor(QWidget):
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.update_data)
         self.update_timer.start(500)
+        self.apply_theme_styles()
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self.apply_theme_styles())
+        except Exception:
+            pass
 
     def _build_table(self):
         """Populate the table with all variables from VARIABLES map."""
@@ -250,3 +253,109 @@ class RealTimeVariablesMonitor(QWidget):
                 status_item.setText(status_text)
                 status_item.setBackground(bg_color)
                 status_item.setForeground(text_color)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.apply_theme_styles()
+
+    def apply_theme_styles(self, theme_name: str | None = None):
+        tokens = ThemeManager.get_tokens(theme_name)
+        is_mono = bool(tokens.get("monochrome", False))
+        is_dark = bool(tokens.get("is_dark", False))
+
+        if is_mono:
+            self.setStyleSheet("background: #F3F4F6; font-family: 'Segoe UI';")
+            if hasattr(self, "title_label"):
+                self.title_label.setStyleSheet(
+                    "font-size: 22px; font-weight: bold; color: #374151; "
+                    "padding: 14px; background: #D9E0E8; border: 1px solid #C5CDD6; border-radius: 10px;"
+                )
+            self.table.setStyleSheet("""
+                QTableWidget {
+                    gridline-color: #D1D5DB;
+                    font-size: 14px;
+                    background-color: #FFFFFF;
+                    color: #374151;
+                    border: 1px solid #D1D5DB;
+                    border-radius: 8px;
+                }
+                QTableWidget::item {
+                    background-color: #FFFFFF;
+                    color: #374151;
+                    padding: 6px;
+                }
+                QTableWidget::item:selected {
+                    background-color: #9CA3AF;
+                    color: #111827;
+                }
+                QHeaderView::section {
+                    background: #E5E7EB;
+                    color: #374151;
+                    padding: 8px;
+                    font-weight: bold;
+                    border: 1px solid #D1D5DB;
+                }
+            """)
+        elif is_dark:
+            self.setStyleSheet(f"background: {tokens.get('bg_main', '#0F172A')}; font-family: 'Segoe UI';")
+            if hasattr(self, "title_label"):
+                self.title_label.setStyleSheet(
+                    f"font-size: 22px; font-weight: bold; color: {tokens.get('text_primary', '#F8FAFC')}; "
+                    f"padding: 14px; background: {tokens.get('bg_card_alt', '#1E293B')}; border: 1px solid {tokens.get('border_card', '#334155')}; border-radius: 10px;"
+                )
+            self.table.setStyleSheet(f"""
+                QTableWidget {{
+                    gridline-color: {tokens.get('border_card', '#334155')};
+                    font-size: 14px;
+                    background-color: {tokens.get('bg_card', '#1E293B')};
+                    color: {tokens.get('text_primary', '#F8FAFC')};
+                    border: 1px solid {tokens.get('border_card', '#334155')};
+                    border-radius: 8px;
+                }}
+                QTableWidget::item {{
+                    background-color: {tokens.get('bg_card', '#1E293B')};
+                    color: {tokens.get('text_primary', '#F8FAFC')};
+                    padding: 6px;
+                }}
+                QTableWidget::item:selected {{
+                    background-color: {tokens.get('table_sel_bg', '#334155')};
+                    color: {tokens.get('table_sel_text', '#FFFFFF')};
+                }}
+                QHeaderView::section {{
+                    background: {tokens.get('table_header_bg', '#1E293B')};
+                    color: {tokens.get('text_secondary', '#94A3B8')};
+                    padding: 8px;
+                    font-weight: bold;
+                    border: 1px solid {tokens.get('border_card', '#334155')};
+                }}
+            """)
+        else:
+            self.setStyleSheet("background: #f8fafc; font-family: 'Segoe UI';")
+            if hasattr(self, "title_label"):
+                self.title_label.setStyleSheet(
+                    "font-size: 20px; font-weight: bold; color: #1e40af; "
+                    "padding: 15px; background: #e0e7ff; border-radius: 10px;"
+                )
+            self.table.setStyleSheet("""
+                QTableWidget {
+                    gridline-color: #cbd5e1;
+                    font-size: 13px;
+                    background-color: #ffffff;
+                    alternate-background-color: #f1f5f9;
+                }
+                QTableWidget::item {
+                    background-color: #ffffff;
+                    color: #000000;
+                    padding: 6px;
+                }
+                QTableWidget::item:selected {
+                    background-color: #3b82f6;
+                    color: white;
+                }
+                QHeaderView::section {
+                    background: #1e40af;
+                    color: white;
+                    padding: 10px;
+                    font-weight: bold;
+                }
+            """)

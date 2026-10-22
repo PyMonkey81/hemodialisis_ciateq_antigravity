@@ -245,11 +245,14 @@ class KTVScreen(QWidget):
         self.display_bioz.setStyleSheet(ind_qss)
         self.display_heitmann.setStyleSheet(ind_qss)
 
+        is_mono = bool(tokens.get("monochrome", False))
+        btn_ktv_fg = tokens['text_primary'] if is_mono else "#ffffff"
+        btn_ktv_border = f"border: 1px solid {tokens['border_input']};" if is_mono else "border: none;"
         self.btn_run_ktv.setStyleSheet(f"""
             QPushButton {{
                 background: {tokens['primary']};
-                color: #ffffff;
-                border: none;
+                color: {btn_ktv_fg};
+                {btn_ktv_border}
                 border-radius: 10px;
                 font-size: 20px;
                 font-weight: bold;
@@ -259,6 +262,26 @@ class KTVScreen(QWidget):
             QPushButton:pressed {{ background: {tokens['primary_pressed']}; }}
             QPushButton:disabled {{ background: {tokens['btn_disabled_bg']}; color: {tokens['btn_disabled_text']}; }}
         """)
+
+        # Combo frecuencia: estilo homologado para que no sea negro
+        if hasattr(self, "combo_freq"):
+            self.combo_freq.setStyleSheet(f"""
+                QComboBox {{
+                    color: {tokens['text_primary']};
+                    background: {tokens['bg_input']};
+                    font-size: 20px;
+                    font-weight: bold;
+                    border: 2px solid {tokens['border_input']};
+                    border-radius: 8px;
+                    padding: 6px;
+                }}
+                QComboBox QAbstractItemView {{
+                    background-color: {tokens['bg_card']};
+                    color: {tokens['text_primary']};
+                    selection-background-color: {tokens['primary']};
+                    selection-color: {tokens.get('text_on_primary', '#374151') if is_mono else '#FFFFFF'};
+                }}
+            """)
 
         self.results_list.setStyleSheet(f"""
             QListWidget {{

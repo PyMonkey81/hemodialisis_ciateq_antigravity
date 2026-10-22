@@ -1,3 +1,4 @@
+from gui.theme_manager import ThemeManager
 from enum import Enum, auto
 import logging
 import json
@@ -78,6 +79,11 @@ class CleaningScreenV2(QWidget):
 
         self._build_ui()
         self._update_ui_state()
+        self.apply_theme_styles()
+        try:
+            ThemeManager.instance().theme_changed.connect(lambda _t: self.apply_theme_styles())
+        except Exception:
+            pass
 
     def _load_config(self):
         if not os.path.exists(CONFIG_FILE_PATH):
@@ -108,10 +114,13 @@ class CleaningScreenV2(QWidget):
         main_layout.setContentsMargins(40, 40, 40, 40)
         main_layout.setSpacing(24)
 
-        title = QLabel("Limpieza / Desinfección")
-        title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("color: #cbd5e1; font-size: 48px; font-weight: bold;")
-        main_layout.addWidget(title)
+        self.title_label = QLabel("Limpieza / Desinfección")
+
+
+        self.title_label.setAlignment(Qt.AlignCenter)
+
+
+        main_layout.addWidget(self.title_label)
 
         self.phase_label = QLabel("Seleccione modo para iniciar")
         self.phase_label.setAlignment(Qt.AlignCenter)
@@ -172,6 +181,23 @@ class CleaningScreenV2(QWidget):
         main_layout.addWidget(action_frame)
 
     def _button_style_blue(self):
+        tokens = ThemeManager.get_tokens()
+        if bool(tokens.get("monochrome", False)):
+            return (
+                "QPushButton { background: #D9E0E8; color: #374151; font-size: 22px; font-weight: bold;"
+                " border-radius: 14px; padding: 12px; border: 2px solid #C5CDD6; }"
+                "QPushButton:checked { background: #9CA3AF; color: #111827; border: 2px solid #6B7280; font-weight: bold; }"
+                "QPushButton:hover { background: #C5CED6; }"
+                "QPushButton:disabled { background: #E5E7EB; color: #B0B8C2; border: 1px solid #D1D5DB; }"
+            )
+        elif bool(tokens.get("is_dark", False)):
+            return (
+                f"QPushButton {{ background: {tokens.get('bg_card_alt', '#1E293B')}; color: {tokens.get('text_primary', '#F8FAFC')}; font-size: 22px; font-weight: bold;"
+                f" border-radius: 14px; padding: 12px; border: 2px solid {tokens.get('border_card', '#334155')}; }}"
+                f"QPushButton:checked {{ background: {tokens.get('primary', '#38BDF8')}; color: #FFFFFF; border: 2px solid {tokens.get('primary_hover', '#0284C7')}; }}"
+                f"QPushButton:hover {{ background: {tokens.get('border_card', '#334155')}; }}"
+                f"QPushButton:disabled {{ background: {tokens.get('btn_disabled_bg', '#334155')}; color: {tokens.get('btn_disabled_text', '#64748b')}; }}"
+            )
         return (
             "QPushButton { background: #2563eb; color: #ffffff; font-size: 22px; font-weight: bold;"
             " border-radius: 14px; padding: 12px; }"
@@ -180,13 +206,30 @@ class CleaningScreenV2(QWidget):
         )
 
     def _button_style_action(self, label: str):
+        tokens = ThemeManager.get_tokens()
+        if bool(tokens.get("monochrome", False)):
+            return (
+                "QPushButton { background: #D9E0E8; color: #374151; font-size: 28px; font-weight: bold;"
+                " border-radius: 16px; border: 2px solid #C5CDD6; }"
+                "QPushButton:hover { background: #C5CED6; }"
+                "QPushButton:pressed { background: #B0B8C4; }"
+                "QPushButton:disabled { background: #E5E7EB; color: #B0B8C2; border: 1px solid #D1D5DB; }"
+            )
+        elif bool(tokens.get("is_dark", False)):
+            color = tokens.get("success", "#10b981") if label == "Iniciar" else tokens.get("danger", "#ef4444")
+            return (
+                f"QPushButton {{ background: {color}; color: #ffffff; font-size: 28px; font-weight: bold;"
+                " border-radius: 16px; }"
+                "QPushButton:hover { opacity: 0.92; }"
+                f"QPushButton:disabled {{ background: {tokens.get('btn_disabled_bg', '#334155')}; color: {tokens.get('btn_disabled_text', '#64748b')}; }}"
+            )
         if label == "Iniciar":
             color = "#047857"
         else:
             color = "#dc2626"
         return (
             f"QPushButton {{ background: {color}; color: #ffffff; font-size: 28px; font-weight: bold;"
-            " border-radius: 16px; }}"
+            " border-radius: 16px; }"
             "QPushButton:hover { opacity: 0.92; }"
         )
 
@@ -386,3 +429,61 @@ class CleaningScreenV2(QWidget):
         self.btn_short.setChecked(False)
         self.btn_long.setChecked(False)
         self._update_ui_state()
+
+
+    def apply_theme_styles(self, theme_name: str | None = None):
+        tokens = ThemeManager.get_tokens(theme_name)
+        is_mono = bool(tokens.get("monochrome", False))
+        is_dark = bool(tokens.get("is_dark", False))
+
+        if is_mono:
+            self.setStyleSheet(f"background: {tokens['bg_main']};")
+            if hasattr(self, "title_label"):
+                self.title_label.setStyleSheet("color: #4B5563; font-size: 48px; font-weight: bold; background: transparent;")
+            if hasattr(self, "phase_label"):
+                self.phase_label.setStyleSheet("color: #374151; font-size: 30px; font-weight: bold; background: transparent;")
+            if hasattr(self, "progress_bar"):
+                self.progress_bar.setStyleSheet(
+                    "QProgressBar { background: #E5E7EB; color: #111827; border-radius: 10px; border: 1px solid #D1D5DB; font-size: 20px; font-weight: bold; text-align: center; }"
+                    "QProgressBar::chunk { background: #9CA3AF; border-radius: 10px; }"
+                )
+            for lbl in (getattr(self, "time_label", None), getattr(self, "temp_label", None), getattr(self, "flow_label", None)):
+                if lbl:
+                    lbl.setStyleSheet("color: #374151; font-size: 26px; font-weight: bold; background: transparent;")
+        elif is_dark:
+            self.setStyleSheet(f"background: {tokens['bg_main']};")
+            if hasattr(self, "title_label"):
+                self.title_label.setStyleSheet(f"color: {tokens.get('text_primary', '#F8FAFC')}; font-size: 48px; font-weight: bold; background: transparent;")
+            if hasattr(self, "phase_label"):
+                self.phase_label.setStyleSheet(f"color: {tokens.get('text_secondary', '#94A3B8')}; font-size: 30px; font-weight: bold; background: transparent;")
+            if hasattr(self, "progress_bar"):
+                self.progress_bar.setStyleSheet(
+                    f"QProgressBar {{ background: {tokens.get('bg_card_alt', '#1E293B')}; color: {tokens.get('text_primary', '#F8FAFC')}; border-radius: 10px; border: 1px solid {tokens.get('border_card', '#334155')}; font-size: 20px; font-weight: bold; text-align: center; }}"
+                    f"QProgressBar::chunk {{ background: {tokens.get('primary', '#38BDF8')}; border-radius: 10px; }}"
+                )
+            for lbl in (getattr(self, "time_label", None), getattr(self, "temp_label", None), getattr(self, "flow_label", None)):
+                if lbl:
+                    lbl.setStyleSheet(f"color: {tokens.get('text_primary', '#F8FAFC')}; font-size: 26px; font-weight: bold; background: transparent;")
+        else:
+            self.setStyleSheet("background: #0f172a;")
+            if hasattr(self, "title_label"):
+                self.title_label.setStyleSheet("color: #cbd5e1; font-size: 48px; font-weight: bold; background: transparent;")
+            if hasattr(self, "phase_label"):
+                self.phase_label.setStyleSheet("color: #94a3b8; font-size: 30px; font-weight: bold; background: transparent;")
+            if hasattr(self, "progress_bar"):
+                self.progress_bar.setStyleSheet(
+                    "QProgressBar { background: #1e293b; color: #ffffff; border-radius: 10px; text-align: center; }"
+                    "QProgressBar::chunk { background: #3b82f6; border-radius: 10px; }"
+                )
+            for lbl in (getattr(self, "time_label", None), getattr(self, "temp_label", None), getattr(self, "flow_label", None)):
+                if lbl:
+                    lbl.setStyleSheet("color: #cbd5e1; font-size: 26px; font-weight: bold; background: transparent;")
+
+        if hasattr(self, "btn_short"):
+            self.btn_short.setStyleSheet(self._button_style_blue())
+        if hasattr(self, "btn_long"):
+            self.btn_long.setStyleSheet(self._button_style_blue())
+        if hasattr(self, "start_button"):
+            self.start_button.setStyleSheet(self._button_style_action("Iniciar"))
+        if hasattr(self, "stop_button"):
+            self.stop_button.setStyleSheet(self._button_style_action("Detener"))
