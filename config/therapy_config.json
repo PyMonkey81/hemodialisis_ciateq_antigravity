@@ -2,8 +2,8 @@
   "schema_version": 1,
   "local": {
     "heparineInfusionEnabled": 1.0,
-    "heparineTherapyHours": 0.0,
-    "heparineTherapyMinutes": 2.0
+    "heparineTherapyHours": 3.0,
+    "heparineTherapyMinutes": 0.0
   },
   "firmware": {
     "balanceChamberSetTiming": 0.0,

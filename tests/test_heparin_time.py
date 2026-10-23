@@ -7,11 +7,13 @@ Scenario: User has therapy 3:00 with heparin 1:00. Therapy changes to 1:00.
 Expected: heparineAutoStopHours=0, heparineAutoStopMinutes=30, heparineTherapyDosage=0.5*flow
 """
 
+import time
 import pytest
 from unittest.mock import Mock, MagicMock, patch
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
-from core.state_manager import TreatmentPhase
+from core.state_manager import AppStateManager, TreatmentPhase
+from gui.appMainHemodialysis import HemodialysisHMI
 from logic.heparin_time import reference_minutes, max_heparin_minutes, clamp_heparin_time, was_clamped
 from gui.components.ui_components import ClickableLineEdit
 
@@ -279,15 +281,7 @@ class MockAppMainHemodialysis:
             therapy_m = int(self.current_values.get("heparineTherapyMinutes", 0) or 0)
             programmed_minutes = (therapy_h * 60) + therapy_m
             
-            remaining_seconds = 0
-            if hasattr(self, 'treatment_controller'):
-                remaining_seconds = getattr(self.treatment_controller, 'remaining', 0) or 0
-            
-            ref_min = reference_minutes(
-                phase=self.state.current_phase,
-                programmed_minutes=programmed_minutes,
-                remaining_seconds=remaining_seconds
-            )
+            ref_min = max(0, programmed_minutes)
             
             if was_clamped(auto_h, auto_m, ref_min):
                 clamped_h, clamped_m = clamp_heparin_time(auto_h, auto_m, ref_min)
@@ -407,3 +401,176 @@ class TestHeparinValidationWithRealWidget:
         # Verify: Warning was shown
         assert len(main.warning_messages) > 0, "Warning message should have been shown"
         assert "00:30" in main.warning_messages[0], "Warning should mention the clamped time"
+
+
+class TestHeparinClampingOnRunning:
+    """Test heparin clamping upon entering RUNNING phase without hardware."""
+
+    def setup_method(self):
+        get_qapp()
+
+    def _create_hmi(self, therapy_h: float, therapy_m: float, heparin_h: float, heparin_m: float, flow: float = 1.0):
+        hmi = HemodialysisHMI.__new__(HemodialysisHMI)
+        hmi.current_values = {
+            "heparineTherapyHours": float(therapy_h),
+            "heparineTherapyMinutes": float(therapy_m),
+            "heparineAutoStopHours": float(heparin_h),
+            "heparineAutoStopMinutes": float(heparin_m),
+            "heparineTherapyDosage": round((heparin_h + heparin_m / 60.0) * flow, 2),
+            "heparineTherapyFlow": float(flow),
+            "heparineInfusionEnabled": 1.0,
+        }
+        hmi.state = AppStateManager()
+        hmi.state.set_phase(TreatmentPhase.READY)
+        hmi.ignore_tags_until = {}
+        hmi._heparin_running_clamped = False
+        hmi._prev_treatment_phase = TreatmentPhase.READY
+        hmi.nibp_pressure_history = []
+        hmi.show_warning_message = Mock()
+        hmi._update_buttons_state = Mock()
+        hmi._refresh_navigation_bar = Mock()
+        hmi.screen_state_manager = Mock()
+        hmi.screen_state_manager.update_all_screens = Mock()
+        hmi.ktv_controller = Mock()
+        hmi._apply_nibp_auto_spo2_for_phase = Mock()
+        hmi.alarm_system = None
+        hmi.serial_comm = Mock()
+        hmi.serial_comm.is_connected = False
+        
+        # Track persisted tags and setpoint calls
+        hmi.persisted_tags = {}
+        hmi._persist_therapy_config_tag = Mock(side_effect=lambda tag, val: hmi.persisted_tags.update({tag: val}))
+        hmi.written_setpoints = {}
+        hmi._write_setpoint = Mock(side_effect=lambda tag, val: hmi.written_setpoints.update({tag: val}))
+
+        # Mock screen with real ClickableLineEdit widget
+        widget = ClickableLineEdit(f"{int(heparin_h):02d}:{int(heparin_m):02d}")
+        widget.setReadOnly(True)
+        screen = Mock()
+        screen.input_heparin_auto_stop = widget
+        screen.current_values = hmi.current_values.copy()
+        combo = Mock()
+        combo.currentText = Mock(return_value=str(flow))
+        screen.heparin_flow_combo = combo
+        hmi.heparin_config_screen = screen
+
+        # Wire state_changed to production _on_state_changed
+        hmi.state.state_changed.connect(hmi._on_state_changed)
+
+        return hmi
+
+    def test_running_clamps_1h_therapy_1h_heparin_to_30m_and_ignores_stale_reading(self):
+        """
+        Caso: terapia 01:00 y heparina 01:00.
+        Al entrar a RUNNING:
+        - input_heparin_auto_stop queda '00:30'
+        - heparineAutoStopHours/Minutes y heparineTherapyDosage quedan en 00:30 y 0.5 h por el flujo (0.5 ml).
+        - Los 3 tags se persisten, se mandan con _write_setpoint e ignoran el eco del firmware 3s.
+        - Si llega una lectura vieja de firmware (01:00), el texto queda '00:30' y no vuelve a '01:00'.
+        """
+        hmi = self._create_hmi(therapy_h=1.0, therapy_m=0.0, heparin_h=1.0, heparin_m=0.0, flow=1.0)
+        assert hmi.heparin_config_screen.input_heparin_auto_stop.text() == "01:00"
+
+        # Switch to RUNNING phase
+        hmi.state.set_phase(TreatmentPhase.RUNNING)
+
+        # 1. Field text is 00:30
+        assert hmi.heparin_config_screen.input_heparin_auto_stop.text() == "00:30"
+
+        # 2. Values in hmi.current_values
+        assert hmi.current_values["heparineAutoStopHours"] == 0.0
+        assert hmi.current_values["heparineAutoStopMinutes"] == 30.0
+        assert hmi.current_values["heparineTherapyDosage"] == 0.5
+
+        # 3. Values in screen current_values
+        assert hmi.heparin_config_screen.current_values["heparineAutoStopHours"] == 0.0
+        assert hmi.heparin_config_screen.current_values["heparineAutoStopMinutes"] == 30.0
+        assert hmi.heparin_config_screen.current_values["heparineTherapyDosage"] == 0.5
+
+        # 4. Persisted tags
+        assert hmi.persisted_tags.get("heparineAutoStopHours") == 0.0
+        assert hmi.persisted_tags.get("heparineAutoStopMinutes") == 30.0
+        assert hmi.persisted_tags.get("heparineTherapyDosage") == 0.5
+
+        # 5. Written via _write_setpoint
+        assert hmi.written_setpoints.get("heparineAutoStopHours") == 0.0
+        assert hmi.written_setpoints.get("heparineAutoStopMinutes") == 30.0
+        assert hmi.written_setpoints.get("heparineTherapyDosage") == 0.5
+
+        # 6. Ignored tags until timestamp in future
+        now = time.time()
+        assert "heparineAutoStopHours" in hmi.ignore_tags_until
+        assert "heparineAutoStopMinutes" in hmi.ignore_tags_until
+        assert "heparineTherapyDosage" in hmi.ignore_tags_until
+        assert hmi.ignore_tags_until["heparineAutoStopHours"] > now + 1.0
+
+        # 7. Simulate stale reading arriving from firmware (e.g. echo of old 01:00 value)
+        hmi.update_value("heparineAutoStopHours", 1.0)
+        hmi.update_value("heparineAutoStopMinutes", 0.0)
+        hmi.update_value("heparineTherapyDosage", 1.0)
+
+        # Verify values NOT overwritten
+        assert hmi.current_values["heparineAutoStopHours"] == 0.0
+        assert hmi.current_values["heparineAutoStopMinutes"] == 30.0
+        assert hmi.current_values["heparineTherapyDosage"] == 0.5
+
+        # Also verify widget text stays 00:30 and does NOT revert to 01:00
+        assert hmi.heparin_config_screen.input_heparin_auto_stop.text() == "00:30"
+
+    def test_running_therapy_3h_heparin_1h_untouched(self):
+        """Terapia 03:00 con heparina 01:00 no se toca."""
+        hmi = self._create_hmi(therapy_h=3.0, therapy_m=0.0, heparin_h=1.0, heparin_m=0.0, flow=1.0)
+        assert hmi.heparin_config_screen.input_heparin_auto_stop.text() == "01:00"
+
+        hmi.state.set_phase(TreatmentPhase.RUNNING)
+
+        assert hmi.heparin_config_screen.input_heparin_auto_stop.text() == "01:00"
+        assert hmi.current_values["heparineAutoStopHours"] == 1.0
+        assert hmi.current_values["heparineAutoStopMinutes"] == 0.0
+        assert "heparineAutoStopHours" not in hmi.written_setpoints
+
+    def test_running_therapy_1h_heparin_20m_untouched(self):
+        """Heparina 00:20 en terapia de 01:00 no se toca."""
+        hmi = self._create_hmi(therapy_h=1.0, therapy_m=0.0, heparin_h=0.0, heparin_m=20.0, flow=1.0)
+        assert hmi.heparin_config_screen.input_heparin_auto_stop.text() == "00:20"
+
+        hmi.state.set_phase(TreatmentPhase.RUNNING)
+
+        assert hmi.heparin_config_screen.input_heparin_auto_stop.text() == "00:20"
+        assert hmi.current_values["heparineAutoStopHours"] == 0.0
+        assert hmi.current_values["heparineAutoStopMinutes"] == 20.0
+        assert "heparineAutoStopHours" not in hmi.written_setpoints
+
+    def test_clamped_only_once_upon_entering_running(self):
+        """Una sola vez al entrar a RUNNING. No lo vuelvas a bajar mientras corre la terapia."""
+        hmi = self._create_hmi(therapy_h=1.0, therapy_m=0.0, heparin_h=1.0, heparin_m=0.0, flow=1.0)
+        hmi.state.set_phase(TreatmentPhase.RUNNING)
+
+        assert hmi.current_values["heparineAutoStopHours"] == 0.0
+        assert hmi.current_values["heparineAutoStopMinutes"] == 30.0
+        assert hmi._heparin_running_clamped is True
+
+        # Clear tracking mocks
+        hmi._write_setpoint.reset_mock()
+
+        # Simulate phase remaining RUNNING or being notified again
+        hmi._on_state_changed(TreatmentPhase.RUNNING, "Tick")
+
+        # It should NOT be clamped again / not re-written
+        assert hmi._write_setpoint.call_count == 0
+        assert hmi.current_values["heparineAutoStopMinutes"] == 30.0
+
+    def test_coerce_heparin_auto_stop_seconds_does_not_mutate_current_values(self):
+        """Quita la escritura de horas/minutos dentro de _coerce_heparin_auto_stop_seconds."""
+        hmi = self._create_hmi(therapy_h=1.0, therapy_m=0.0, heparin_h=1.0, heparin_m=0.0, flow=1.0)
+        
+        # When _coerce_heparin_auto_stop_seconds is called directly
+        seconds = hmi._coerce_heparin_auto_stop_seconds()
+        
+        # Calculated stop seconds = max(0, 3600 - 1800) = 1800s (30 min)
+        assert seconds == 1800
+        
+        # But current_values must NOT be mutated by _coerce_heparin_auto_stop_seconds
+        assert hmi.current_values["heparineAutoStopHours"] == 1.0
+        assert hmi.current_values["heparineAutoStopMinutes"] == 0.0
+

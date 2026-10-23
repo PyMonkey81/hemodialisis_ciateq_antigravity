@@ -49,6 +49,8 @@ class TreatmentController:
         """Prepara una sesión nueva (no reanudación) desde estado listo."""
         self._reset_session_counters(reset_total=False)
         self.total_therapy_seconds = self._get_programmed_total_seconds()
+        if hasattr(self.main, '_heparin_running_clamped'):
+            self.main._heparin_running_clamped = False
 
     # ====================== START TREATMENT ======================
 

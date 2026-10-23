@@ -470,6 +470,7 @@ class HemodialysisHMI(QMainWindow):
         self.current_treatment_start_date_time = None # Variable para reporte de inicio/tratamiento
         self.navigation_buttons = {} # nuevo
         self._heparin_auto_stop_latched = False
+        self._heparin_running_clamped = False
         self._heparin_infusion_forced_stop_latched = False
         self.setup_ui()
         
@@ -756,6 +757,11 @@ class HemodialysisHMI(QMainWindow):
             if prev_phase != TreatmentPhase.PAUSED:
                 logger.info(f"[NIBP History] Limpiando historial al entrar a RUNNING desde {prev_phase.name if prev_phase else 'None'}")
                 self.nibp_pressure_history.clear()
+
+            # Recortar una sola vez el tiempo de heparina al entrar a RUNNING
+            if not getattr(self, '_heparin_running_clamped', False):
+                self._heparin_running_clamped = True
+                self._validate_and_clamp_heparin_auto_stop_time()
         
         # Guardar el estado actual para la próxima comparación
         self._prev_treatment_phase = phase
@@ -769,6 +775,7 @@ class HemodialysisHMI(QMainWindow):
             # Solo al terminar la sesión (IDLE/READY/etc.), NUNCA en PAUSED: el reloj de
             # terapia se congela en pausa, no reinicia, así que el índice tampoco debe hacerlo.
             self._nibp_auto_last_interval_index = -1
+            self._heparin_running_clamped = False
 
     def _apply_nibp_auto_spo2_for_phase(self, phase: TreatmentPhase):
         """RUNNING/PAUSED + spo2_enabled: mantiene el stream SpO2 (interval_min nunca dispara 31).
@@ -859,6 +866,7 @@ class HemodialysisHMI(QMainWindow):
         self.is_treatment_running = False
         self.therapy_start_time = None
         self._heparin_auto_stop_latched = False
+        self._heparin_running_clamped = False
         # Cerrar el último tramo de Kt/V antes de guardar el reporte.
         # El proyectado no sustituye al entregado.
         self.ktv_controller.finalize_delivered_dose()
@@ -1220,6 +1228,10 @@ class HemodialysisHMI(QMainWindow):
             if self.state.current_phase == TreatmentPhase.RUNNING:
                 return
 
+            if not getattr(self, '_heparin_running_clamped', False):
+                self._heparin_running_clamped = True
+                self._validate_and_clamp_heparin_auto_stop_time()
+
             success = self.treatment_controller.start_treatment()
             if success:
                 self._update_therapy_time_displays()
@@ -1271,22 +1283,12 @@ class HemodialysisHMI(QMainWindow):
             auto_h = int(self.current_values.get("heparineAutoStopHours", 0) or 0)
             auto_m = int(self.current_values.get("heparineAutoStopMinutes", 0) or 0)
             
-            # Calcular tiempo de referencia (usa duración programada, NO está RUNNING)
+            # Calcular tiempo de referencia usando siempre la duración programada de la terapia (NO restante)
+            # Máximo = max(0, minutos programados de terapia - 30)
             therapy_h = int(self.current_values.get("heparineTherapyHours", 0) or 0)
             therapy_m = int(self.current_values.get("heparineTherapyMinutes", 0) or 0)
             programmed_minutes = (therapy_h * 60) + therapy_m
-            
-            # Obtener tiempo restante si está disponible (para futuro)
-            remaining_seconds = 0
-            if hasattr(self, 'treatment_controller'):
-                remaining_seconds = getattr(self.treatment_controller, 'remaining', 0) or 0
-            
-            # Calcular referencia según fase
-            ref_min = reference_minutes(
-                phase=self.state.current_phase,
-                programmed_minutes=programmed_minutes,
-                remaining_seconds=remaining_seconds
-            )
+            ref_min = max(0, programmed_minutes)
             
             # Validar y recortar
             if was_clamped(auto_h, auto_m, ref_min):
@@ -1323,13 +1325,6 @@ class HemodialysisHMI(QMainWindow):
                     self.heparin_config_screen.current_values["heparineAutoStopMinutes"] = float(clamped_m)
                     self.heparin_config_screen.current_values["heparineTherapyDosage"] = dosage_ml
                 
-                # Paso 2: Enviar los valores recortados al firmware mediante _write_setpoint
-                # (mismo camino que usa el numpad de Tiempo Heparina)
-                logger.info("[HEPARIN-VALIDATION] Enviando valores recortados al firmware...")
-                self._write_setpoint("heparineAutoStopHours", float(clamped_h))
-                self._write_setpoint("heparineAutoStopMinutes", float(clamped_m))
-                self._write_setpoint("heparineTherapyDosage", dosage_ml)
-                
                 # Paso 3: Marcar estos tags para ignorar lecturas durante 3 segundos
                 # (evita que la lectura vieja del firmware pise el nuevo valor)
                 ignore_until = time.time() + 3.0
@@ -1337,6 +1332,13 @@ class HemodialysisHMI(QMainWindow):
                 self.ignore_tags_until["heparineAutoStopMinutes"] = ignore_until
                 self.ignore_tags_until["heparineTherapyDosage"] = ignore_until
                 logger.info(f"[HEPARIN-VALIDATION] Bloqueando lecturas de heparina durante 3s")
+
+                # Paso 2: Enviar los valores recortados al firmware mediante _write_setpoint
+                # (mismo camino que usa el numpad de Tiempo Heparina)
+                logger.info("[HEPARIN-VALIDATION] Enviando valores recortados al firmware...")
+                self._write_setpoint("heparineAutoStopHours", float(clamped_h))
+                self._write_setpoint("heparineAutoStopMinutes", float(clamped_m))
+                self._write_setpoint("heparineTherapyDosage", dosage_ml)
                 
                 # Log de verificación
                 padre_h = int(self.current_values.get("heparineAutoStopHours", 0) or 0)
@@ -2344,12 +2346,6 @@ class HemodialysisHMI(QMainWindow):
         # La heparina debe parar, como máximo, cuando falten 30 minutos de terapia.
         max_allowed_seconds = max(0, therapy_seconds - 1800)
         effective_seconds = min(requested_seconds, max_allowed_seconds)
-
-        if effective_seconds != requested_seconds:
-            eff_h = effective_seconds // 3600
-            eff_m = (effective_seconds % 3600) // 60
-            self.current_values[HEPARIN_AUTO_STOP_HOURS_TAG] = float(eff_h)
-            self.current_values[HEPARIN_AUTO_STOP_MINUTES_TAG] = float(eff_m)
 
         return effective_seconds
 
