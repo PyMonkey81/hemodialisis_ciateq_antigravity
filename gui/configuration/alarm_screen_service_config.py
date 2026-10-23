@@ -8,9 +8,10 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from gui.components.floating_message import FloatingMessage
+from gui.theme_manager import ThemeManager
 
 from core.alarm_config_manager import AlarmConfigManager
-from typing import Dict
+from typing import Dict, List
 import logging
 logger = logging.getLogger(__name__)
 
@@ -28,128 +29,119 @@ class AlarmScreenServiceConfig(QWidget):
         self.parent_window = parent # parent_window es HemodialysisHMI
         self.config_manager = config_manager
         self.checkboxes: Dict[str, QCheckBox] = {}
+        self.row_labels: Dict[str, QLabel] = {}
+        self.header_labels: List[QLabel] = []
+        self.title_label: QLabel | None = None
+        self.scroll_area: QScrollArea | None = None
+        self.scroll: QScrollArea | None = None
+        self.scroll_content: QWidget | None = None
+        self.panel: QScrollArea | None = None
+        self.btn_save: QPushButton | None = None
 
+        self.setObjectName("AlarmScreenServiceConfig")
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.setAutoFillBackground(True)
-        palette = self.palette()
-        palette.setColor(self.backgroundRole(), QColor("#f8f8f8"))
-        self.setPalette(palette)
-
 
         self.setup_ui()
+
+        tm = ThemeManager.instance()
+        tm.theme_changed.connect(self.apply_theme_styles)
+        self.apply_theme_styles(tm.current_theme_name)
+
     def setup_ui(self):
+        tokens = ThemeManager.get_tokens()
+        is_mono = bool(tokens.get("monochrome", False))
+
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), QColor(tokens["bg_main"]))
+        self.setPalette(palette)
+        self.setStyleSheet(f"QWidget#AlarmScreenServiceConfig {{ background-color: {tokens['bg_main']}; }}")
+
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(25, 25, 25, 25)
         main_layout.setSpacing(20)
 
         # Título
-        title = QLabel("Configuración de Alarmas - Servicio Técnico")
-        title.setStyleSheet("font-size: 32px; font-weight: bold; color: #0f172a; background: transparent;")
-        main_layout.addWidget(title)
+        self.title_label = QLabel("Configuración de Alarmas - Servicio Técnico")
+        self.title_label.setStyleSheet(f"font-size: 32px; font-weight: bold; color: {tokens['title_color']}; background: transparent;")
+        main_layout.addWidget(self.title_label)
 
         # Scroll Area
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet("""
-            QScrollArea {
-                border: 1px solid #cbd5e1;
-                background-color: #ffffff;
-                border-radius: 8px;
-            }
-
-            /* Barra vertical */
-            QScrollBar:vertical {
+        self.scroll_area = QScrollArea()
+        self.scroll = self.scroll_area
+        self.panel = self.scroll_area
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setStyleSheet(f"""
+            QScrollArea {{
+                border: 1px solid {tokens['border_card']};
+                background-color: {tokens['bg_card']};
+                border-radius: 12px;
+            }}
+            QScrollArea > QWidget > QWidget {{
+                background-color: {tokens['bg_card']};
+            }}
+            QScrollBar:vertical {{
                 border: none;
-                background: #f1f5f9;
+                background: {tokens['bg_card_alt']};
                 width: 34px;
                 margin: 0px;
-                border-radius: 2px;
-            }
-
-            /* Handle (la barrita que se mueve) */
-            QScrollBar::handle:vertical {
-                background: #8a8a9c;
+                border-radius: 10px;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {tokens['text_muted']};
                 min-height: 50px;
-                border-radius: 2px;
-                margin: 4px 4px;          /* pequeño margen para que no toque los botones */
-            }
-            QScrollBar::handle:vertical:hover {
-                background: #6b6b7a;
-            }
-            QScrollBar::handle:vertical:pressed {
-                background: #555566;
-            }
-
-            /* === Botones de flecha (arriba y abajo) === */
-            QScrollBar::sub-line:vertical {          /* flecha ARRIBA */
-                height: 28px;
-                background: #e2e8f0;
-                border: none;
-                border-top-left-radius: 2px;
-                border-top-right-radius: 2px;
-                subcontrol-origin: margin;
-                subcontrol-position: top;
-            }
-            QScrollBar::add-line:vertical {          /* flecha ABAJO */
-                height: 28px;
-                background: #e2e8f0;
-                border: none;
-                border-bottom-left-radius: 2px;
-                border-bottom-right-radius: 2px;
-                subcontrol-origin: margin;
-                subcontrol-position: bottom;
-            }
-
-            /* Hover de los botones */
-            QScrollBar::sub-line:vertical:hover,
-            QScrollBar::add-line:vertical:hover {
-                background: #cbd5e1;
-            }
-
-            /* Cuando se presiona */
-            QScrollBar::sub-line:vertical:pressed,
-            QScrollBar::add-line:vertical:pressed {
-                background: #94a3b8;
-            }
-
-            /* Ocultar las flechas nativas (las vamos a dibujar nosotros con color) */
-            QScrollBar::up-arrow:vertical,
-            QScrollBar::down-arrow:vertical {
-                width: 0px;
+                border-radius: 8px;
+                margin: 4px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: {tokens['primary']};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
                 height: 0px;
-                background: none;
-            }
-
-            /* Evitar zonas grises/negras residuales */
-            QScrollBar::add-page:vertical,
-            QScrollBar::sub-page:vertical {
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
                 background: transparent;
-            }
+            }}
         """)
 
         # Contenedor interno del scroll
-        scroll_content = QWidget()
-        scroll_content.setStyleSheet("background-color: #ffffff;") # Fondo blanco para la lista
-        grid = QGridLayout(scroll_content)
+        self.scroll_content = QWidget()
+        self.scroll_content.setStyleSheet(f"background-color: {tokens['bg_card']}; border: none;")
+        grid = QGridLayout(self.scroll_content)
         grid.setSpacing(18)
         grid.setContentsMargins(20, 20, 20, 20)
         grid.setColumnStretch(1, 1)
 
         # Encabezados
         headers = ["Habilitar", "Señal de control (Variable)"]
+        self.header_labels = []
         for col, text in enumerate(headers):
             lbl = QLabel(text)
-            lbl.setStyleSheet("font-weight: bold; font-size: 24px; color: #475569; padding-bottom: 8px; background: transparent;")
+            lbl.setStyleSheet(f"font-weight: bold; font-size: 24px; color: {tokens['text_secondary']}; padding-bottom: 8px; background: transparent;")
+            self.header_labels.append(lbl)
             grid.addWidget(lbl, 0, col)
 
         # Estilo para los Checkboxes
-        chk_style = """
-            QCheckBox { color: #0f172a; font-size: 22px; background: transparent; }
-            QCheckBox::indicator { width: 30px; height: 32px; border: 2px solid #334155; border-radius: 4px; }
-            QCheckBox::indicator:checked { background-color: #0f172a; image: url(check_icon.png); } /* Si tienes un icono */
+        chk_style = f"""
+            QCheckBox {{
+                color: {tokens['text_primary']};
+                font-size: 22px;
+                background: transparent;
+            }}
+            QCheckBox::indicator {{
+                width: 30px;
+                height: 32px;
+                border: 2px solid {tokens['border_strong']};
+                border-radius: 4px;
+                background: transparent;
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {tokens['primary']};
+            }}
         """
 
         row = 1
+        self.checkboxes.clear()
+        self.row_labels.clear()
         for group in VARIABLES.values():
             for info in group.values():
                 if info.get("tag") and info.get("type") in ("double", "bool"):
@@ -171,34 +163,44 @@ class AlarmScreenServiceConfig(QWidget):
                         display_text += "  [DIGITAL]"
 
                     lbl_name = QLabel(display_text)
-                    lbl_name.setStyleSheet("color: #334155; font-size: 22px; background: transparent;")
+                    lbl_name.setStyleSheet(f"color: {tokens['text_primary']}; font-size: 22px; background: transparent;")
+                    self.row_labels[tag] = lbl_name
 
                     grid.addWidget(chk, row, 0, alignment=Qt.AlignCenter)
                     grid.addWidget(lbl_name, row, 1, alignment=Qt.AlignLeft)
                     row += 1
 
-        scroll_area.setWidget(scroll_content)
-        main_layout.addWidget(scroll_area)
+        self.scroll_area.setWidget(self.scroll_content)
+        main_layout.addWidget(self.scroll_area)
 
         # Botón Guardar
-        btn_layout = QHBoxLayout()
-        btn_save = QPushButton("Guardar Configuración")
-        btn_save.setFixedSize(400, 80)
-        btn_save.setStyleSheet("""
-            QPushButton {
-                background: #0f172a; 
-                color: #ffffff; 
-                font-size: 24px; 
-                font-weight: bold; 
+        btn_text_color = tokens["text_primary"] if is_mono else "#ffffff"
+        btn_border = f"border: 1px solid {tokens['border_input']};" if is_mono else "border: none;"
+        btn_style = f"""
+            QPushButton {{
+                background-color: {tokens['nav_btn_bg']};
+                color: {btn_text_color};
+                font-size: 24px;
+                font-weight: bold;
                 border-radius: 12px;
-            }
-            QPushButton:hover { background: #1e293b; }
-            QPushButton:pressed { background: #3b82f6; }
-        """)
-        btn_save.clicked.connect(self.save_enabled)
+                {btn_border}
+            }}
+            QPushButton:hover {{
+                background-color: {tokens.get('nav_btn_hover', tokens['primary_hover'])};
+            }}
+            QPushButton:pressed {{
+                background-color: {tokens.get('primary_pressed', tokens['primary'])};
+            }}
+        """
+
+        btn_layout = QHBoxLayout()
+        self.btn_save = QPushButton("Guardar Configuración")
+        self.btn_save.setFixedSize(400, 80)
+        self.btn_save.setStyleSheet(btn_style)
+        self.btn_save.clicked.connect(self.save_enabled)
 
         btn_layout.addStretch()
-        btn_layout.addWidget(btn_save)
+        btn_layout.addWidget(self.btn_save)
         main_layout.addLayout(btn_layout)
 
     # def setup_ui(self):
@@ -363,6 +365,111 @@ class AlarmScreenServiceConfig(QWidget):
             self._floating_msg = FloatingMessage(self)
         self._floating_msg.show_error_message(text, timeout_ms)
 
+    def apply_theme_styles(self, theme_name: str | None = None):
+        tokens = ThemeManager.get_tokens(theme_name)
+        is_mono = bool(tokens.get("monochrome", False))
+
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), QColor(tokens["bg_main"]))
+        self.setPalette(palette)
+        self.setStyleSheet(f"QWidget#AlarmScreenServiceConfig {{ background-color: {tokens['bg_main']}; }}")
+
+        if hasattr(self, "title_label") and self.title_label is not None:
+            self.title_label.setStyleSheet(
+                f"font-size: 32px; font-weight: bold; color: {tokens['title_color']}; background: transparent;"
+            )
+
+        if hasattr(self, "scroll_area") and self.scroll_area is not None:
+            self.scroll_area.setStyleSheet(f"""
+                QScrollArea {{
+                    border: 1px solid {tokens['border_card']};
+                    background-color: {tokens['bg_card']};
+                    border-radius: 12px;
+                }}
+                QScrollArea > QWidget > QWidget {{
+                    background-color: {tokens['bg_card']};
+                }}
+                QScrollBar:vertical {{
+                    border: none;
+                    background: {tokens['bg_card_alt']};
+                    width: 34px;
+                    margin: 0px;
+                    border-radius: 10px;
+                }}
+                QScrollBar::handle:vertical {{
+                    background: {tokens['text_muted']};
+                    min-height: 50px;
+                    border-radius: 8px;
+                    margin: 4px;
+                }}
+                QScrollBar::handle:vertical:hover {{
+                    background: {tokens['primary']};
+                }}
+                QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                    height: 0px;
+                }}
+                QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+                    background: transparent;
+                }}
+            """)
+
+        if hasattr(self, "scroll_content") and self.scroll_content is not None:
+            self.scroll_content.setStyleSheet(f"background-color: {tokens['bg_card']}; border: none;")
+
+        if hasattr(self, "header_labels"):
+            for lbl in self.header_labels:
+                lbl.setStyleSheet(
+                    f"font-weight: bold; font-size: 24px; color: {tokens['text_secondary']}; padding-bottom: 8px; background: transparent;"
+                )
+
+        btn_text_color = tokens["text_primary"] if is_mono else "#ffffff"
+        btn_border = f"border: 1px solid {tokens['border_input']};" if is_mono else "border: none;"
+        btn_style = f"""
+            QPushButton {{
+                background-color: {tokens['nav_btn_bg']};
+                color: {btn_text_color};
+                font-size: 24px;
+                font-weight: bold;
+                border-radius: 12px;
+                {btn_border}
+            }}
+            QPushButton:hover {{
+                background-color: {tokens.get('nav_btn_hover', tokens['primary_hover'])};
+            }}
+            QPushButton:pressed {{
+                background-color: {tokens.get('primary_pressed', tokens['primary'])};
+            }}
+        """
+        if hasattr(self, "btn_save") and self.btn_save is not None:
+            self.btn_save.setStyleSheet(btn_style)
+
+        chk_style = f"""
+            QCheckBox {{
+                color: {tokens['text_primary']};
+                font-size: 22px;
+                background: transparent;
+            }}
+            QCheckBox::indicator {{
+                width: 30px;
+                height: 32px;
+                border: 2px solid {tokens['border_strong']};
+                border-radius: 4px;
+                background: transparent;
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {tokens['primary']};
+            }}
+        """
+        if hasattr(self, "checkboxes"):
+            for chk in self.checkboxes.values():
+                chk.setStyleSheet(chk_style)
+
+        lbl_style = f"color: {tokens['text_primary']}; font-size: 22px; background: transparent;"
+        if hasattr(self, "row_labels"):
+            for lbl in self.row_labels.values():
+                lbl.setStyleSheet(lbl_style)
+
     def showEvent(self, event):
         super().showEvent(event)
+        self.apply_theme_styles(ThemeManager.instance().current_theme_name)
         self.setFocus()
