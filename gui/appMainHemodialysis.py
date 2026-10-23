@@ -1228,10 +1228,6 @@ class HemodialysisHMI(QMainWindow):
             if self.state.current_phase == TreatmentPhase.RUNNING:
                 return
 
-            if not getattr(self, '_heparin_running_clamped', False):
-                self._heparin_running_clamped = True
-                self._validate_and_clamp_heparin_auto_stop_time()
-
             success = self.treatment_controller.start_treatment()
             if success:
                 self._update_therapy_time_displays()
