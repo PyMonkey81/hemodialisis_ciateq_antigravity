@@ -67,7 +67,9 @@ pantalla pueda refrescar sus displays y gráficas.
 """
 
 
-from PySide6.QtWidgets import QWidget, QGridLayout, QLabel, QSizePolicy
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QSizePolicy, QFrame
+)
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont, QColor
 import pyqtgraph as pg
@@ -139,182 +141,296 @@ class CalibrationScreen(QWidget):
             pass
 
     def setup_ui(self):
-        layout = QGridLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(15) 
-
-
-        # ── Plots Area ───────────────────────────────────────────────────────────
-        self.graphics_area = QWidget()
-        self.graphics_area.setStyleSheet("background: transparent;")
-        self.graphics_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        grid_graphics = QGridLayout(self.graphics_area)
-        grid_graphics.setSpacing(15)
-        grid_graphics.setContentsMargins(5, 5, 5, 5)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(10)
 
         tick_font = QFont()
         tick_font.setPixelSize(12)
 
-        # Blood Flow Control Plot
+        # Backwards compatibility attributes
+        self.control_area = self
+        self.graphics_area = self
+        self._calib_rows = []
+
+        # Configuración de columnas idéntica en las 3 cards para alineación horizontal perfecta:
+        # Col 0: Toggles (DoubleToggleBox)
+        # Col 1: Label Setpoint / Salida / Variable
+        # Col 2: Input o Display Setpoint / Salida / Variable
+        # Col 3: Unidad Setpoint / Salida / Variable
+        # Col 4: Label columna media (Velocidad BS / FFWD / Lead FFWD en Card 1; dummy en Cards 2 y 3)
+        # Col 5: Input o Display columna media
+        # Col 6: Unidad columna media
+        # Col 7: Label PID (CFS / Cond. / Temp.)
+        # Col 8: Input PID
+        # Col 9: Unidad PID (kp / ki / kd)
+        # Col 10: PlotWidget (Expanding)
+        col_widths = [230, 145, 95, 60, 125, 95, 45, 70, 95, 35]
+
+        # ═════════════════════════════════════════════════════════════════════
+        # CARD 1: Control de Flujo de Sangre
+        # ═════════════════════════════════════════════════════════════════════
+        self.blood_card = QFrame()
+        self.blood_card.setObjectName("card")
+        main_layout.addWidget(self.blood_card, 1)
+
+        blood_layout = QVBoxLayout(self.blood_card)
+        blood_layout.setContentsMargins(14, 8, 14, 8)
+        blood_layout.setSpacing(4)
+
+        self.blood_card_title = QLabel("Control de Flujo de Sangre")
+        self.blood_card_title.setObjectName("card_title")
+        blood_layout.addWidget(self.blood_card_title)
+
+        grid_blood = QGridLayout()
+        grid_blood.setContentsMargins(0, 0, 0, 0)
+        grid_blood.setSpacing(10)
+        for c, w in enumerate(col_widths):
+            grid_blood.setColumnMinimumWidth(c, w)
+        grid_blood.setColumnStretch(10, 1)
+        for r in range(3):
+            grid_blood.setRowMinimumHeight(r, 38)
+        blood_layout.addLayout(grid_blood)
+
+        # 1. Toggles (ocupan las 2 primeras filas)
+        double_box_blood = DoubleToggleBox("Hab. CFS", "Hab. Modo CFS")
+        double_box_blood.setFixedWidth(230)
+        double_box_blood.toggle1.toggled.connect(lambda checked, t="bloodControlLoopEnable": self._toggle_control_loop(t, checked))
+        double_box_blood.toggle2.toggled.connect(lambda checked, t="bloodControlLoopMode": self._toggle_control_loop(t, checked))
+        self.control_loop_toggles["bloodControlLoopEnable"] = double_box_blood.toggle1
+        self.control_loop_toggles["bloodControlLoopMode"]   = double_box_blood.toggle2
+        grid_blood.addWidget(double_box_blood, 0, 0, 2, 1, Qt.AlignVCenter)
+
+        # 2. Setpoint / Salida / Variable
+        self.blood_flow_setpoint_input = self._add_control_row(
+            grid_blood, 0, 1, "SetPoint CFS", "ml/min",
+            tag="bloodFlowControlSetPoint", numpad_title="Setpoint CFS (ml/min)"
+        )
+        self.blood_flow_output_input = self._add_control_row(
+            grid_blood, 1, 1, "Salida CFS", "%",
+            tag="bloodFlowControlOutput", numpad_title="Salida CFS (%)"
+        )
+        self.blood_flow_variable_label = self._add_control_row(
+            grid_blood, 2, 1, "Variable CFS", "ml/min", is_input=False
+        )
+
+        # 3. Velocidad BS / FFWD / Lead FFWD
+        self.blood_speed_rpm_label = self._add_control_row(
+            grid_blood, 0, 4, "Velocidad BS", "RPM", is_input=False
+        )
+        self.feedforward_gain_input = self._add_control_row(
+            grid_blood, 1, 4, "FFWD", "",
+            tag="bloodFlowFeedForwardGain", numpad_title="Ganancia FFWD"
+        )
+        self.feedforward_lead_input = self._add_control_row(
+            grid_blood, 2, 4, "Lead FFWD", "",
+            tag="bloodFlowFeedForwardLead", numpad_title="Lead FFWD"
+        )
+
+        # 4. PID Gains
+        self.blood_flow_kp_input = self._add_control_row(
+            grid_blood, 0, 7, "CFS", "kp",
+            tag="bloodFlowControlPropGain", numpad_title="CFS Kp Gain"
+        )
+        self.blood_flow_ki_input = self._add_control_row(
+            grid_blood, 1, 7, "CFS", "ki",
+            tag="bloodFlowControlInteGain", numpad_title="CFS Ki Gain"
+        )
+        self.blood_flow_kd_input = self._add_control_row(
+            grid_blood, 2, 7, "CFS", "kd",
+            tag="bloodFlowControlDeriGain", numpad_title="CFS Kd Gain"
+        )
+
+        # 5. Plot
         self.blood_flow_control_plot = pg.PlotWidget()
+        self.blood_flow_control_plot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.blood_flow_control_plot.setBackground("#e0e0e0")
         self.blood_flow_control_plot.setTitle('<span style="font-size: 11pt; color: black;">Control de Flujo de Sangre</span>')
-        self.blood_flow_control_plot.setLabel('left', '<span style="font-size: 9pt; color: black;">Flujo Qb / Salida (%)</span>')
+        self.blood_flow_control_plot.setLabel('left', '<span style="font-size: 9pt; color: black;">Qb / Salida (%)</span>')
         self.blood_flow_control_plot.setLabel('bottom', '<span style="font-size: 9pt; color: black;">Tiempo (s)</span>')
         self.blood_flow_control_plot.addLegend()
-
         self.curve_bf_setpoint = self.blood_flow_control_plot.plot(pen=pg.mkPen(color=(0, 0, 255), width=2), name="Setpoint CFS")
         self.curve_bf_variable = self.blood_flow_control_plot.plot(pen=pg.mkPen(color=(0, 150, 0), width=2), name="Variable CFS")
         self.curve_bf_output   = self.blood_flow_control_plot.plot(pen=pg.mkPen(color=(255, 0, 0),   width=2), name="Salida CFS (%)")
+        self.blood_flow_control_plot.getAxis('bottom').setStyle(tickFont=tick_font, tickTextOffset=5)
+        self.blood_flow_control_plot.getAxis('left').setStyle(tickFont=tick_font, tickTextOffset=5)
+        grid_blood.addWidget(self.blood_flow_control_plot, 0, 10, 3, 1)
 
-        grid_graphics.addWidget(self.blood_flow_control_plot, 0, 0)
+        # ═════════════════════════════════════════════════════════════════════
+        # CARD 2: Control de Conductividad
+        # ═════════════════════════════════════════════════════════════════════
+        self.cond_card = QFrame()
+        self.cond_card.setObjectName("card")
+        main_layout.addWidget(self.cond_card, 1)
 
-        # Conductivity Control Plot
+        cond_layout = QVBoxLayout(self.cond_card)
+        cond_layout.setContentsMargins(14, 8, 14, 8)
+        cond_layout.setSpacing(4)
+
+        self.cond_card_title = QLabel("Control de Conductividad")
+        self.cond_card_title.setObjectName("card_title")
+        cond_layout.addWidget(self.cond_card_title)
+
+        grid_cond = QGridLayout()
+        grid_cond.setContentsMargins(0, 0, 0, 0)
+        grid_cond.setSpacing(10)
+        for c, w in enumerate(col_widths):
+            grid_cond.setColumnMinimumWidth(c, w)
+        grid_cond.setColumnStretch(10, 1)
+        for r in range(3):
+            grid_cond.setRowMinimumHeight(r, 38)
+        cond_layout.addLayout(grid_cond)
+
+        # 1. Toggles (ocupan las 2 primeras filas)
+        double_box_cond = DoubleToggleBox("Hab. CC", "Hab. Modo CC")
+        double_box_cond.setFixedWidth(230)
+        double_box_cond.toggle1.toggled.connect(lambda checked, t="dialyCondCtrlLoopEnable": self._toggle_control_loop(t, checked))
+        double_box_cond.toggle2.toggled.connect(lambda checked, t="dialyCondCtrlLoopMode": self._toggle_control_loop(t, checked))
+        self.control_loop_toggles["dialyCondCtrlLoopEnable"] = double_box_cond.toggle1
+        self.control_loop_toggles["dialyCondCtrlLoopMode"]   = double_box_cond.toggle2
+        grid_cond.addWidget(double_box_cond, 0, 0, 2, 1, Qt.AlignVCenter)
+
+        # 2. Setpoint / Salida / Variable
+        self.cond_setpoint_input = self._add_control_row(
+            grid_cond, 0, 1, "SetPoint Cond.", "mS/cm",
+            tag="dialyCondControlSetPoint", numpad_title="Setpoint Conductividad (mS/cm)"
+        )
+        self.cond_output_input = self._add_control_row(
+            grid_cond, 1, 1, "Salida Cond.", "%",
+            tag="dialyCondControlOutput", numpad_title="Salida Conductividad (%)"
+        )
+        self.cond_variable_label = self._add_control_row(
+            grid_cond, 2, 1, "Variable Cond.", "mS/cm", is_input=False
+        )
+
+        # 3. Columna de en medio vacía (no se compacta para alinear kp y la gráfica con Card 1)
+        d4_cond = QWidget(); d4_cond.setFixedWidth(125); d4_cond.setStyleSheet("background: transparent;")
+        d5_cond = QWidget(); d5_cond.setFixedWidth(95); d5_cond.setStyleSheet("background: transparent;")
+        d6_cond = QWidget(); d6_cond.setFixedWidth(45); d6_cond.setStyleSheet("background: transparent;")
+        grid_cond.addWidget(d4_cond, 0, 4)
+        grid_cond.addWidget(d5_cond, 0, 5)
+        grid_cond.addWidget(d6_cond, 0, 6)
+
+        # 4. PID Gains
+        self.cond_kp_input = self._add_control_row(
+            grid_cond, 0, 7, "Cond.", "kp",
+            tag="dialyCondControlPropGain", numpad_title="Cond. Kp Gain"
+        )
+        self.cond_ki_input = self._add_control_row(
+            grid_cond, 1, 7, "Cond.", "ki",
+            tag="dialyCondControlInteGain", numpad_title="Cond. Ki Gain"
+        )
+        self.cond_kd_input = self._add_control_row(
+            grid_cond, 2, 7, "Cond.", "kd",
+            tag="dialyCondControlDeriGain", numpad_title="Cond. Kd Gain"
+        )
+
+        # 5. Plot
         self.cond_control_plot = pg.PlotWidget()
+        self.cond_control_plot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.cond_control_plot.setBackground("#e0e0e0")
         self.cond_control_plot.setTitle('<span style="font-size: 11pt; color: black;">Control de Conductividad</span>')
-        self.cond_control_plot.setLabel('left', '<span style="font-size: 9pt; color: black;">Conductividad (mS/cm)</span>')
+        self.cond_control_plot.setLabel('left', '<span style="font-size: 9pt; color: black;">Cond.(mS/cm)</span>')
         self.cond_control_plot.setLabel('bottom', '<span style="font-size: 9pt; color: black;">Tiempo (s)</span>')
         self.cond_control_plot.addLegend()
-
         self.curve_cond_setpoint = self.cond_control_plot.plot(pen=pg.mkPen(color=(0, 0, 255), width=2), name="Setpoint Cond.")
         self.curve_cond_variable = self.cond_control_plot.plot(pen=pg.mkPen(color=(0, 150, 0), width=2), name="Variable Cond.")
         self.curve_cond_output   = self.cond_control_plot.plot(pen=pg.mkPen(color=(255, 0, 0),   width=2), name="Salida Cond. (%)")
+        self.cond_control_plot.getAxis('bottom').setStyle(tickFont=tick_font, tickTextOffset=5)
+        self.cond_control_plot.getAxis('left').setStyle(tickFont=tick_font, tickTextOffset=5)
+        grid_cond.addWidget(self.cond_control_plot, 0, 10, 3, 1)
 
-        grid_graphics.addWidget(self.cond_control_plot, 1, 0)
+        # ═════════════════════════════════════════════════════════════════════
+        # CARD 3: Control de Temperatura
+        # ═════════════════════════════════════════════════════════════════════
+        self.temp_card = QFrame()
+        self.temp_card.setObjectName("card")
+        main_layout.addWidget(self.temp_card, 1)
 
-        # Temperature Control Plot
+        temp_layout = QVBoxLayout(self.temp_card)
+        temp_layout.setContentsMargins(14, 8, 14, 8)
+        temp_layout.setSpacing(4)
+
+        self.temp_card_title = QLabel("Control de Temperatura")
+        self.temp_card_title.setObjectName("card_title")
+        temp_layout.addWidget(self.temp_card_title)
+
+        grid_temp = QGridLayout()
+        grid_temp.setContentsMargins(0, 0, 0, 0)
+        grid_temp.setSpacing(10)
+        for c, w in enumerate(col_widths):
+            grid_temp.setColumnMinimumWidth(c, w)
+        grid_temp.setColumnStretch(10, 1)
+        for r in range(3):
+            grid_temp.setRowMinimumHeight(r, 38)
+        temp_layout.addLayout(grid_temp)
+
+        # 1. Toggles (ocupan las 2 primeras filas)
+        double_box_temp = DoubleToggleBox("Hab. CTD", "Hab. Modo CTD")
+        double_box_temp.setFixedWidth(230)
+        double_box_temp.toggle1.toggled.connect(lambda checked, t="dialyTempCtrlLoopEnable": self._toggle_control_loop(t, checked))
+        double_box_temp.toggle2.toggled.connect(lambda checked, t="dialyTempCtrlLoopMode": self._toggle_control_loop(t, checked))
+        self.control_loop_toggles["dialyTempCtrlLoopEnable"] = double_box_temp.toggle1
+        self.control_loop_toggles["dialyTempCtrlLoopMode"]   = double_box_temp.toggle2
+        grid_temp.addWidget(double_box_temp, 0, 0, 2, 1, Qt.AlignVCenter)
+
+        # 2. Setpoint / Salida / Variable
+        self.temp_setpoint_input = self._add_control_row(
+            grid_temp, 0, 1, "SetPoint Temp.", "°C",
+            tag="dialyTempControlSetPoint", numpad_title="Setpoint Temperatura (°C)"
+        )
+        self.temp_output_input = self._add_control_row(
+            grid_temp, 1, 1, "Salida Temp.", "%",
+            tag="dialyTempControlOutput", numpad_title="Salida Temperatura (%)"
+        )
+        self.temp_variable_label = self._add_control_row(
+            grid_temp, 2, 1, "Variable Temp.", "°C", is_input=False
+        )
+
+        # 3. Columna de en medio vacía (no se compacta para alinear kp y la gráfica con Card 1)
+        d4_temp = QWidget(); d4_temp.setFixedWidth(125); d4_temp.setStyleSheet("background: transparent;")
+        d5_temp = QWidget(); d5_temp.setFixedWidth(95); d5_temp.setStyleSheet("background: transparent;")
+        d6_temp = QWidget(); d6_temp.setFixedWidth(45); d6_temp.setStyleSheet("background: transparent;")
+        grid_temp.addWidget(d4_temp, 0, 4)
+        grid_temp.addWidget(d5_temp, 0, 5)
+        grid_temp.addWidget(d6_temp, 0, 6)
+
+        # 4. PID Gains
+        self.temp_kp_input = self._add_control_row(
+            grid_temp, 0, 7, "Temp.", "kp",
+            tag="dialyTempControlPropGain", numpad_title="Temp. Kp Gain"
+        )
+        self.temp_ki_input = self._add_control_row(
+            grid_temp, 1, 7, "Temp.", "ki",
+            tag="dialyTempControlInteGain", numpad_title="Temp. Ki Gain"
+        )
+        self.temp_kd_input = self._add_control_row(
+            grid_temp, 2, 7, "Temp.", "kd",
+            tag="dialyTempControlDeriGain", numpad_title="Temp. Kd Gain"
+        )
+
+        # 5. Plot
         self.temp_control_plot = pg.PlotWidget()
+        self.temp_control_plot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.temp_control_plot.setBackground("#e0e0e0")
         self.temp_control_plot.setTitle('<span style="font-size: 11pt; color: black;">Control de Temperatura</span>')
-        self.temp_control_plot.setLabel('left', '<span style="font-size: 9pt; color: black;">Temperatura Dializante (°C)</span>')
+        self.temp_control_plot.setLabel('left', '<span style="font-size: 9pt; color: black;">T. Dializante (°C)</span>')
         self.temp_control_plot.setLabel('bottom', '<span style="font-size: 9pt; color: black;">Tiempo (s)</span>')
         self.temp_control_plot.addLegend()
-
         self.curve_temp_setpoint = self.temp_control_plot.plot(pen=pg.mkPen(color=(0, 0, 255), width=2), name="Setpoint Temp.")
         self.curve_temp_variable = self.temp_control_plot.plot(pen=pg.mkPen(color=(0, 150, 0), width=2), name="Variable Temp.")
         self.curve_temp_output   = self.temp_control_plot.plot(pen=pg.mkPen(color=(255, 0, 0),   width=2), name="Salida Temp. (%)")
+        self.temp_control_plot.getAxis('bottom').setStyle(tickFont=tick_font, tickTextOffset=5)
+        self.temp_control_plot.getAxis('left').setStyle(tickFont=tick_font, tickTextOffset=5)
+        grid_temp.addWidget(self.temp_control_plot, 0, 10, 3, 1)
 
-        grid_graphics.addWidget(self.temp_control_plot, 2, 0)
-
-        for plot in [self.blood_flow_control_plot, self.cond_control_plot, self.temp_control_plot]:
-            plot.getAxis('bottom').setStyle(tickFont=tick_font)
-            plot.getAxis('left').setStyle(tickFont=tick_font)
-            plot.getAxis('bottom').setStyle(tickTextOffset=5)
-            plot.getAxis('left').setStyle(tickTextOffset=5)
-
-
-        # ── Control Area ─────────────────────────────────────────────────────────
-        self.control_area = QWidget()
-        self.control_area.setStyleSheet("background: transparent;")
-        self.control_area.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        grid = QGridLayout(self.control_area)
-        grid.setSpacing(15)
-        grid.setContentsMargins(5, 5, 5, 5)
-
-        # ── Control Loop Enable / Mode Toggles ───────────────────────────────────
-        control_loop_info = [
-            (0, 0, "bloodControlLoopEnable",     "Hab. CFS"),
-            (1, 0, "bloodControlLoopMode",       "Hab. Modo CFS"),
-            (2, 0, "dialyCondCtrlLoopEnable",    "Hab. CC"),
-            (3, 0, "dialyCondCtrlLoopMode",      "Hab. Modo CC"),
-            (4, 0, "dialyTempCtrlLoopEnable",    "Hab. CTD"),
-            (5, 0, "dialyTempCtrlLoopMode",      "Hab. Modo CTD"),
-        ]
-
-        current_row = 0
-        for i in range(0, len(control_loop_info), 2):
-            enable_tag = control_loop_info[i][2]
-            enable_label = control_loop_info[i][3]
-            mode_tag = control_loop_info[i+1][2]
-            mode_label = control_loop_info[i+1][3]
-
-            double_box = DoubleToggleBox(enable_label, mode_label)
-            grid.addWidget(double_box, current_row, 0, 2, 2)
-
-            # Conexiones
-            double_box.toggle1.toggled.connect(lambda checked, t=enable_tag: self._toggle_control_loop(t, checked))
-            double_box.toggle2.toggled.connect(lambda checked, t=mode_tag: self._toggle_control_loop(t, checked))
-
-            self.control_loop_toggles[enable_tag] = double_box.toggle1
-            self.control_loop_toggles[mode_tag] = double_box.toggle2
-
-            current_row += 2
-
-        # ── Setpoint / Output / Variable Rows ────────────────────────────────────
-        current_row = 0
-        target_col = 3
-
-        # Blood Flow (CFS)
-        self.blood_flow_setpoint_input = self._add_control_row(grid, current_row, target_col, "SetPoint CFS", "ml/min", tag="bloodFlowControlSetPoint", numpad_title="Setpoint CFS (ml/min)")
-        current_row += 1
-        self.blood_flow_output_input   = self._add_control_row(grid, current_row, target_col, "Salida CFS", "%", tag="bloodFlowControlOutput", numpad_title="Salida CFS (%)")
-        current_row += 1
-        self.blood_flow_variable_label = self._add_control_row(grid, current_row, target_col, "Variable CFS", "ml/min", is_input=False)
-        current_row += 1
-
-        # Conductivity (CC)
-        self.cond_setpoint_input = self._add_control_row(grid, current_row, target_col, "SetPoint Cond.", "mS/cm", tag="dialyCondControlSetPoint", numpad_title="Setpoint Conductividad (mS/cm)")
-        current_row += 1
-        self.cond_output_input   = self._add_control_row(grid, current_row, target_col, "Salida Cond.", "%", tag="dialyCondControlOutput", numpad_title="Salida Conductividad (%)")
-        current_row += 1
-        self.cond_variable_label = self._add_control_row(grid, current_row, target_col, "Variable Cond.", "mS/cm", is_input=False)
-        current_row += 1
-
-        # Temperature (CTD)
-        self.temp_setpoint_input = self._add_control_row(grid, current_row, target_col, "SetPoint Temp.", "°C", tag="dialyTempControlSetPoint", numpad_title="Setpoint Temperatura (°C)")
-        current_row += 1
-        self.temp_output_input   = self._add_control_row(grid, current_row, target_col, "Salida Temp.", "%", tag="dialyTempControlOutput", numpad_title="Salida Temperatura (%)")
-        current_row += 1
-        self.temp_variable_label = self._add_control_row(grid, current_row, target_col, "Variable Temp.", "°C", is_input=False)
-        current_row += 1
-
-        # ── Feedforward & PID Gains ──────────────────────────────────────────────
-        ff_row = 0
-        ff_col = 6
-
-        self.blood_speed_rpm_label = self._add_control_row(grid, ff_row, ff_col, "Velocidad BS", "RPM", is_input=False)
-        ff_row += 1
-        self.feedforward_gain_input = self._add_control_row(grid, ff_row, ff_col, "FFWD", "", tag="bloodFlowFeedForwardGain", numpad_title="Ganancia FFWD")
-        ff_row += 1
-        self.feedforward_lead_input = self._add_control_row(grid, ff_row, ff_col, "Lead FFWD", "", tag="bloodFlowFeedForwardLead", numpad_title="Lead FFWD")
-
-        pid_row = 0
-        pid_col = 9
-
-        # Blood Flow PID
-        self.blood_flow_kp_input = self._add_control_row(grid, pid_row, pid_col, "CFS", "kp", tag="bloodFlowControlPropGain", numpad_title="CFS Kp Gain")
-        pid_row += 1
-        self.blood_flow_ki_input = self._add_control_row(grid, pid_row, pid_col, "CFS", "ki", tag="bloodFlowControlInteGain", numpad_title="CFS Ki Gain")
-        pid_row += 1
-        self.blood_flow_kd_input = self._add_control_row(grid, pid_row, pid_col, "CFS", "kd", tag="bloodFlowControlDeriGain", numpad_title="CFS Kd Gain")
-        pid_row += 1
-
-        # Conductivity PID
-        self.cond_kp_input = self._add_control_row(grid, pid_row, pid_col, "Cond.", "kp", tag="dialyCondControlPropGain", numpad_title="Cond. Kp Gain")
-        pid_row += 1
-        self.cond_ki_input = self._add_control_row(grid, pid_row, pid_col, "Cond.", "ki", tag="dialyCondControlInteGain", numpad_title="Cond. Ki Gain")
-        pid_row += 1
-        self.cond_kd_input = self._add_control_row(grid, pid_row, pid_col, "Cond.", "kd", tag="dialyCondControlDeriGain", numpad_title="Cond. Kd Gain")
-        pid_row += 1
-
-        # Temperature PID
-        self.temp_kp_input = self._add_control_row(grid, pid_row, pid_col, "Temp.", "kp", tag="dialyTempControlPropGain", numpad_title="Temp. Kp Gain")
-        pid_row += 1
-        self.temp_ki_input = self._add_control_row(grid, pid_row, pid_col, "Temp.", "ki", tag="dialyTempControlInteGain", numpad_title="Temp. Ki Gain")
-        pid_row += 1
-        self.temp_kd_input = self._add_control_row(grid, pid_row, pid_col, "Temp.", "kd", tag="dialyTempControlDeriGain", numpad_title="Temp. Kd Gain")
-
-        layout.addWidget(self.control_area, 0, 0)
-        layout.addWidget(self.graphics_area, 0, 5)
-        logger.debug("UI de calibración configurada con controles y gráficos.")
+        logger.debug("UI de calibración configurada en 3 cards con controles y gráficos.")
 
     def _add_control_row(self, grid, row, col, label_text, unit_text, tag=None, numpad_title="", is_input=True, initial_value="0.0"):
         """Helper to add a labeled control row (label + input/display + unit)."""
         label = QLabel(label_text)
         label.setStyleSheet("color: #0f172a; font-size: 18px; font-weight: bold; border: none; background: transparent;")
-        grid.addWidget(label, row, col)
-        label_style = "color: #0f172a; font-size: 18px; font-weight: bold; border: none; background: transparent;"
+        grid.addWidget(label, row, col, Qt.AlignVCenter | Qt.AlignLeft)
         indicator_style = "color: #22d3ee; font-size: 20px; font-weight: bold; border: 2px solid #0f172a; border-radius: 5px; padding: 2px;"
 
         input_style = """
@@ -335,11 +451,11 @@ class CalibrationScreen(QWidget):
 
         widget.setFixedSize(80, 35)
         widget.setAlignment(Qt.AlignCenter)
-        grid.addWidget(widget, row, col + 1)
+        grid.addWidget(widget, row, col + 1, Qt.AlignVCenter)
 
         unit_label = QLabel(unit_text)
         unit_label.setStyleSheet("color: #94a3b8; font-size: 16px;")
-        grid.addWidget(unit_label, row, col + 2)
+        grid.addWidget(unit_label, row, col + 2, Qt.AlignVCenter | Qt.AlignLeft)
 
         if not hasattr(self, "_calib_rows"):
             self._calib_rows = []
@@ -492,6 +608,25 @@ class CalibrationScreen(QWidget):
 
         self.setStyleSheet(f"QWidget#CalibrationScreen {{ background-color: {tokens['bg_main']}; }}")
 
+        # Cards styling
+        card_style = (
+            f"QFrame#card {{ background-color: {tokens.get('bg_card', '#FFFFFF')}; "
+            f"border: 2px solid {tokens.get('border_card', '#E2E8F0')}; border-radius: 16px; }}"
+        )
+        for card in (getattr(self, "blood_card", None), getattr(self, "cond_card", None), getattr(self, "temp_card", None)):
+            if card:
+                card.setStyleSheet(card_style)
+
+        # Card titles styling
+        title_size = tokens.get("font_size_card_title", "20px")
+        title_style = (
+            f"color: {tokens.get('title_color', '#0f172a')}; font-size: {title_size}; font-weight: bold; "
+            f"background: transparent; border: none;"
+        )
+        for t_lbl in (getattr(self, "blood_card_title", None), getattr(self, "cond_card_title", None), getattr(self, "temp_card_title", None)):
+            if t_lbl:
+                t_lbl.setStyleSheet(title_style)
+
         if is_mono:
             inp_style = (
                 "background: #F8F9FA; color: #374151; font-size: 18px; font-weight: bold; "
@@ -506,9 +641,9 @@ class CalibrationScreen(QWidget):
 
             # Plots
             for plot, title_text, y_label in [
-                (getattr(self, "blood_flow_control_plot", None), "Control de Flujo de Sangre", "Flujo Qb / Salida (%)"),
-                (getattr(self, "cond_control_plot", None), "Control de Conductividad", "Conductividad (mS/cm)"),
-                (getattr(self, "temp_control_plot", None), "Control de Temperatura", "Temperatura Dializante (°C)")
+                (getattr(self, "blood_flow_control_plot", None), "Control de Flujo de Sangre", "Qb / Salida (%)"),
+                (getattr(self, "cond_control_plot", None), "Control de Conductividad", "Cond.(mS/cm)"),
+                (getattr(self, "temp_control_plot", None), "Control de Temperatura", "T. Dializante (°C)")
             ]:
                 if plot:
                     plot.setBackground("#FFFFFF")
@@ -538,9 +673,9 @@ class CalibrationScreen(QWidget):
             unt_style = f"color: {tokens.get('text_muted', '#64748B')}; font-size: 16px; border: none; background: transparent;"
 
             for plot, title_text, y_label in [
-                (getattr(self, "blood_flow_control_plot", None), "Control de Flujo de Sangre", "Flujo Qb / Salida (%)"),
-                (getattr(self, "cond_control_plot", None), "Control de Conductividad", "Conductividad (mS/cm)"),
-                (getattr(self, "temp_control_plot", None), "Control de Temperatura", "Temperatura Dializante (°C)")
+                (getattr(self, "blood_flow_control_plot", None), "Control de Flujo de Sangre", "Qb / Salida (%)"),
+                (getattr(self, "cond_control_plot", None), "Control de Conductividad", "Cond.(mS/cm)"),
+                (getattr(self, "temp_control_plot", None), "Control de Temperatura", "T. Dializante (°C)")
             ]:
                 if plot:
                     plot.setBackground(tokens.get("bg_card_alt", "#1E293B"))
@@ -573,9 +708,9 @@ class CalibrationScreen(QWidget):
             unt_style = "color: #94a3b8; font-size: 16px; border: none; background: transparent;"
 
             for plot, title_text, y_label in [
-                (getattr(self, "blood_flow_control_plot", None), "Control de Flujo de Sangre", "Flujo Qb / Salida (%)"),
-                (getattr(self, "cond_control_plot", None), "Control de Conductividad", "Conductividad (mS/cm)"),
-                (getattr(self, "temp_control_plot", None), "Control de Temperatura", "Temperatura Dializante (°C)")
+                (getattr(self, "blood_flow_control_plot", None), "Control de Flujo de Sangre", "Qb / Salida (%)"),
+                (getattr(self, "cond_control_plot", None), "Control de Conductividad", "Cond.(mS/cm)"),
+                (getattr(self, "temp_control_plot", None), "Control de Temperatura", "T. Dializante (°C)")
             ]:
                 if plot:
                     plot.setBackground("#e0e0e0")
@@ -609,10 +744,9 @@ class CalibrationScreen(QWidget):
         # Fallback to style all ClickableLineEdit and indicators
         for wid in self.findChildren(ClickableLineEdit):
             wid.setStyleSheet(inp_style)
-        if hasattr(self, "control_area"):
-            for lbl in self.control_area.findChildren(QLabel):
-                if lbl.property("class") == "highlighted":
-                    lbl.setStyleSheet(ind_style)
+        for lbl in self.findChildren(QLabel):
+            if lbl.property("class") == "highlighted":
+                lbl.setStyleSheet(ind_style)
 
         # Update DoubleToggleBox widgets
         for box in self.findChildren(DoubleToggleBox):
