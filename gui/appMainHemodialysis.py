@@ -3084,6 +3084,7 @@ class HemodialysisHMI(QMainWindow):
                 display_text = self.hardware_mapper.get_display_text(status_code, treatment_mode)
 
                 self.current_process_status.setText(display_text)
+                self._update_header_during_filter_fill()
 
                 old_phase = self.state.current_phase  # ← Guardamos siempre el estado anterior
 
