@@ -455,15 +455,20 @@ class TherapyConfigScreen(QWidget):
             logger.error(f"Error en _stop_blood_pump: {e}", exc_info=True)
 
     def _update_filter_fill_button_state(self, enable: bool):
-        """Habilita/deshabilita botón de llenado de filtro"""
+        """
+        Habilita/deshabilita botón de llenado de filtro.
+        En estado 7, oculta el botón pero mantiene la tarjeta visible.
+        """
         if enable:
             self.btn_filter_fill.setEnabled(True)
             self.btn_filter_fill.setStyleSheet(self.style_enabled)
-            logger.info("Botón Llenado de Filtro → HABILITADO (Estado 7)")
+            self.btn_filter_fill.hide()  # Ocultar botón (la tarjeta se mantiene visible)
+            logger.info("Botón Llenado de Filtro → OCULTO (Estado 7, diálogo modal en control)")
         else:
             self.btn_filter_fill.setEnabled(False)
             self.btn_filter_fill.setStyleSheet(self.style_disabled)
-            logger.debug("Botón Llenado de Filtro → DESHABILITADO")
+            self.btn_filter_fill.hide()  # Mantener oculto cuando no se necesita
+            logger.debug("Botón Llenado de Filtro → DESHABILITADO Y OCULTO")
 
     def _update_bloop_pump_controls_state(self):   
         current_phase = None
