@@ -1789,9 +1789,9 @@ class HemodialysisHMI(QMainWindow):
                 QPushButton { background: #dc2626; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; font-size: 30px; border-radius: 10px; }
                 QPushButton:pressed { background: #b91c1c; }
             """
-            self.BTN_ENABLED_START_TREATMENT_STYLE = """
-                QPushButton { background: #39ec21; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; border-radius: 8px; font-weight: bold; font-size: 30px;}
-                QPushButton:pressed { background: #1e40af; }
+            self.BTN_ENABLED_START_TREATMENT_STYLE = f"""
+                QPushButton {{ background: {t.get("success", "#16A34A")}; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; border-radius: 8px; font-weight: bold; font-size: 30px;}}
+                QPushButton:pressed {{ background: #15803d; }}
             """
 
         cw = self.centralWidget()

@@ -1,5 +1,6 @@
 # gui/components/floating_message.py
 
+import time
 from PySide6.QtWidgets import QLabel
 from PySide6.QtCore import QTimer, Qt, QPropertyAnimation, QEasingCurve
 from PySide6.QtGui import QGuiApplication
@@ -28,7 +29,7 @@ class FloatingMessage(QLabel):
 
     def _show_message(self, text: str, timeout_ms: int, bg_color: str, border_color: str, emoji: str = ""):
         """Método interno para mostrar mensaje con estilo personalizado"""
-        now_ms = QTimer.currentTime() if hasattr(QTimer, 'currentTime') else 0
+        now_ms = int(time.monotonic() * 1000)
         message_key = f"{text}|{bg_color}|{border_color}|{emoji}"
         if self._last_message_key == message_key and abs(now_ms - self._last_message_ts) < 2500:
             return
