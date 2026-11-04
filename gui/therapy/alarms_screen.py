@@ -66,6 +66,8 @@ from gui.components.numpad_modal import NumpadDialog
 from gui.configuration.alarm_limits import AlarmLimitsManager
 from gui.components.floating_message import FloatingMessage
 from gui.components.floating_confirm import FloatingConfirmDialog
+from utilities.platform_runtime import get_runtime_data_path
+from pathlib import Path
 from typing import Dict
 import json 
 
@@ -74,7 +76,7 @@ import json
 import logging
 logger = logging.getLogger(__name__)
 
-PATH_ALAMRS_LOG = "logs/alarms_log.json"  # Archivo para guardar el historial de eventos de alarmas
+PATH_ALAMRS_LOG = str(get_runtime_data_path("logs", "alarms_log.json"))  # Archivo para guardar el historial de eventos de alarmas
 
 class AlarmsScreen(QWidget):
     """
@@ -97,7 +99,7 @@ class AlarmsScreen(QWidget):
         # self.history_data = self._load_history_from_file()  # Cargar historial existente desde el archivo JSON
         # self._refresh_history_display()  # Mostrar el historial cargado al iniciar la pantalla
 
-        self.history_file = "logs/alarm_history.json"
+        self.history_file = str(get_runtime_data_path("logs", "alarm_history.json"))
         self.max_history_entries = 1000
         self.history_data = self._load_history_from_file()
         
@@ -584,10 +586,9 @@ class AlarmsScreen(QWidget):
 
         # 3. Guardar a archivo JSON
         try:
-            history_dir = os.path.dirname(self.history_file)
-            if history_dir:
-                os.makedirs(history_dir, exist_ok=True)
-            with open(self.history_file, 'w', encoding='utf-8') as f:
+            history_path = Path(self.history_file)
+            history_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(history_path, 'w', encoding='utf-8') as f:
                 json.dump(self.history_data, f, indent=4)
         except Exception as e:
             logger.error(f"Error guardando historial: {e}")

@@ -52,6 +52,8 @@ import logging
 import threading
 import queue
 from datetime import datetime
+from pathlib import Path
+from utilities.platform_runtime import get_runtime_data_path
 
 logger = logging.getLogger(__name__)
 
@@ -61,12 +63,14 @@ class CsvLogger:
     Optimizada con un hilo en segundo plano (Thread) para evitar congelamientos en la GUI.
     """
     def __init__(self, log_directory: str, parameter_key_map: dict, flush_every_rows: int = 10, flush_interval_sec: float = 1.0):
-        self.log_directory = log_directory
+        log_dir_path = Path(log_directory)
+        if not log_dir_path.is_absolute():
+            log_dir_path = get_runtime_data_path(log_dir_path)
+        log_dir_path.mkdir(parents=True, exist_ok=True)
+        self.log_directory = str(log_dir_path)
         self.parameter_key_map = parameter_key_map
         self.flush_every_rows = max(1, int(flush_every_rows))
         self.flush_interval_sec = max(0.2, float(flush_interval_sec))
-
-        os.makedirs(self.log_directory, exist_ok=True)
 
         timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.file_path = os.path.join(

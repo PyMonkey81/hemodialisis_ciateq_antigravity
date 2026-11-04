@@ -14,6 +14,8 @@ if PROJECT_ROOT not in sys.path:
 
 from utilities.platform_runtime import (
     get_runtime_config_dir,
+    get_runtime_data_dir,
+    get_runtime_data_path,
     sanitize_port_for_platform,
     is_linux,
     is_windows,
@@ -126,6 +128,73 @@ class TestGetRuntimeConfigDirBasic(unittest.TestCase):
         finally:
             if old_val:
                 os.environ["CIATEQ_CONFIG_DIR"] = old_val
+
+
+class TestGetRuntimeDataDir(unittest.TestCase):
+    """Tests para get_runtime_data_dir() y get_runtime_data_path()."""
+
+    def test_ciateq_data_dir_when_set(self):
+        """Debe usar CIATEQ_DATA_DIR cuando está definida y es escribible."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch.dict(os.environ, {"CIATEQ_DATA_DIR": tmpdir}, clear=False):
+                result = get_runtime_data_dir()
+                self.assertEqual(result, Path(tmpdir))
+
+    def test_frozen_uses_executable_parent_and_not_dunder_file(self):
+        """Un programa congelado usa la carpeta del ejecutable y no __file__."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fake_exe = Path(tmpdir) / "dist" / "hemodialisis.exe"
+            fake_meipass = Path(tmpdir) / "_MEI12345"
+            repo_root = Path(__file__).resolve().parent.parent
+
+            with patch.dict(os.environ, {"CIATEQ_DATA_DIR": ""}, clear=False):
+                with patch.object(sys, "frozen", True, create=True), patch.object(
+                    sys, "executable", str(fake_exe)
+                ), patch.object(sys, "_MEIPASS", str(fake_meipass), create=True):
+                    result = get_runtime_data_dir()
+                    self.assertEqual(result, fake_exe.resolve().parent)
+                    self.assertNotEqual(result, repo_root)
+                    self.assertNotEqual(result, fake_meipass.resolve())
+
+                    log_path = get_runtime_data_path("var", "log", "hemodialisis.log")
+                    self.assertEqual(
+                        log_path,
+                        fake_exe.resolve().parent / "var" / "log" / "hemodialisis.log",
+                    )
+
+    def test_frozen_falls_back_when_executable_dir_not_writable_windows(self):
+        """Si la carpeta del ejecutable falla en Windows, usa %LOCALAPPDATA%/CIATEQ/Hemodialisis."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fake_exe = Path(tmpdir) / "readonly" / "hemodialisis.exe"
+            local_appdata = Path(tmpdir) / "LocalAppData"
+            expected_fallback = local_appdata / "CIATEQ" / "Hemodialisis"
+
+            def fake_ensure(path: Path):
+                if path == fake_exe.resolve().parent:
+                    return None
+                path.mkdir(parents=True, exist_ok=True)
+                return path
+
+            with patch.dict(
+                os.environ,
+                {"CIATEQ_DATA_DIR": "", "LOCALAPPDATA": str(local_appdata)},
+                clear=False,
+            ):
+                with patch.object(sys, "frozen", True, create=True), patch.object(
+                    sys, "executable", str(fake_exe)
+                ), patch("utilities.platform_runtime.is_windows", return_value=True), patch(
+                    "utilities.platform_runtime._ensure_config_dir", side_effect=fake_ensure
+                ):
+                    result = get_runtime_data_dir()
+                    self.assertEqual(result, expected_fallback)
+
+    def test_uses_repo_root_when_not_frozen_no_env(self):
+        """Sin CIATEQ_DATA_DIR y sin frozen, debe usar la raíz del repositorio."""
+        with patch.dict(os.environ, {"CIATEQ_DATA_DIR": ""}, clear=False):
+            with patch.object(sys, "frozen", False, create=True):
+                result = get_runtime_data_dir()
+                expected = Path(__file__).resolve().parent.parent
+                self.assertEqual(result, expected)
 
 
 if __name__ == "__main__":

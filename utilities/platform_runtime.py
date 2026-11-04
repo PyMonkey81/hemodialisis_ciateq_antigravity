@@ -95,6 +95,70 @@ def get_runtime_config_path(file_name: str) -> Path:
     return get_runtime_config_dir() / file_name
 
 
+def get_runtime_data_dir() -> Path:
+    """
+    Devuelve un directorio de datos escribible en runtime.
+    Prioridad:
+    1) CIATEQ_DATA_DIR (si existe y se puede escribir)
+    2) Si frozen:
+       a) Carpeta del ejecutable: Path(sys.executable).resolve().parent
+       b) Windows: %LOCALAPPDATA%/CIATEQ/Hemodialisis
+       c) Linux: $XDG_STATE_HOME/CIATEQ/Hemodialisis o ~/.local/state/CIATEQ/Hemodialisis
+    3) Si no frozen: raíz del repositorio (<repo>)
+    """
+    env_dir = os.environ.get("CIATEQ_DATA_DIR", "").strip()
+    if env_dir:
+        data_dir = _ensure_config_dir(Path(env_dir))
+        if data_dir is not None:
+            logger.info("Usando datos desde CIATEQ_DATA_DIR: %s", data_dir)
+            return data_dir
+        logger.warning("No se pudo usar CIATEQ_DATA_DIR: %s", env_dir)
+
+    if getattr(sys, "frozen", False):
+        executable_data_dir = Path(sys.executable).resolve().parent
+        data_dir = _ensure_config_dir(executable_data_dir)
+        if data_dir is not None:
+            logger.info("Usando datos junto al ejecutable: %s", data_dir)
+            return data_dir
+
+        if is_windows():
+            app_data_dir = Path(os.environ.get("LOCALAPPDATA", Path.home()))
+            fallback_dir = app_data_dir / "CIATEQ" / "Hemodialisis"
+        else:
+            xdg_state = os.environ.get("XDG_STATE_HOME", "").strip()
+            if xdg_state:
+                base_dir = Path(xdg_state)
+            else:
+                base_dir = Path.home() / ".local" / "state"
+            fallback_dir = base_dir / "CIATEQ" / "Hemodialisis"
+
+        data_dir = _ensure_config_dir(fallback_dir)
+        if data_dir is not None:
+            logger.warning(
+                "Datos junto al ejecutable no disponible (%s); se usa %s",
+                executable_data_dir,
+                data_dir,
+            )
+            return data_dir
+
+        logger.warning(
+            "No se pudo crear datos en %s ni en %s.",
+            executable_data_dir,
+            fallback_dir,
+        )
+        return fallback_dir
+
+    repo_root = Path(__file__).resolve().parent.parent
+    _ensure_config_dir(repo_root)
+    logger.info("Usando datos del repositorio: %s", repo_root)
+    return repo_root
+
+
+def get_runtime_data_path(*parts: str | os.PathLike) -> Path:
+    """Construye la ruta absoluta uniendo partes debajo de get_runtime_data_dir()."""
+    return get_runtime_data_dir().joinpath(*parts)
+
+
 def platform_name() -> str:
     return platform.system()
 

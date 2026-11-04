@@ -1,5 +1,16 @@
 import sys
 import os
+import faulthandler
+import logging
+from logging.handlers import RotatingFileHandler
+import datetime
+from pathlib import Path
+
+from utilities.platform_runtime import (
+    get_runtime_data_path,
+    is_windows,
+    load_platform_features,
+)
 
 # ==============================================================================
 # 1. CONFIGURACIÓN DE PLATAFORMA Y HiDPI (DEBE IR ANTES DE IMPORTAR PYSIDE6)
@@ -15,24 +26,21 @@ if IS_LINUX:
     # Evita parpadeos o fallos de renderizado en servidores sin compositor gráfico complejo
     os.environ["QT_QPA_PLATFORM"] = "wayland;xcb" 
 
-import logging
-from logging.handlers import RotatingFileHandler  
-import datetime
+STARTUP_DATA_DIRS = (
+    ("var", "log"),
+    ("logs", "limpieza"),
+    ("logs", "tratamiento_hemodialisis"),
+    ("logs", "hemodialysis_cebado"),
+    ("logs", "Historiales"),
+    ("logs", "ktv_reports"),
+    ("exports",),
+)
 
-from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QWidget, QGridLayout
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QGuiApplication, QPalette, QColor
+for _parts in STARTUP_DATA_DIRS:
+    get_runtime_data_path(*_parts).mkdir(parents=True, exist_ok=True)
 
-from gui import theme_manager
-from gui.appMainHemodialysis import HemodialysisHMI
-from gui.theme_manager import ThemeManager
-from version import __version__
-from utilities.platform_runtime import is_windows, load_platform_features
-
-LOG_DIR = os.path.join(os.path.dirname(__file__), 'var', 'log')
-os.makedirs(LOG_DIR, exist_ok=True)
-
-LOG_FILE = os.path.join(LOG_DIR, 'hemodialisis.log')
+LOG_DIR = get_runtime_data_path("var", "log")
+LOG_FILE = get_runtime_data_path("var", "log", "hemodialisis.log")
 
 max_log_size = 5 * 1024 * 1024  # 5 MB
 backup_count = 2
@@ -47,6 +55,58 @@ root_logger.addHandler(handler)
 
 logger = logging.getLogger(__name__)
 
+_FAULT_LOG_STREAM = open(LOG_FILE, "a", encoding="utf-8")
+faulthandler.enable(file=_FAULT_LOG_STREAM)
+logger.info(f"Log de errores: {Path(LOG_FILE).resolve()}")
+
+
+def _flush_all_log_handlers():
+    seen = set()
+    for log_obj in (logging.getLogger(), logger):
+        for h in list(getattr(log_obj, "handlers", ())):
+            if id(h) not in seen:
+                seen.add(id(h))
+                try:
+                    h.flush()
+                except Exception:
+                    pass
+
+
+def unhandled_exception_handler(exc_type, exc_value, exc_traceback):
+    if exc_type is KeyboardInterrupt:
+        logger.info("KeyboardInterrupt recibido - cerrando aplicación de forma controlada")
+        _flush_all_log_handlers()
+        sys.exit(0)
+
+    import traceback as tb
+    error_message = "".join(tb.format_exception(exc_type, exc_value, exc_traceback))
+    logger.critical(f"Unhandled exception:\n{error_message}")
+    _flush_all_log_handlers()
+    
+    app = QApplication.instance() if "QApplication" in globals() else None
+    if app:
+        QMessageBox.critical(
+            None,
+            "Critical System Error - CIATEQ A.C.",
+            "La aplicación ha fallado de forma inesperada.\n\n"
+            "Se cerrará por seguridad.\n\n"
+            "Detalles del error:\n\n" + error_message[-1000:],
+            QMessageBox.Close
+        )
+    sys.exit(1)
+
+
+sys.excepthook = unhandled_exception_handler
+
+from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox, QWidget, QGridLayout
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication, QPalette, QColor
+
+from gui import theme_manager
+from gui.appMainHemodialysis import HemodialysisHMI
+from gui.theme_manager import ThemeManager
+from version import __version__
+
 
 def detect_screen_size() -> tuple[int, int]:
     """Detecta resolucion usando Qt; si no está disponible usa una resolución segura."""
@@ -59,27 +119,6 @@ def detect_screen_size() -> tuple[int, int]:
         pass
 
     return 1920, 1080
-
-def unhandled_exception_handler(exc_type, exc_value, exc_traceback):
-    if exc_type is KeyboardInterrupt:
-        logger.info("KeyboardInterrupt recibido - cerrando aplicación de forma controlada")
-        sys.exit(0)
-
-    import traceback as tb
-    error_message = "".join(tb.format_exception(exc_type, exc_value, exc_traceback))
-    logger.critical(f"Unhandled exception:\n{error_message}")
-    
-    app = QApplication.instance()
-    if app:
-        QMessageBox.critical(
-            None,
-            "Critical System Error - CIATEQ A.C.",
-            "La aplicación ha fallado de forma inesperada.\n\n"
-            "Se cerrará por seguridad.\n\n"
-            "Detalles del error:\n\n" + error_message[-1000:],
-            QMessageBox.Close
-        )
-    sys.exit(1)
 
 class ScaledHemodialysisHMI(QMainWindow):
     def __init__(self):
@@ -170,5 +209,6 @@ if __name__ == "__main__":
 
     except Exception as e:
         logger.critical(f"Fatal error: {e}", exc_info=True)
+        _flush_all_log_handlers()
         QMessageBox.critical(None, "Error Fatal", str(e))
         sys.exit(1)

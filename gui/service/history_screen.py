@@ -26,6 +26,7 @@ from PySide6.QtGui import QColor
 
 from gui.components.floating_confirm import FloatingConfirmDialog
 from gui.theme_manager import ThemeManager
+from utilities.platform_runtime import get_runtime_data_path
 from utilities.therapy_report_generator import TherapyReportGenerator
 
 logger = logging.getLogger(__name__)
@@ -766,8 +767,9 @@ class HistoryScreen(QWidget):
             return
 
         try:
-            os.makedirs("exports", exist_ok=True)
-            filepath = f"exports/{filename}"
+            exports_dir = get_runtime_data_path("exports")
+            exports_dir.mkdir(parents=True, exist_ok=True)
+            filepath = str(exports_dir / filename)
 
             all_keys = []
             for item in data:

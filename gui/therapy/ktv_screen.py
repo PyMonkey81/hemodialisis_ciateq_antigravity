@@ -14,6 +14,7 @@ from datetime import datetime
 from shiboken6 import isValid
 from core.state_manager import TreatmentPhase
 from gui.theme_manager import ThemeManager
+from utilities.platform_runtime import get_runtime_data_path
 
 logger = logging.getLogger(__name__)
 
@@ -469,8 +470,9 @@ class KTVScreen(QWidget):
             return None
 
         try:
-            os.makedirs("logs/ktv_reports", exist_ok=True)
-            filename = f"logs/ktv_reports/ktv_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            reports_dir = get_runtime_data_path("logs", "ktv_reports")
+            reports_dir.mkdir(parents=True, exist_ok=True)
+            filename = str(reports_dir / f"ktv_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv")
             fieldnames = ["timestamp", "heitmann_l", "ktv", "type", "therapy_minutes"]
 
             with open(filename, 'w', newline='', encoding='utf-8') as f:

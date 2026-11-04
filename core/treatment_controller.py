@@ -3,6 +3,7 @@ import logging
 from PySide6.QtCore import QDateTime
 from core.state_manager import TreatmentPhase
 from utilities.csv_logger import CsvLogger   # ← Importación agregada
+from utilities.platform_runtime import get_runtime_data_path
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ class TreatmentController:
             self.main.treatment_logger = None
 
         try:
-            LOG_DIRECTORY = "logs/tratamiento_hemodialisis"
+            LOG_DIRECTORY = str(get_runtime_data_path("logs", "tratamiento_hemodialisis"))
             self.main.treatment_logger = CsvLogger(
                 log_directory=LOG_DIRECTORY,
                 parameter_key_map=self.main.parameter_mapping

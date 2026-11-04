@@ -21,10 +21,11 @@ from PySide6.QtGui import QPdfWriter, QPageSize, QPageLayout, QTextDocument
 from core.therapy_session_tracker import TherapySessionTracker, MODALITY_NAMES
 from logic.heitmann import heitmann
 from logic.calculos import convertir_ciclos_a_flujo
+from utilities.platform_runtime import get_runtime_data_dir, get_runtime_data_path
 
 
 def get_project_root() -> Path:
-    return Path(__file__).resolve().parent.parent
+    return get_runtime_data_dir()
 
 logger = logging.getLogger(__name__)
 
@@ -55,13 +56,13 @@ class TherapyReportGenerator:
 
     @staticmethod
     def get_reports_backup_dir() -> Path:
-        d = get_project_root() / "logs" / "reportes_terapia"
+        d = get_runtime_data_path("logs", "reportes_terapia")
         d.mkdir(parents=True, exist_ok=True)
         return d
 
     @staticmethod
     def get_pdf_export_dir() -> Path:
-        d = get_project_root() / "exports" / "reportes_pdf"
+        d = get_runtime_data_path("exports", "reportes_pdf")
         d.mkdir(parents=True, exist_ok=True)
         return d
 

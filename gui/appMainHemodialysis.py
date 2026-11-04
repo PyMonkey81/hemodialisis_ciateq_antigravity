@@ -149,7 +149,13 @@ from logic.uf_profile import (
     validate_profile as validate_uf_profile,
 )
 from utilities.csv_logger import CsvLogger
-from utilities.platform_runtime import get_runtime_config_path, safe_float, safe_int, safe_json_load
+from utilities.platform_runtime import (
+    get_runtime_config_path,
+    get_runtime_data_path,
+    safe_float,
+    safe_int,
+    safe_json_load,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1589,7 +1595,7 @@ class HemodialysisHMI(QMainWindow):
             self.csv_logger = None
 
         # 3. Definir directorio de logs (puedes cambiar la ruta si quieres)
-        LOG_DIRECTORY = "logs/hemodialysis_cebado"  # Se crea automáticamente si no existe
+        LOG_DIRECTORY = str(get_runtime_data_path("logs", "hemodialysis_cebado"))  # Se crea automáticamente si no existe
 
         # 4. Crear e iniciar el nuevo logger CSV
         try:
@@ -3745,7 +3751,7 @@ class HemodialysisHMI(QMainWindow):
             self.cleaning_logger.close()
         try:
             self.cleaning_logger = CsvLogger(
-                log_directory="logs/limpieza",
+                log_directory=str(get_runtime_data_path("logs", "limpieza")),
                 parameter_key_map=self.parameter_mapping
             )
             logger.info("Logger CSV de Limpieza iniciado")
@@ -4121,33 +4127,46 @@ class HemodialysisHMI(QMainWindow):
 
     def _load_histories(self):
         """Carga los historiales desde JSON al iniciar"""
-        os.makedirs("logs/Historiales", exist_ok=True)
+        historiales_dir = get_runtime_data_path("logs", "Historiales")
+        historiales_dir.mkdir(parents=True, exist_ok=True)
+        tratamientos_path = get_runtime_data_path("logs", "Historiales", "historial_tratamientos.json")
+        limpieza_path = get_runtime_data_path("logs", "Historiales", "historial_limpieza.json")
         
         try:
-            with open("logs/Historiales/historial_tratamientos.json", 'r', encoding='utf-8') as f:
+            with open(tratamientos_path, 'r', encoding='utf-8') as f:
                 self.treatment_history = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             self.treatment_history = []
             
         try:
-            with open("logs/Historiales/historial_limpieza.json", 'r', encoding='utf-8') as f:
+            with open(limpieza_path, 'r', encoding='utf-8') as f:
                 self.cleaning_history = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             self.cleaning_history = []
 
-    def _save_history_to_file(self, file_path: str, history_data: list, label: str):
+    def _save_history_to_file(self, file_path: str | Path, history_data: list, label: str):
         try:
-            with open(file_path, 'w', encoding='utf-8') as f:
+            target_path = Path(file_path)
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(target_path, 'w', encoding='utf-8') as f:
                 json.dump(history_data, f, indent=4, ensure_ascii=False)
         except Exception as e:
             logger.error(f"Error escribiendo {label}: {e}")
 
 
     def _save_treatment_history(self):
-        self._save_history_to_file("logs/Historiales/historial_tratamientos.json", self.treatment_history, "historial_tratamientos")
+        self._save_history_to_file(
+            get_runtime_data_path("logs", "Historiales", "historial_tratamientos.json"),
+            self.treatment_history,
+            "historial_tratamientos",
+        )
 
     def _save_cleaning_history(self):
-        self._save_history_to_file("logs/Historiales/historial_limpieza.json", self.cleaning_history, "historial_limpieza")
+        self._save_history_to_file(
+            get_runtime_data_path("logs", "Historiales", "historial_limpieza.json"),
+            self.cleaning_history,
+            "historial_limpieza",
+        )
 
     def _validate_session(self, start_time: QDateTime, end_time: QDateTime) -> bool:
         """Valida que la sesión sea lógica y no duplicada"""
