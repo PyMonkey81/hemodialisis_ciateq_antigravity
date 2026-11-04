@@ -3775,8 +3775,13 @@ class HemodialysisHMI(QMainWindow):
                 # Actualizar displays inmediatamente
                 self._update_therapy_time_displays()
                 
-                # Validar y acotar el tiempo de heparina si es necesario
-                self._validate_and_clamp_heparin_auto_stop_time()
+                # Validar y acotar el tiempo de heparina si es necesario (excepto en limpieza)
+                is_cleaning = (
+                    getattr(getattr(self, "state", None), "current_phase", None) == TreatmentPhase.CLEANING
+                    or safe_int(self.current_values.get("treatmentModeSelection", 0), 0) == 3
+                )
+                if not is_cleaning:
+                    self._validate_and_clamp_heparin_auto_stop_time()
                 
                 logger.info(f"[THERAPY-TIME] set_min={total_min} remaining={hours:02d}:{minutes:02d}:00 source=config")
             
