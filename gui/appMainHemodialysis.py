@@ -116,6 +116,7 @@ from gui.therapy.heparin_config_screenV2 import (
 )
 from gui.therapy.nibp_config_screen import NibpConfigScreen
 from gui.therapy.nibp_history_screen import NibpHistoryScreen, NibpChartScreen
+from gui.therapy.nibp_limits_screen import NibpLimitsScreen
 from core.nibp_pressure_history import NibpPressureHistory
 from core.therapy_session_tracker import TherapySessionTracker
 from utilities.therapy_report_generator import TherapyReportGenerator
@@ -645,6 +646,7 @@ class HemodialysisHMI(QMainWindow):
         # Conexiones para el historial de presión arterial
         self.nibp_screen.measure_now_requested.connect(self._on_nibp_measure_requested_for_history)
         self.nibp_screen.history_requested.connect(self.show_nibp_history_screen)
+        self.nibp_screen.limits_requested.connect(self.show_nibp_limits_screen)
         self.nibp.measurement_ready.connect(self._on_nibp_measurement_ready_for_history)
 
         self.maintenance_screen = MaintenanceScreen(parent=self)  # PANTALLA NUEVA DE MANTENIMIENTO 
@@ -676,6 +678,7 @@ class HemodialysisHMI(QMainWindow):
         self.nibp_pressure_history = NibpPressureHistory()
         self.nibp_history_screen = NibpHistoryScreen(parent=self, history=self.nibp_pressure_history)
         self.nibp_chart_screen = NibpChartScreen(parent=self, history=self.nibp_pressure_history)
+        self.nibp_limits_screen = NibpLimitsScreen(parent=self, history=self.nibp_pressure_history)
         self._nibp_measure_is_manual = False  # Flag para marcar si la próxima medición es manual
         self._last_spo2_value = None
         self.session_tracker = TherapySessionTracker()
@@ -709,6 +712,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.addWidget(self.nibp_screen)                  # 22
         self.screen_stack.addWidget(self.nibp_history_screen)          # 23
         self.screen_stack.addWidget(self.nibp_chart_screen)            # 23b
+        self.screen_stack.addWidget(self.nibp_limits_screen)           # 23c
         self.screen_stack.addWidget(self.theme_config_screen)          # 24
 
 
@@ -2062,6 +2066,14 @@ class HemodialysisHMI(QMainWindow):
         self.nibp_chart_screen.set_programmed_duration(hours, minutes)
         self.nibp_chart_screen.update_from_history()
         self.screen_stack.setCurrentWidget(self.nibp_chart_screen)
+        self.left_content.show()
+        self.right_content.show()
+        self._highlight_active_nav_button("Diálisis")
+
+    def show_nibp_limits_screen(self):
+        """Muestra la pantalla de Límites de presión arterial."""
+        self.nibp_limits_screen.load_limits_from_config()
+        self.screen_stack.setCurrentWidget(self.nibp_limits_screen)
         self.left_content.show()
         self.right_content.show()
         self._highlight_active_nav_button("Diálisis")

@@ -24,16 +24,24 @@ import math
 from typing import Optional, List, Tuple
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QPushButton,
-    QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QPushButton,
+    QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy,
+    QStyle, QStyledItemDelegate, QStyleOptionViewItem
 )
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QBrush, QColor, QPalette
 
 import pyqtgraph as pg
 import numpy as np
 
 from core.nibp_pressure_history import NibpPressureHistory, NibpPressureMeasurement
+from gui.therapy.nibp_limits_screen import (
+    NibpLimitsScreen,
+    load_nibp_limits,
+    save_nibp_limits,
+    adapt_single_parameter,
+    compute_adapted_limits_from_measurement,
+)
 from gui.theme_manager import ThemeManager
 
 logger = logging.getLogger(__name__)
@@ -191,6 +199,39 @@ class ClockTimeAxisItem(pg.AxisItem):
         return labels
 
 
+class _ForegroundItemDelegate(QStyledItemDelegate):
+    """Respeta Qt.ForegroundRole en celdas de QTableWidget aunque exista QSS en la tabla."""
+
+    def paint(self, painter, option: QStyleOptionViewItem, index):
+        fg = index.data(Qt.ForegroundRole)
+        if isinstance(fg, QBrush):
+            color = fg.color()
+        elif isinstance(fg, QColor):
+            color = fg
+        else:
+            color = None
+
+        if color is None or not color.isValid():
+            super().paint(painter, option, index)
+            return
+
+        opt = QStyleOptionViewItem(option)
+        self.initStyleOption(opt, index)
+        text = opt.text
+        opt.text = ""
+
+        style = opt.widget.style() if opt.widget else QApplication.style()
+        style.drawControl(QStyle.CE_ItemViewItem, opt, painter, opt.widget)
+
+        if text:
+            painter.save()
+            painter.setFont(opt.font)
+            painter.setPen(color)
+            text_rect = style.subElementRect(QStyle.SE_ItemViewItemText, opt, opt.widget)
+            painter.drawText(text_rect, int(opt.displayAlignment), text)
+            painter.restore()
+
+
 class NibpHistoryScreen(QWidget):
     """
     Pantalla de Tomas de presión arterial (tabla con la más reciente arriba).
@@ -209,10 +250,11 @@ class NibpHistoryScreen(QWidget):
         "SpO2",
     ]
 
-    def __init__(self, parent=None, history: Optional[NibpPressureHistory] = None):
+    def __init__(self, parent=None, history: Optional[NibpPressureHistory] = None, config_path=None):
         super().__init__(parent if isinstance(parent, QWidget) else None)
         self.parent_window = parent
         self.history = history if history is not None else NibpPressureHistory()
+        self.config_path = config_path
         self.programmed_therapy_minutes = 240
 
         self.setObjectName("NibpHistoryScreen")
@@ -266,6 +308,7 @@ class NibpHistoryScreen(QWidget):
         card_layout.setSpacing(10)
 
         self.table = QTableWidget()
+        self.table.setItemDelegate(_ForegroundItemDelegate(self.table))
         self.table.setColumnCount(len(self.COLUMNS))
         self.table.setHorizontalHeaderLabels(self.COLUMNS)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -350,17 +393,14 @@ class NibpHistoryScreen(QWidget):
                 gridline-color: {border};
                 border: 1px solid {border};
                 border-radius: 8px;
-                color: {text_primary};
                 font-size: 18px;
             }}
             QTableWidget::item {{
                 padding: 6px;
                 background-color: {bg_card};
-                color: {text_primary};
             }}
             QTableWidget::item:selected {{
                 background-color: {accent_soft};
-                color: {text_primary};
             }}
             QHeaderView {{
                 background-color: {bg_alt};
@@ -382,7 +422,18 @@ class NibpHistoryScreen(QWidget):
         """)
 
     def update_from_history(self):
-        """Actualiza la tabla desde el historial sin borrarlo. La más reciente arriba."""
+        """
+        Actualiza la tabla desde el historial sin borrarlo. La más reciente arriba.
+        Colorea en rojo los valores fuera de su límite individual configurado.
+        """
+        limits = load_nibp_limits(self.config_path)
+        sys_min, sys_max = limits["sys_min"], limits["sys_max"]
+        dia_min, dia_max = limits["dia_min"], limits["dia_max"]
+        hr_min, hr_max = limits["hr_min"], limits["hr_max"]
+
+        red_brush = QBrush(QColor(_RED_BP))
+        normal_brush = QBrush(QColor("#0f172a"))
+
         measurements = self.history.get_all_measurements()
         ordered = list(reversed(measurements))
         self.table.setRowCount(len(ordered))
@@ -399,10 +450,19 @@ class NibpHistoryScreen(QWidget):
                 str(measurement.hr),
                 spo2_str,
             ]
+            out_of_range_cols = {
+                1: (measurement.sys < sys_min or measurement.sys > sys_max),
+                2: (measurement.dia < dia_min or measurement.dia > dia_max),
+                4: (measurement.hr < hr_min or measurement.hr > hr_max),
+            }
 
             for col_idx, val_str in enumerate(row_values):
                 item = QTableWidgetItem(val_str)
                 item.setTextAlignment(Qt.AlignCenter)
+                if out_of_range_cols.get(col_idx, False):
+                    item.setForeground(red_brush)
+                else:
+                    item.setForeground(normal_brush)
                 self.table.setItem(row_idx, col_idx, item)
 
         self.lbl_count.setText(f"Total: {len(measurements)} mediciones")
@@ -437,10 +497,11 @@ class NibpChartScreen(QWidget):
     tomas_requested = Signal()
     close_requested = Signal()
 
-    def __init__(self, parent=None, history: Optional[NibpPressureHistory] = None):
+    def __init__(self, parent=None, history: Optional[NibpPressureHistory] = None, config_path=None):
         super().__init__(parent if isinstance(parent, QWidget) else None)
         self.parent_window = parent
         self.history = history if history is not None else NibpPressureHistory()
+        self.config_path = config_path
         self.programmed_therapy_minutes = 240
 
         self.setObjectName("NibpChartScreen")

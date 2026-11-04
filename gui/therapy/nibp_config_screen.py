@@ -31,6 +31,12 @@ NIBP_DEFAULT_CONFIG = {
     "auto_during_therapy": False,
     "interval_min": 15,
     "spo2_enabled": False,
+    "sys_min": 70,
+    "sys_max": 200,
+    "dia_min": 40,
+    "dia_max": 130,
+    "hr_min": 50,
+    "hr_max": 140,
 }
 
 METHOD_LABELS = {
@@ -54,6 +60,7 @@ class NibpConfigScreen(QWidget):
     measure_now_requested = Signal()
     reset_requested = Signal()
     history_requested = Signal()
+    limits_requested = Signal()
     spo2_on_requested = Signal()
     spo2_off_requested = Signal()
 
@@ -84,6 +91,14 @@ class NibpConfigScreen(QWidget):
     def _save_config(self):
         NIBP_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         try:
+            current_on_disk = safe_json_load(NIBP_CONFIG_FILE, {})
+            if not isinstance(current_on_disk, dict):
+                current_on_disk = {}
+            merged = {**NIBP_DEFAULT_CONFIG, **current_on_disk, **self._config}
+            for k in ("sys_min", "sys_max", "dia_min", "dia_max", "hr_min", "hr_max", "limits"):
+                if k in current_on_disk:
+                    merged[k] = current_on_disk[k]
+            self._config = merged
             with NIBP_CONFIG_FILE.open("w", encoding="utf-8") as f:
                 json.dump(self._config, f, indent=4, ensure_ascii=False)
             logger.info(f"[NIBP] Configuración clínica guardada en {NIBP_CONFIG_FILE}")
@@ -237,13 +252,15 @@ class NibpConfigScreen(QWidget):
         self.btn_history = QPushButton("Historial")
         self.btn_history.clicked.connect(self.history_requested.emit)
 
-        # Fila 0: botones en columnas 0, 1, 2
+        self.btn_limits = QPushButton("Límites")
+        self.btn_limits.clicked.connect(self.limits_requested.emit)
+
+        # Fila 0: botones en columnas 0, 1, 2, 3, 4
         buttons_grid.addWidget(self.btn_measure_now, 0, 0)
         buttons_grid.addWidget(self.btn_apply, 0, 1)
         buttons_grid.addWidget(self.btn_reset, 0, 2)
-
-        # Fila 1: Historial en columna 0
         buttons_grid.addWidget(self.btn_history, 0, 3)
+        buttons_grid.addWidget(self.btn_limits, 0, 4)
 
         actions_layout.addLayout(buttons_grid)
 
@@ -342,7 +359,7 @@ class NibpConfigScreen(QWidget):
             QPushButton:pressed {{ background-color: {accent}; }}
             QPushButton:disabled {{ background-color: {border}; color: {text_muted}; }}
         """
-        for btn in (self.btn_measure_now, self.btn_apply, self.btn_reset, self.btn_history):
+        for btn in (self.btn_measure_now, self.btn_apply, self.btn_reset, self.btn_history, self.btn_limits):
             btn.setStyleSheet(btn_style)
 
         for title_lbl in self._card_titles:
