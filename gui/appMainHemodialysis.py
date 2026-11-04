@@ -115,7 +115,7 @@ from gui.therapy.heparin_config_screenV2 import (
     HEPARIN_AUTO_STOP_MINUTES_TAG,
 )
 from gui.therapy.nibp_config_screen import NibpConfigScreen
-from gui.therapy.nibp_history_screen import NibpHistoryScreen
+from gui.therapy.nibp_history_screen import NibpHistoryScreen, NibpChartScreen
 from core.nibp_pressure_history import NibpPressureHistory
 from core.therapy_session_tracker import TherapySessionTracker
 from utilities.therapy_report_generator import TherapyReportGenerator
@@ -675,6 +675,7 @@ class HemodialysisHMI(QMainWindow):
         # === HISTORIAL DE PRESIÓN ARTERIAL NIBP Y RASTREADOR DE SESIÓN CLÍNICA ===
         self.nibp_pressure_history = NibpPressureHistory()
         self.nibp_history_screen = NibpHistoryScreen(parent=self, history=self.nibp_pressure_history)
+        self.nibp_chart_screen = NibpChartScreen(parent=self, history=self.nibp_pressure_history)
         self._nibp_measure_is_manual = False  # Flag para marcar si la próxima medición es manual
         self._last_spo2_value = None
         self.session_tracker = TherapySessionTracker()
@@ -707,6 +708,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.addWidget(self.KTVScreen)                    # 21
         self.screen_stack.addWidget(self.nibp_screen)                  # 22
         self.screen_stack.addWidget(self.nibp_history_screen)          # 23
+        self.screen_stack.addWidget(self.nibp_chart_screen)            # 23b
         self.screen_stack.addWidget(self.theme_config_screen)          # 24
 
 
@@ -752,14 +754,7 @@ class HemodialysisHMI(QMainWindow):
         logger.info(f"Estado global cambiado: {phase.name} | {reason}")
         logger.debug("Fase actual: %s", phase.name)
         
-        # Limpiar historial de presión arterial al entrar a RUNNING desde no-PAUSED
-        # Usar el estado anterior guardado en _prev_treatment_phase
         if phase == TreatmentPhase.RUNNING:
-            prev_phase = getattr(self, '_prev_treatment_phase', None)
-            if prev_phase != TreatmentPhase.PAUSED:
-                logger.info(f"[NIBP History] Limpiando historial al entrar a RUNNING desde {prev_phase.name if prev_phase else 'None'}")
-                self.nibp_pressure_history.clear()
-
             # Recortar una sola vez el tiempo de heparina al entrar a RUNNING
             if not getattr(self, '_heparin_running_clamped', False):
                 self._heparin_running_clamped = True
@@ -2050,16 +2045,23 @@ class HemodialysisHMI(QMainWindow):
         self._highlight_active_nav_button("Diálisis")
 
     def show_nibp_history_screen(self):
-        """Muestra la pantalla del historial de presión arterial."""
-        # Actualizar duración programada
+        """Muestra la pantalla de Tomas del historial de presión arterial (sin borrar el historial)."""
         hours = safe_int(self.current_values.get("heparineTherapyHours", 0), 0)
         minutes = safe_int(self.current_values.get("heparineTherapyMinutes", 0), 0)
         self.nibp_history_screen.set_programmed_duration(hours, minutes)
-        
-        # Actualizar tabla y gráfica desde el historial
         self.nibp_history_screen.update_from_history()
-        
         self.screen_stack.setCurrentWidget(self.nibp_history_screen)
+        self.left_content.show()
+        self.right_content.show()
+        self._highlight_active_nav_button("Diálisis")
+
+    def show_nibp_chart_screen(self):
+        """Muestra la pantalla de Gráfica de presión arterial (sin borrar el historial)."""
+        hours = safe_int(self.current_values.get("heparineTherapyHours", 0), 0)
+        minutes = safe_int(self.current_values.get("heparineTherapyMinutes", 0), 0)
+        self.nibp_chart_screen.set_programmed_duration(hours, minutes)
+        self.nibp_chart_screen.update_from_history()
+        self.screen_stack.setCurrentWidget(self.nibp_chart_screen)
         self.left_content.show()
         self.right_content.show()
         self._highlight_active_nav_button("Diálisis")
@@ -4045,6 +4047,10 @@ class HemodialysisHMI(QMainWindow):
             spo2=getattr(self, "_last_spo2_value", None),
             origen=origen
         )
+        if hasattr(self, "nibp_history_screen"):
+            self.nibp_history_screen.update_from_history()
+        if hasattr(self, "nibp_chart_screen"):
+            self.nibp_chart_screen.update_from_history()
         if hasattr(self, "session_tracker"):
             uf_rem_l = self.dialysis_screen._uf_removed_liters() if hasattr(self, "dialysis_screen") else 0.0
             self.session_tracker.on_nibp_measurement(
