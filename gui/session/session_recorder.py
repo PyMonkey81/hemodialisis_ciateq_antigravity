@@ -1,11 +1,12 @@
 import json
 import logging
+import os
 from pathlib import Path
 
 from PySide6.QtCore import QDateTime
 
 from utilities.csv_logger import CsvLogger
-from utilities.platform_runtime import get_runtime_data_path
+from utilities.platform_runtime import get_runtime_data_path, safe_int
 from utilities.therapy_report_generator import TherapyReportGenerator
 
 logger = logging.getLogger(__name__)
@@ -287,3 +288,69 @@ class SessionRecorder:
         self._save_cleaning_history()
         
         logger.info(f"✅ Limpieza registrada: {record['fecha']} {record['hora_inicio']} ({record['duracion_hhmm']})")
+
+    # ====================== CIERRE ABRUPTO ======================
+
+    def _get_clean_close_path(self) -> Path:
+        custom_path = getattr(self.window, "_clean_close_file", None) or getattr(self, "clean_close_file", None)
+        if custom_path is not None:
+            return Path(custom_path)
+        if os.environ.get("CIATEQ_DATA_DIR", "").strip():
+            return get_runtime_data_path("cierre_limpio")
+        cwd_file = Path("cierre_limpio")
+        runtime_file = get_runtime_data_path("cierre_limpio")
+        if cwd_file.exists():
+            return cwd_file
+        if Path.cwd().resolve() != runtime_file.parent.resolve():
+            return cwd_file
+        return runtime_file
+
+    def mark_clean(self):
+        try:
+            clean_file = self._get_clean_close_path()
+            clean_file.parent.mkdir(parents=True, exist_ok=True)
+            clean_file.write_text("ok", encoding="utf-8")
+        except Exception as e:
+            logger.error(f"Error escribiendo archivo cierre_limpio: {e}")
+
+    def _check_and_handle_unclean_close(self):
+        if getattr(self.window, "_checked_unclean_close", False):
+            return
+
+        if not getattr(self.window, "serial_comm", None) or not self.window.serial_comm.is_connected:
+            return
+
+        status_code = safe_int(self.window.current_values.get("primingProcessStatus", 0), 0)
+        if not (1 <= status_code <= 16):
+            return
+
+        self.window._checked_unclean_close = True
+        clean_file = self._get_clean_close_path()
+
+        if clean_file.exists():
+            try:
+                clean_file.unlink()
+            except Exception as e:
+                logger.error(f"Error borrando archivo cierre_limpio: {e}")
+            return
+
+        treatment_mode = safe_int(self.window.current_values.get("treatmentModeSelection", 0), 0)
+        try:
+            if status_code in (14, 15) and treatment_mode != 3:
+                if hasattr(self.window, "treatment_controller") and self.window.treatment_controller is not None:
+                    self.window.treatment_controller.stop_treatment()
+                self.window.show_operator_message(
+                    "Cierre abrupto detectado. Tratamiento detenido por seguridad.",
+                    level="warning",
+                    timeout_ms=5000,
+                )
+            elif treatment_mode == 3 and status_code == 6:
+                self.window._write_boolean_command("dialyStartDialysisButt", False)
+                self.window._write_boolean_command("dialyStopDialysisButt", True)
+                self.window.show_operator_message(
+                    "Cierre abrupto detectado. Limpieza detenida por seguridad.",
+                    level="warning",
+                    timeout_ms=5000,
+                )
+        except Exception as e:
+            logger.error(f"Error manejando cierre abrupto: {e}")

@@ -265,8 +265,8 @@ class AlarmScreenConfig(QWidget):
                     min_edit.setFixedWidth(100)
                     max_edit.setFixedWidth(100)
 
-                    min_edit.clicked.connect(lambda c=False, e=min_edit, t=label_short, f="min": self.open_numpad(e, t, f))
-                    max_edit.clicked.connect(lambda c=False, e=max_edit, t=label_short, f="max": self.open_numpad(e, t, f))
+                    min_edit.clicked.connect(lambda c=False, e=min_edit, t=tag, f="min": self.open_numpad(e, t, f))
+                    max_edit.clicked.connect(lambda c=False, e=max_edit, t=tag, f="max": self.open_numpad(e, t, f))
 
                     self.grid_layout.addWidget(lbl_name, row, 0)
                     self.grid_layout.addWidget(min_edit, row, 1)
@@ -293,16 +293,48 @@ class AlarmScreenConfig(QWidget):
                 self.inputs[tag] = widget_dict
                 row += 1
 
+    def _get_variable_info(self, tag: str) -> dict:
+        for group in VARIABLES.values():
+            if isinstance(group, dict):
+                for info in group.values():
+                    if info.get("tag") == tag or info.get("label") == tag:
+                        return info
+        if hasattr(self.config_manager, "_get_default_info_from_variables_map"):
+            info = self.config_manager._get_default_info_from_variables_map(tag)
+            if isinstance(info, dict):
+                return info
+        return {}
+
     def open_numpad(self, line_edit, tag, field):
-        # dialog = NumpadDialog(self, initial_value=line_edit.text(), 
-                            #  title=f"Límite {field.upper()} \n {tag}")
-        dialog = NumpadDialog(self, initial_value="", 
-                             title=f"Límite {field.upper()} \n {tag}")
+        info = self._get_variable_info(tag)
+        resolved_tag = info.get("tag", tag)
+        param_name = info.get("name") or info.get("label") or tag
+
+        min_allowed = 0.0
+        limites = info.get("limites")
+        if isinstance(limites, (list, tuple)) and len(limites) == 2:
+            try:
+                min_allowed = float(limites[0])
+            except (TypeError, ValueError):
+                min_allowed = 0.0
+        elif hasattr(self.config_manager, "get_default_limits_from_variables_map"):
+            try:
+                min_allowed, _ = self.config_manager.get_default_limits_from_variables_map(resolved_tag)
+            except Exception:
+                min_allowed = 0.0
+
+        allow_negative = min_allowed < 0
+
+        dialog = NumpadDialog(
+            self,
+            initial_value="",
+            title=f"Límite {field.upper()} \n {param_name}",
+            allow_negative=allow_negative,
+        )
         
         if dialog.exec():
             val = dialog.get_value()
             line_edit.setText(f"{val:.1f}")
-            # line_edit.setText(" ")
 
     def show_floating_message(self, text: str, timeout_ms: int = 3800):
         """Método genérico (recomendado)"""

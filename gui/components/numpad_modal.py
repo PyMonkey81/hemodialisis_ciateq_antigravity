@@ -120,10 +120,11 @@ class NumpadDialog(QDialog):
     }
 
 
-    def __init__(self, parent=None, initial_value: str = "", title: str = "Ingrese Valor", theme: str = "light"):
+    def __init__(self, parent=None, initial_value: str = "", title: str = "Ingrese Valor", theme: str = "light", allow_negative: bool = False):
         super().__init__(parent)
         self.setWindowTitle(title)
         self.theme = theme  # ← AGREGAR
+        self.allow_negative = bool(allow_negative)
         colors = self.THEMES[theme]  # ← AGREGAR
 
 
@@ -187,12 +188,20 @@ class NumpadDialog(QDialog):
         keypad_layout = QGridLayout()
         keypad_layout.setSpacing(12)
 
-        keys = [
-            ('1', 0, 0), ('2', 0, 1), ('3', 0, 2),
-            ('4', 1, 0), ('5', 1, 1), ('6', 1, 2),
-            ('7', 2, 0), ('8', 2, 1), ('9', 2, 2),
-            ('.', 3, 0), ('0', 3, 1), ('⌫', 3, 2)
-        ]
+        if self.allow_negative:
+            keys = [
+                ('1', 0, 0), ('2', 0, 1), ('3', 0, 2),
+                ('4', 1, 0), ('5', 1, 1), ('6', 1, 2),
+                ('7', 2, 0), ('8', 2, 1), ('9', 2, 2),
+                ('+/−', 3, 0), ('.', 3, 1), ('0', 3, 2), ('⌫', 3, 3)
+            ]
+        else:
+            keys = [
+                ('1', 0, 0), ('2', 0, 1), ('3', 0, 2),
+                ('4', 1, 0), ('5', 1, 1), ('6', 1, 2),
+                ('7', 2, 0), ('8', 2, 1), ('9', 2, 2),
+                ('.', 3, 0), ('0', 3, 1), ('⌫', 3, 2)
+            ]
 
         button_font = QFont("Arial", 32, QFont.Bold)
 
@@ -229,7 +238,10 @@ class NumpadDialog(QDialog):
                     QPushButton:hover {{ background-color: {colors['button_hover']}; }}
                     QPushButton:pressed {{ background-color: #22d3ee; border-color: #22d3ee; }}
                 """)
-                btn.clicked.connect(lambda _, k=key: self._add_digit(k))
+                if key == '+/−':
+                    btn.clicked.connect(self._toggle_sign)
+                else:
+                    btn.clicked.connect(lambda _, k=key: self._add_digit(k))
 
 
             keypad_layout.addWidget(btn, row, col)
@@ -280,8 +292,22 @@ class NumpadDialog(QDialog):
 
         main_layout.addLayout(action_layout)
 
+    def _toggle_sign(self):
+        """Alterna el signo cuando allow_negative es verdadero."""
+        if not self.allow_negative:
+            return
+        current_text = self.display.text()
+        if current_text.startswith("-"):
+            self.display.setText(current_text[1:])
+        else:
+            self.display.setText("-" + current_text)
+
     def _add_digit(self, digit: str):
         """Append digit or decimal point to display."""
+        if digit in ("+/−", "+/-", "-"):
+            self._toggle_sign()
+            return
+
         current_text = self.display.text()
 
         # Prevent multiple decimal points
@@ -291,6 +317,8 @@ class NumpadDialog(QDialog):
         # Replace leading zero with new digit (unless it's a decimal)
         if current_text == "0" and digit != ".":
             current_text = ""
+        elif current_text == "-0" and digit != ".":
+            current_text = "-"
 
         self.display.setText(current_text + digit)
 
@@ -305,7 +333,7 @@ class NumpadDialog(QDialog):
         Returns 0 if empty or invalid.
         """
         text = self.display.text().strip()
-        if not text or text == ".":
+        if not text or text in (".", "-", "-."):
             return 0 # Default to int 0 if empty/invalid
 
         try:

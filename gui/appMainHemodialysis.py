@@ -1801,6 +1801,7 @@ class HemodialysisHMI(QMainWindow):
 
             if second_elapsed:
                 self.update_connection_status()
+                self._check_and_handle_unclean_close()
                 self.update_date_time()
 
                 if self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.IDLE):
@@ -3029,12 +3030,20 @@ class HemodialysisHMI(QMainWindow):
         
     def register_cleaning_session(self):
         return self._get_session_recorder().register_cleaning_session()
+
+    @property
+    def unclean_close(self) -> SessionRecorder:
+        return self._get_session_recorder()
+
+    def _check_and_handle_unclean_close(self):
+        return self._get_session_recorder()._check_and_handle_unclean_close()
         
 
     def closeEvent(self, event):        
         self.end_dialysis_session() # Cierra los loggers
         logger.error("[INFO] closeEvent → performing shutdown...")
         self.shutdown() # shutdown ya guarda las horas
+        self.unclean_close.mark_clean()
         # time.sleep(1.0) 
         event.accept()
         QApplication.quit()
