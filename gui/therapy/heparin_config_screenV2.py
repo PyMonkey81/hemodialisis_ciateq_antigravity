@@ -299,7 +299,7 @@ class HeparinConfigScreen(QWidget):
     def _on_flow_hep_changed(self, index):  
         self._selected_heparin_flow_index = index
         if hasattr(self, "heparin_flow_combo") and self.heparin_flow_combo is not None:
-            flujo_value = float(self.heparin_flow_combo.currentText())
+            flujo_value = safe_float(self.heparin_flow_combo.currentText(), 0.0)
             self.current_values["heparineTherapyFlow"] = flujo_value
             if self.parent_window and hasattr(self.parent_window, "current_values"):
                 self.parent_window.current_values["heparineTherapyFlow"] = flujo_value
@@ -318,7 +318,7 @@ class HeparinConfigScreen(QWidget):
         if dialog.exec():
             new_value = dialog.get_value()
             if new_value is not None:
-                float_val = float(new_value)
+                float_val = safe_float(new_value, 0.0)
                 
                 # --- LÓGICA ESPECIAL PARA EL VOLUMEN DE JERINGA ---
                 if tag == "heparineSyringeVolume":
@@ -687,7 +687,7 @@ class HeparinConfigScreen(QWidget):
                 logger.warning("heparin_flow_combo no disponible para cálculo de dosage")
                 return
             
-            flow_ml_per_h = float(self.heparin_flow_combo.currentText())
+            flow_ml_per_h = safe_float(self.heparin_flow_combo.currentText(), 0.0)
             
             # Calcular dosage: tiempo * flujo
             dosage_ml = round(time_hours * flow_ml_per_h, 2)
@@ -710,7 +710,7 @@ class HeparinConfigScreen(QWidget):
     def _update_input_display(self, widget: ClickableLineEdit, tag: str, precision: int = 1):
         if widget.hasFocus():
             return
-        value = self.current_values.get(tag, 0.0)
+        value = safe_float(self.current_values.get(tag, 0.0), 0.0)
         # Tratar None como 0.0
         if value is None:
             value = 0.0
@@ -749,7 +749,7 @@ class HeparinConfigScreen(QWidget):
 
         for tag, widget in variables_to_update.items():
             if tag in self.current_values:
-                value = self.current_values[tag]
+                value = safe_float(self.current_values[tag], 0.0)
                 # Tratar None como 0.0
                 if value is None:
                     value = 0.0

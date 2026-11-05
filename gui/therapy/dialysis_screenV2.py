@@ -14,6 +14,7 @@ from collections import deque
 from gui.components.ui_components import LabeledParameterWidget, LabeledTimeInput
 from gui.theme_manager import ThemeManager
 from core.state_manager import TreatmentPhase
+from utilities.platform_runtime import safe_float
 import logging
 
 logger = logging.getLogger(__name__)
@@ -51,8 +52,8 @@ class PressureWaveformWidget(QWidget):
         tm.theme_changed.connect(lambda _t: self.update())
 
     def add_values(self, arterial, venous):
-        self.arterial_history.append(arterial)
-        self.venous_history.append(venous)
+        self.arterial_history.append(safe_float(arterial, 0.0))
+        self.venous_history.append(safe_float(venous, 0.0))
         self.update()
 
     def paintEvent(self, event):
@@ -706,31 +707,25 @@ class DialysisScreen(QWidget):
         """Update all displayed values."""
         self.current_values = new_values
 
-        uf_rate_val = self.current_values.get("ultraFilterPumpSpeed", 0.0)
-        uf_rate = float(uf_rate_val) if uf_rate_val is not None else 0.0
+        uf_rate = safe_float(self.current_values.get("ultraFilterPumpSpeed", 0.0), 0.0)
         self.uf_rate_val.setText(f"{uf_rate:.2f} L/hora")
 
-        hep_hours_val = self.current_values.get("heparineTherapyHours", 0.0)
-        hep_minutes_val = self.current_values.get("heparineTherapyMinutes", 0.0)
-        uf_therapy_hours = float(hep_hours_val) if hep_hours_val is not None else 0.0
-        uf_therapy_minutes = float(hep_minutes_val) if hep_minutes_val is not None else 0.0
+        uf_therapy_hours = safe_float(self.current_values.get("heparineTherapyHours", 0.0), 0.0)
+        uf_therapy_minutes = safe_float(self.current_values.get("heparineTherapyMinutes", 0.0), 0.0)
         therapy_duration_hours = uf_therapy_hours + (uf_therapy_minutes / 60.0)
 
         uf_goal = uf_rate * therapy_duration_hours
         self.uf_goal_val.setText(f"{uf_goal:.2f}")
 
-        cycle_count_val = self.current_values.get("ultraFilterCycleCount", 0.0)
-        uf_pulse_count = float(cycle_count_val) if cycle_count_val is not None else 0.0
+        uf_pulse_count = safe_float(self.current_values.get("ultraFilterCycleCount", 0.0), 0.0)
         uf_removed = litros_removidos(int(uf_pulse_count))
         self.uf_rem_val.setText(f"{uf_removed:.2f} L")
 
         # pulse_display = int(uf_pulse_count) if uf_pulse_count is not None else 0
         # self.uf_pulse_val.setText(str(pulse_display))
 
-        venous_pressure_val = self.current_values.get("bloodVenousPressureData", 0.0)
-        arterial_pressure_val = self.current_values.get("bloodArteryPressureData", 0.0)
-        venous_pressure = venous_pressure_val if venous_pressure_val is not None else 0.0
-        arterial_pressure = arterial_pressure_val if arterial_pressure_val is not None else 0.0
+        venous_pressure = safe_float(self.current_values.get("bloodVenousPressureData", 0.0), 0.0)
+        arterial_pressure = safe_float(self.current_values.get("bloodArteryPressureData", 0.0), 0.0)
         self.pressure_plot.add_values(arterial_pressure, venous_pressure)
 
         pd_in = self.current_values.get("dialyPresIFProcessData", 0.0)
@@ -765,11 +760,7 @@ class DialysisScreen(QWidget):
             self.update_state(self.parent_window.state.current_phase)
 
     def _uf_removed_liters(self) -> float:
-        cycle_count_val = self.current_values.get("ultraFilterCycleCount", 0.0)
-        try:
-            pulses = int(float(cycle_count_val)) if cycle_count_val is not None else 0
-        except (TypeError, ValueError):
-            pulses = 0
+        pulses = int(safe_float(self.current_values.get("ultraFilterCycleCount", 0.0), 0.0))
         return float(litros_removidos(pulses))
 
 
@@ -814,13 +805,7 @@ class DialysisScreen(QWidget):
             self.parent_window.show_nibp_screen()
 
     def _format_display_value(self, tag: str, value):
-        try:
-            if value is None:
-                val_float = 0.0
-            else:
-                val_float = float(value)
-        except (TypeError, ValueError):
-            return str(value)
+        val_float = safe_float(value, 0.0)
 
         if tag in {"bloodArteryPressureData", "bloodVenousPressureData"}:
             try:
