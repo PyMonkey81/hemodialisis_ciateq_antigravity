@@ -854,10 +854,36 @@ class HemodialysisHMI(QMainWindow):
 
         logger.info(f"Sincronizando estado - Status: {status_code}, Mode: {treatment_mode}")
 
-        # Modo Limpieza
+        mapper = getattr(self, "hardware_mapper", None)
+        if mapper is not None:
+            target_phase = mapper.get_phase(status_code, treatment_mode)
+            if target_phase == TreatmentPhase.CLEANING:
+                self.state.set_phase(TreatmentPhase.CLEANING, reason)
+                if hasattr(self, "current_process_status") and self.current_process_status is not None:
+                    self.current_process_status.setText(mapper.get_display_text(status_code, treatment_mode))
+                if hasattr(self, "screen_state_manager") and self.screen_state_manager is not None:
+                    self.screen_state_manager.update_all_screens(TreatmentPhase.CLEANING)
+                self._refresh_navigation_bar()
+                return
+            elif target_phase == TreatmentPhase.IDLE and status_code not in (1, 16):
+                self.state.set_phase(TreatmentPhase.IDLE, "Sincronización inicial - Sin actividad")
+            else:
+                self.state.set_phase(target_phase, reason)
+            if hasattr(self, "screen_state_manager") and self.screen_state_manager is not None:
+                self.screen_state_manager.update_all_screens(target_phase)
+            return
+
+        # Modo Limpieza (sin mapper)
         if treatment_mode == 3:
             if status_code == 6:  # Infusión = limpieza activa
                 self.state.set_phase(TreatmentPhase.CLEANING, reason)
+                if hasattr(self, "screen_state_manager") and self.screen_state_manager is not None:
+                    self.screen_state_manager.update_all_screens(TreatmentPhase.CLEANING)
+                self._refresh_navigation_bar()
+            elif status_code in [2, 3, 4, 5]:
+                self.state.set_phase(TreatmentPhase.PREPARING, reason)
+                if hasattr(self, "screen_state_manager") and self.screen_state_manager is not None:
+                    self.screen_state_manager.update_all_screens(TreatmentPhase.PREPARING)
             else:
                 self.state.reset_to_idle(reason)
             return        
@@ -2247,6 +2273,19 @@ class HemodialysisHMI(QMainWindow):
         # Manejo del tratamiento seleccionado
         if tag == "treatmentModeSelection":
             self.refresh_treatment_selected() # Llama al nuevo método para actualizar el label
+            try:
+                status_code = safe_int(self.current_values.get("primingProcessStatus", 0), 0)
+                treatment_mode = safe_int(value, 0)
+                if hasattr(self, "hardware_mapper") and self.hardware_mapper is not None:
+                    new_phase = self.hardware_mapper.get_phase(status_code, treatment_mode)
+                    display_text = self.hardware_mapper.get_display_text(status_code, treatment_mode)
+                    if hasattr(self, "current_process_status") and self.current_process_status is not None:
+                        self.current_process_status.setText(display_text)
+                    if hasattr(self, "state") and self.state is not None and new_phase != self.state.current_phase:
+                        self.state.set_phase(new_phase, f"Hardware → {display_text}")
+                        self._refresh_navigation_bar()
+            except Exception as e:
+                logger.warning(f"Error sincronizando estado al cambiar modo de tratamiento: {e}")
         # ────────────────────────────────────────────────────────────────
         # Manejo de primingProcessStatus (estado del proceso + horas de operación)
         # ────────────────────────────────────────────────────────────────
