@@ -58,6 +58,7 @@ logger = logging.getLogger(__name__)
 _FAULT_LOG_STREAM = open(LOG_FILE, "a", encoding="utf-8")
 faulthandler.enable(file=_FAULT_LOG_STREAM)
 logger.info(f"Log de errores: {Path(LOG_FILE).resolve()}")
+print(f"Log de errores: {Path(LOG_FILE).resolve()}")
 
 
 def _flush_all_log_handlers():
