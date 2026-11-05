@@ -133,6 +133,7 @@ from gui.session.session_recorder import SessionRecorder
 from gui.session.operator_alerts import OperatorAlerts
 from gui.therapy.profile_coordinator import ProfileCoordinator
 from gui.therapy.heparin_coordinator import HeparinCoordinator
+from gui.therapy.treatment_start import TreatmentStart
 from gui.therapy.nibp_coordinator import (
     NibpCoordinator,
     NIBP_CONFIG_PATH,
@@ -1154,192 +1155,21 @@ class HemodialysisHMI(QMainWindow):
     #              Navigation Methods
     # ────────────────────────────────────────────────
 
-    def start_treatment(self):
-        """
-        Delegado seguro con validación de checklist.
-        
-        - Si fase es PAUSED: procede a reanudar sin validación
-        - Si fase es READY: valida items requeridos, muestra faltas o diálogo de confirmación
-        - Si fase es RUNNING: retorna sin hacer nada
-        """
-        if getattr(self, '_start_treatment_locked', False):
-            return
-        self._start_treatment_locked = True
+    def _get_treatment_start(self) -> TreatmentStart:
+        starter = getattr(self, "treatment_start", None)
+        if starter is None:
+            starter = TreatmentStart(self)
+            self.treatment_start = starter
+        return starter
 
-        try:
-            logger.info("=== BOTÓN INICIAR TRATAMIENTO PRESIONADO ===")
-            
-            if self.state.current_phase == TreatmentPhase.RUNNING:
-                return
-            
-            # Si es PAUSED: proceder sin validación (es reanudar)
-            if self.state.current_phase == TreatmentPhase.PAUSED:
-                success = self.treatment_controller.start_treatment()
-                if success:
-                    self._update_therapy_time_displays()
-                    self._refresh_navigation_bar()
-                    self.screen_state_manager.update_all_screens(self.state.current_phase)
-                return
-            
-            # Si es READY: validar checklist
-            if self.state.current_phase == TreatmentPhase.READY:
-                missing = missing_start_items(self.current_values)
-                
-                if missing:
-                    # Mostrar faltas una por línea
-                    msg = "\n".join(missing)
-                    self.show_warning_message(msg, 4500)
-                    return
-                
-                # Lista completa: mostrar diálogo de confirmación
-                self._show_start_confirmation_dialog()
-                return
-            
-        finally:
-            self._start_treatment_locked = False
+    def start_treatment(self):
+        return self._get_treatment_start().start_treatment()
     
     def _show_start_confirmation_dialog(self):
-        """
-        Muestra diálogo flotante de confirmación antes de iniciar tratamiento.
-        
-        Muestra:
-        - Paciente
-        - Qb en mL/min
-        - Temperatura
-        - Conductividad
-        - Tiempo de terapia (H:MM)
-        - Qd como "programado"
-        - Infusión de heparina (H:MM) si está encendida
-        - UF en L/h (si existe, ya en L/h; mostrar con dos decimales)
-        - Volumen jeringa si heparina encendida
-        """
-        dialog = FloatingConfirmDialog(self)
-        
-        # Construir texto de confirmación
-        lines = []
-        
-        # Paciente
-        patient_name = self.current_values.get("patient_name", "")
-        if patient_name:
-            lines.append(f"Paciente: {patient_name}")
-        
-        # Qb en mL/min
-        qb = self.current_values.get("bloodFlowControlSetPoint")
-        if qb:
-            lines.append(f"Qb: {qb} mL/min")
-        
-        # Temperatura
-        temp = self.current_values.get("dialyTempControlSetPoint")
-        if temp:
-            lines.append(f"Temperatura: {temp}°C")
-        
-        # Conductividad
-        cond = self.current_values.get("dialyCondControlSetPoint")
-        if cond:
-            lines.append(f"Conductividad: {cond} mS/cm")
-        
-        # Tiempo de terapia (H:MM)
-        therapy_h = int(self.current_values.get("heparineTherapyHours", 0) or 0)
-        therapy_m = int(self.current_values.get("heparineTherapyMinutes", 0) or 0)
-        lines.append(f"Tiempo de terapia: {therapy_h}:{therapy_m:02d}")
-        
-        # Qd como "programado"
-        lines.append("Qd: Programado")
-        
-        # Infusión de heparina si está encendida (H:MM)
-        heparin_enabled = self.current_values.get("heparineInfusionEnabled")
-        if heparin_enabled != 0:
-            infusion_h = int(self.current_values.get("heparineAutoStopHours", 0) or 0)
-            infusion_m = int(self.current_values.get("heparineAutoStopMinutes", 0) or 0)
-            lines.append(f"Infusión de heparina: {infusion_h}:{infusion_m:02d}")
-        
-        # UF en L/h (ya está en L/h, solo mostrar con dos decimales)
-        uf_l_h = self.current_values.get("ultraFilterPumpSpeed")
-        if uf_l_h is not None:
-            lines.append(f"UF: {float(uf_l_h):.2f} L/h")
-        
-        # Volumen jeringa si heparina encendida
-        if heparin_enabled != 0:
-            syringe_vol = self.current_values.get("heparineSyringeVolume")
-            if syringe_vol:
-                lines.append(f"Volumen jeringa: {syringe_vol} mL")
-        
-        confirmation_text = "\n".join(lines)
-        
-        # Mostrar diálogo
-        confirmed = dialog.show_confirm(
-            text=confirmation_text,
-            accept_text="Iniciar",
-            cancel_text="Cancelar"
-        )
-        
-        # Si se confirma, proceder con el arranque
-        if confirmed:
-            success = self.treatment_controller.start_treatment()
-            if success:
-                self._update_therapy_time_displays()
-                self._refresh_navigation_bar()
-                self.screen_state_manager.update_all_screens(self.state.current_phase)
+        return self._get_treatment_start()._show_start_confirmation_dialog()
 
     def _show_filter_fill_dialog_main(self):
-        """
-        Muestra diálogo modal para confirmación de llenado de filtro.
-        Llamado desde primingProcessStatus = 7 con QTimer.singleShot.
-        
-        Flujo:
-        1. Primer diálogo: "Coloque el filtro..." (solo Aceptar, sin Cancelar)
-        2. Si acepta → Segundo diálogo: "¿Confirma...?" (Aceptar + Cancelar)
-           - Aceptar: manda dialyFilterFillButton=True, llama _start_filter()
-           - Cancelar: vuelve al primer diálogo
-        """
-        def show_first_dialog():
-            """Primer paso: instrucción simple sin Cancel (botón oculto)"""
-            dialog = FloatingConfirmDialog(self)
-            
-            # Ocultar el botón Cancel antes de mostrar el diálogo
-            if hasattr(dialog, 'btn_cancel'):
-                dialog.btn_cancel.setVisible(False)
-            
-            confirmed = dialog.show_confirm(
-                text="Coloque el filtro. Cuando esté colocado, presione Aceptar.",
-                accept_text="Aceptar",
-                cancel_text="Cancelar"  # Texto presente pero botón oculto
-            )
-            
-            if not confirmed:
-                # Usuario no presionó Aceptar; reintentar
-                QTimer.singleShot(100, show_first_dialog)
-                return
-            
-            # Aceptar → mostrar segundo diálogo
-            show_second_dialog()
-        
-        def show_second_dialog():
-            """Segundo paso: confirmación con opción de cancelar"""
-            dialog = FloatingConfirmDialog(self)
-            
-            # Mostrar el botón Cancel en el segundo diálogo
-            if hasattr(dialog, 'btn_cancel'):
-                dialog.btn_cancel.setVisible(True)
-            
-            confirmed = dialog.show_confirm(
-                text="¿Confirma que el filtro ya está colocado?",
-                accept_text="Aceptar",
-                cancel_text="Cancelar"
-            )
-            
-            if confirmed:
-                # Aceptar: ejecutar el llenado
-                self._write_boolean_command("dialyFilterFillButton", True)
-                self._start_filter()
-                logger.info("Llenado de filtro confirmado por usuario")
-            else:
-                # Cancelar: volver al primer diálogo
-                logger.info("Usuario canceló; mostrando primer diálogo nuevamente")
-                QTimer.singleShot(100, show_first_dialog)
-        
-        # Iniciar con el primer diálogo
-        show_first_dialog()
+        return self._get_treatment_start()._show_filter_fill_dialog_main()
 
     def pause_treatment(self):
         """Delegado al TreatmentController"""
@@ -2226,103 +2056,17 @@ class HemodialysisHMI(QMainWindow):
     
 
     def _can_start_treatment(self) -> bool:
-        """Lógica centralizada para habilitar Iniciar / Reanudar"""
-        phase = self.state.current_phase
-    
-        # 1. Filtro rápido de fase
-        if phase not in (TreatmentPhase.READY, TreatmentPhase.PAUSED):
-            return False
-
-        # 2. Verificación de condiciones físicas (necesarias para ambos estados)
-        temp_actual = self.current_values.get("dialyTempIFProcessData", 0.0)
-        temp_set    = self.current_values.get("dialyTempControlSetPoint", 0.0)
-        cond_actual = self.current_values.get("dialyCondVariableData", 0.0)
-        cond_set    = self.current_values.get("dialyCondControlSetPoint", 0.0)
-
-        # Rango: Setpoint -1.5 hasta +3.0
-        temp_ok = (temp_set - 5 <= temp_actual <= temp_set + 3.0)
-        cond_ok = abs(cond_actual - cond_set) <= 2.0
-        fisica_ok = temp_ok and cond_ok
-
-        # 3. Lógica según fase
-        if phase == TreatmentPhase.PAUSED:
-            return fisica_ok
-
-        if phase == TreatmentPhase.READY:
-            # Si no se ha iniciado el proceso de llenado, bloqueamos
-            if not self.filter_fill_waiting or self.filter_fill_start_time is None:
-                return False
-            
-            # Verificar tiempo transcurrido
-            elapsed = self.filter_fill_start_time.secsTo(QDateTime.currentDateTime())
-            if elapsed < self.MIN_FILTER_FILL_WAIT_SECONDS:
-                return False
-        
-            # Si pasó el tiempo y la física está OK, permitimos iniciar
-            return fisica_ok
-
-        return False
+        return self._get_treatment_start()._can_start_treatment()
 
     
     def _start_filter(self):
-        """Solo inicia el conteo de 90 segundos (NO verifica)"""
-        try:                    
-            self.filter_fill_start_time = QDateTime.currentDateTime()
-            self.filter_fill_waiting = True
-            logger.info(
-                "[FILTER] Conteo de llenado iniciado a las %s",
-                self.filter_fill_start_time.toString("HH:mm:ss"),
-            )
-        except Exception as e:
-            logger.error(f"Error en _start_filter: {e}", exc_info=True)
+        return self._get_treatment_start()._start_filter()
 
     def _reset_filter_fill_flags(self):
-        """Reinicia las banderas del llenado de filtro"""
-        self.filter_fill_start_time = None
-        self.filter_fill_waiting = False
-        logger.info("Flags de llenado de filtro reiniciados")
+        return self._get_treatment_start()._reset_filter_fill_flags()
 
     def _update_header_during_filter_fill(self):
-        """
-        Actualiza el encabezado cada segundo durante la espera de 90 s después del llenado de filtro.
-        - Si estamos en estado 13 (READY) y aún no se cumplieron los 90 s: "PREPARANDO..."
-        - Si ya pasaron los 90 s y _can_start_treatment() es True: "LISTO PARA\nINICIAR"
-        - Si el estado deja de ser 13, no pisa el texto del mapa (hardware_state_mapper es la fuente de verdad)
-        """
-        # Solo actuar si estamos en estado 13 (READY)
-        if self._last_priming_status != 13:
-            return
-        
-        # Verificar si el hardware_mapper está disponible
-        if not hasattr(self, "hardware_mapper") or self.hardware_mapper is None:
-            return
-        
-        # Verificar si el label del encabezado está disponible
-        if not hasattr(self, "current_process_status") or self.current_process_status is None:
-            return
-        
-        # Si no estamos en la espera del llenado, no hacer nada
-        if not self.filter_fill_waiting or self.filter_fill_start_time is None:
-            return
-        
-        # Calcular tiempo transcurrido desde el inicio del llenado
-        elapsed = self.filter_fill_start_time.secsTo(QDateTime.currentDateTime())
-        
-        # Determinar el texto que debe mostrar el encabezado
-        if elapsed < self.MIN_FILTER_FILL_WAIT_SECONDS:
-            # Aún no se han cumplido los 90 segundos: mostrar "PREPARANDO..."
-            desired_text = "PREPARANDO..."
-        elif self._can_start_treatment():
-            # Ya pasaron los 90 s y se pueden iniciar condiciones: mostrar "LISTO PARA\nINICIAR"
-            desired_text = "LISTO PARA\nINICIAR"
-        else:
-            # Pasaron los 90 s pero aún no hay condiciones de inicio: mantener "PREPARANDO..."
-            desired_text = "PREPARANDO..."
-        
-        # Actualizar el encabezado si el texto es diferente
-        current_text = self.current_process_status.text()
-        if current_text != desired_text:
-            self.current_process_status.setText(desired_text)
+        return self._get_treatment_start()._update_header_during_filter_fill()
 
     def _set_button_style(self, button: QPushButton, style_type: str):
         """Aplica estilos predefinidos a los botones"""
