@@ -77,6 +77,13 @@ from connection.led_bar_controller import LedBarController
 from connection.bioz_urea_controller import BiozUreaController
 from connection.conductivity_sensor_comm import PatternConductivity
 from connection.nibp_par_communication import NibpParCommunication
+from connection.firmware_gateway import (
+    FirmwareGateway,
+    THERAPY_CONFIG_PATH,
+    THERAPY_LOCAL_TAGS,
+    THERAPY_FIRMWARE_TAGS,
+    HEPARIN_DOSE_FIRMWARE_TAGS,
+)
 
 
 from gui.screen_state_manager import ScreenStateManager
@@ -166,7 +173,6 @@ LOCAL_SETPOINT_TAGS = {
     "heparineTherapyMinutes",
 }
 
-THERAPY_CONFIG_PATH = get_runtime_config_path("therapy_config.json")
 NIBP_CONFIG_PATH = get_runtime_config_path("nibp_config.json")
 NIBP_DEFAULT_CONFIG = {
     "enabled": False,
@@ -181,29 +187,6 @@ NIBP_DEFAULT_CONFIG = {
 }
 # Primera toma automática 30s después de RUNNING; luego cada interval_min minutos.
 NIBP_AUTO_FIRST_MEASURE_DELAY_S = 30
-THERAPY_LOCAL_TAGS = {
-    "heparineTherapyHours",
-    "heparineTherapyMinutes",
-    "heparineInfusionEnabled",
-}
-THERAPY_FIRMWARE_TAGS = {
-    "heparineBolusQuantity",      # Vol. bolo heparina
-    # "dialyHeparineBolusFlow",     # Flujo heparina 
-    "heparineTherapyDosage",      # Dosis heparina
-    "heparineAutoStopHours",      # Paro heparina (hh:mm)
-    "heparineAutoStopMinutes",
-    "dialyCondControlSetPoint",   # Conductividad
-    "dialyTempControlSetPoint",   # Temperatura
-    "balanceChamberSetTiming",    # Flujo dializante (UI en ml/min)
-    "bloodFlowControlSetPoint",   # Flujo de sangre
-    "ultraFilterPumpSpeed",       # Flujo UF (UI en L/h)
-}
-HEPARIN_DOSE_FIRMWARE_TAGS = {
-    "heparineBolusQuantity",
-    "heparineTherapyDosage",
-    "heparineAutoStopHours",
-    "heparineAutoStopMinutes",
-}
 
 #===============================================================================
 #======================CODIGO PARA ADJUNTAR LOGOS EN EJECUTABLE=================
@@ -3749,6 +3732,13 @@ class HemodialysisHMI(QMainWindow):
 
     # ====================== ESCRITURA HACIA HARDWARE ======================
 
+    def _get_firmware_gateway(self) -> FirmwareGateway:
+        gateway = getattr(self, "_firmware_gateway", None)
+        if gateway is None:
+            gateway = FirmwareGateway(self)
+            self._firmware_gateway = gateway
+        return gateway
+
     def _write_setpoint(self, tag: str, value: float):
         if tag in LOCAL_SETPOINT_TAGS:
             self.current_values[tag] = float(value)
@@ -3780,161 +3770,31 @@ class HemodialysisHMI(QMainWindow):
             logger.info(f"SETPOINT [LOCAL]: {tag} = {value}")
             return
 
-        if not self.serial_comm or not self.serial_comm.is_connected:
-            logger.warning(f"No se puede escribir setpoint '{tag}': serial desconectado")
-            return
-
-        try:
-            group, address = self._resolve_tag(tag)
-
-            if group is None or address is None:
-                logger.error(f"Tag double '{tag}' no encontrado en VARIABLES")
-                return
-
-            if not VARIABLES[group][address].get("rw", False):
-                logger.warning(f"Tag '{tag}' es de solo lectura")
-                return
-
-            self.serial_comm.write_double(group, address, value)
-
-            # Persistir en unidades de UI para mantener consistencia visual/configuración.
-            persist_value = float(value)
-            if tag == "balanceChamberSetTiming":
-                persist_value = float(convertir_ciclos_a_flujo(value))
-            elif tag == "ultraFilterPumpSpeed":
-                persist_value = float(convertir_ml_min_a_litros_h(value))
-
-            self._persist_therapy_config_tag(tag, persist_value)
-            logger.info(f"SETPOINT [DBL]: {tag} = {value} (G:{hex(group)}, ID:{address})")
-
-        except Exception as e:
-            logger.error(f"Error escribiendo setpoint '{tag}': {e}")
+        return self._get_firmware_gateway()._write_setpoint(tag, value)
 
     def _build_therapy_config_payload(self) -> dict:
-        local_cfg = {
-            tag: float(self.current_values.get(tag, 0.0) or 0.0)
-            for tag in sorted(THERAPY_LOCAL_TAGS)
-        }
-        firmware_cfg = {
-            tag: float(self.current_values.get(tag, 0.0) or 0.0)
-            for tag in sorted(THERAPY_FIRMWARE_TAGS)
-        }
-        return {
-            "schema_version": 1,
-            "local": local_cfg,
-            "firmware": firmware_cfg,
-        }
+        return self._get_firmware_gateway()._build_therapy_config_payload()
 
     def _save_therapy_config_json(self):
-        try:
-            payload = self._build_therapy_config_payload()
-            THERAPY_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-            THERAPY_CONFIG_PATH.write_text(
-                json.dumps(payload, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-        except Exception as exc:
-            logger.error("No se pudo guardar config de terapia JSON: %s", exc)
+        return self._get_firmware_gateway()._save_therapy_config_json()
 
     def _persist_therapy_config_tag(self, tag: str, value: float):
-        if tag not in THERAPY_LOCAL_TAGS and tag not in THERAPY_FIRMWARE_TAGS:
-            return
-        self.current_values[tag] = float(value)
-        self._save_therapy_config_json()
+        return self._get_firmware_gateway()._persist_therapy_config_tag(tag, value)
 
     def _load_therapy_config_json(self):
-        payload = None
-        try:
-            if THERAPY_CONFIG_PATH.exists():
-                payload = json.loads(THERAPY_CONFIG_PATH.read_text(encoding="utf-8"))
-        except Exception as exc:
-            logger.warning("No se pudo leer %s: %s", THERAPY_CONFIG_PATH, exc)
-
-        if not isinstance(payload, dict):
-            # Crea el archivo con el estado actual (defaults) si no existe o está corrupto.
-            self._save_therapy_config_json()
-            self._therapy_config_loaded = True
-            return
-
-        local_cfg = payload.get("local", {}) if isinstance(payload.get("local"), dict) else {}
-        firmware_cfg = payload.get("firmware", {}) if isinstance(payload.get("firmware"), dict) else {}
-
-        for tag in THERAPY_LOCAL_TAGS:
-            if tag in local_cfg:
-                self.current_values[tag] = float(local_cfg[tag] or 0.0)
-
-        for tag in THERAPY_FIRMWARE_TAGS:
-            if tag in firmware_cfg:
-                self.current_values[tag] = float(firmware_cfg[tag] or 0.0)
-
-        self._therapy_config_loaded = True
-        logger.info("Configuración de terapia cargada desde %s", THERAPY_CONFIG_PATH)
+        return self._get_firmware_gateway()._load_therapy_config_json()
 
     def _to_firmware_setpoint_value(self, tag: str, user_value: float) -> float:
-        """Convierte valor persistido (UI) al formato esperado por firmware."""
-        if tag == "balanceChamberSetTiming":
-            return float(convertir_flujo_a_ciclos(user_value))
-        if tag == "ultraFilterPumpSpeed":
-            return float(convertir_litros_h_a_ml_min(user_value))
-        return float(user_value)
+        return self._get_firmware_gateway()._to_firmware_setpoint_value(tag, user_value)
 
     def _apply_therapy_config_to_firmware(self, force: bool = False):
-        if not self._therapy_config_loaded:
-            return
-
-        if self._therapy_config_applied_to_firmware and not force:
-            return
-
-        if not self.serial_comm or not self.serial_comm.is_connected:
-            return
-
-        heparin_enabled = bool(self.current_values.get("heparineInfusionEnabled", 1.0))
-        for tag in sorted(THERAPY_FIRMWARE_TAGS):
-            if not heparin_enabled and tag in HEPARIN_DOSE_FIRMWARE_TAGS:
-                continue
-            try:
-                value = float(self.current_values.get(tag, 0.0) or 0.0)
-                fw_value = self._to_firmware_setpoint_value(tag, value)
-                self._write_setpoint(tag, fw_value)
-            except Exception as exc:
-                logger.warning("No se pudo aplicar setpoint de terapia %s: %s", tag, exc)
-
-        self._therapy_config_applied_to_firmware = True
-        logger.info("Configuración de terapia aplicada al firmware")
-
+        return self._get_firmware_gateway()._apply_therapy_config_to_firmware(force)
 
     def _write_boolean_command(self, tag: str, state: bool):
-        if not self.serial_comm or not self.serial_comm.is_connected:
-            logger.warning(f"No serial connection for boolean command: {tag}")
-            return
-
-        try:
-            _, address = self._resolve_tag(tag)  # group no se usa en boolean
-
-            if address is None:
-                logger.error(f"Tag booleano '{tag}' no encontrado")
-                return
-
-            self.serial_comm.write_boolean(address, state)
-            logger.info(f"COMANDO [BOOL]: {tag} = {state} (Addr: {address})")
-
-        except Exception as e:
-            logger.error(f"Error en write_boolean_command '{tag}': {e}")
-
+        return self._get_firmware_gateway()._write_boolean_command(tag, state)
 
     def _resolve_tag(self, tag: str) -> tuple[int | None, int | None]:
-        """
-        Resuelve un tag a (group, address) usando el mapa inverso.
-        Mucho más rápido y limpio.
-        """
-        if not hasattr(self, '_tags_cache'):
-            self._tags_cache = {}
-
-        if tag in self._tags_cache:
-            return self._tags_cache[tag]
-        result = TAG_TO_ADDRESS.get(tag, (None, None))
-        self._tags_cache[tag] = result
-        return result
+        return self._get_firmware_gateway()._resolve_tag(tag)
     
     #===============================FIN ESCRITURA A HARDWARE===============================
 
