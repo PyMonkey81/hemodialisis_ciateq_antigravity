@@ -1,0 +1,183 @@
+{
+  "report_id": "20261103_145919",
+  "generated_at": "2026-11-03 15:03:49",
+  "session_date": "2026-11-03",
+  "start_time": "14:59:19",
+  "end_time": "15:03:49",
+  "duration_programmed_str": "03:00 h (180 min)",
+  "duration_effective_str": "00:04 h (4 min)",
+  "duration_effective_min": 4,
+  "completion_status": "Completada",
+  "patient": {
+    "id": "P004",
+    "name": "FER RODRIGUEZ LOJERO",
+    "nss": "34455677788",
+    "gender_code": 2,
+    "gender_str": "Femenino (F)",
+    "age": 60,
+    "height_cm": 170.0,
+    "dry_weight_kg": 70.0,
+    "pre_weight_kg": 73.0,
+    "estimated_post_weight_kg": 73.0,
+    "weight_gain_kg": 3.0,
+    "weight_loss_kg": 0.0,
+    "access_type": "Fístula AV (FAV)",
+    "blood_type": "O+",
+    "dialyzer": "F8HPS (Polisulfona 1.8 m²)",
+    "diagnosis": "ERC Estadio 5",
+    "physician": "Médico Nefrólogo adscrito",
+    "allergies": "Ninguna conocida"
+  },
+  "prescription": {
+    "modality": "Hemodiálisis (HD)",
+    "uf_goal_liters": 3.0,
+    "uf_achieved_liters": 0.0,
+    "uf_achievement_pct": 0.0,
+    "uf_profile_name": "Lineal (Sin perfil)",
+    "na_profile_name": "Perfil linear",
+    "conductivity_setpoint": 15.0,
+    "temp_setpoint": 35.0,
+    "qb_setpoint": 300.0,
+    "qd_setpoint": 3.6,
+    "heparin_enabled": true,
+    "heparin_bolus_ml": 0.0,
+    "heparin_rate_ml_h": 1.0,
+    "heparin_total_ml": 2.5
+  },
+  "adequacy": {
+    "ktv_initial": 0.0,
+    "ktv_final": 0.0,
+    "ktv_target_met": false,
+    "urr_estimated_pct": 0.0,
+    "heitmann_v_liters": 11.09,
+    "blood_processed_liters": 1.31,
+    "ktv_history": []
+  },
+  "hemodynamics": {
+    "pa_initial": "—",
+    "pa_final": "—",
+    "pa_min_sys": null,
+    "pa_max_sys": null,
+    "pa_min_dia": null,
+    "pa_max_dia": null,
+    "hr_avg": null,
+    "spo2_avg": null,
+    "spo2_min": null,
+    "hypotension_alerts": 0,
+    "nibp_measurements": []
+  },
+  "machine_stats": {
+    "qb": {
+      "count": 215,
+      "avg": 300.0,
+      "min": 300.0,
+      "max": 300.0,
+      "last": 300.0
+    },
+    "qd": {
+      "count": 215,
+      "avg": 3.6,
+      "min": 3.6,
+      "max": 3.6,
+      "last": 3.6
+    },
+    "pa": {
+      "count": 215,
+      "avg": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "last": 0.0
+    },
+    "pv": {
+      "count": 215,
+      "avg": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "last": 0.0
+    },
+    "ptm": {
+      "count": 215,
+      "avg": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "last": 0.0
+    },
+    "temp_dial": {
+      "count": 215,
+      "avg": 35.0,
+      "min": 35.0,
+      "max": 35.0,
+      "last": 35.0
+    },
+    "cond": {
+      "count": 215,
+      "avg": 15.0,
+      "min": 15.0,
+      "max": 15.0,
+      "last": 15.0
+    },
+    "uf_rate_lh": {
+      "count": 215,
+      "avg": 0.01,
+      "min": 0.01,
+      "max": 0.01,
+      "last": 0.01
+    },
+    "spo2": {
+      "count": 0,
+      "avg": 0.0,
+      "min": 0.0,
+      "max": 0.0,
+      "last": 0.0
+    }
+  },
+  "monitoring_snapshots": [
+    {
+      "index": 1,
+      "horario": "14:59",
+      "elapsed_min": 0.0,
+      "origen": "Inicio",
+      "ta_str": "—",
+      "sys": null,
+      "dia": null,
+      "map_mmhg": null,
+      "hr": null,
+      "spo2": null,
+      "temp_corporal_c": 35.0,
+      "qb_ml_min": 300.0,
+      "qd_ml_min": 3.6,
+      "pv_mmhg": 0.0,
+      "pa_mmhg": 0.0,
+      "temp_dial_c": 35.0,
+      "cond_ms_cm": 15.0,
+      "ptm_mmhg": 0.0,
+      "uf_rate_l_h": 0.01,
+      "uf_removed_l": 0.0,
+      "blood_processed_l": 0.0
+    },
+    {
+      "index": 2,
+      "horario": "15:03",
+      "elapsed_min": 0.0,
+      "origen": "Final",
+      "ta_str": "—",
+      "sys": null,
+      "dia": null,
+      "map_mmhg": null,
+      "hr": null,
+      "spo2": null,
+      "temp_corporal_c": 35.0,
+      "qb_ml_min": 300.0,
+      "qd_ml_min": 3.6,
+      "pv_mmhg": 0.0,
+      "pa_mmhg": 0.0,
+      "temp_dial_c": 35.0,
+      "cond_ms_cm": 15.0,
+      "ptm_mmhg": 0.0,
+      "uf_rate_l_h": 0.01,
+      "uf_removed_l": 0.0,
+      "blood_processed_l": 1.31
+    }
+  ],
+  "alarm_events": []
+}

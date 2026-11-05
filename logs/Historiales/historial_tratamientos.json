@@ -916,5 +916,25 @@
         "duracion_minutos": 14,
         "duracion_hhmm": "00:14",
         "timestamp_registro": "2026-10-19 14:38:03"
+    },
+    {
+        "fecha": "2026-11-03",
+        "hora_inicio": "14:59:19",
+        "hora_fin": "15:03:49",
+        "patient_id": "P004",
+        "paciente": "FER RODRIGUEZ LOJERO",
+        "tipo_tratamiento": "Hemodiálisis (HD)",
+        "duracion_minutos": 4,
+        "duracion_hhmm": "00:04",
+        "uf_meta_l": 3.0,
+        "uf_lograda_l": 0.0,
+        "ktv_final": 0.0,
+        "sangre_procesada_l": 1.31,
+        "pa_final": "—",
+        "report_id": "20261103_145919",
+        "report_pdf_path": "C:\\Users\\miguel.espinoza\\Documents\\Hemodialisis\\hemodialisis_ciateq_antigravity\\exports\\reportes_pdf\\Reporte_HD_P004_20261103_145919.pdf",
+        "report_json_path": "C:\\Users\\miguel.espinoza\\Documents\\Hemodialisis\\hemodialisis_ciateq_antigravity\\logs\\reportes_terapia\\reporte_20261103_145919.json",
+        "report_csv_path": "C:\\Users\\miguel.espinoza\\Documents\\Hemodialisis\\hemodialisis_ciateq_antigravity\\logs\\reportes_terapia\\reporte_20261103_145919.csv",
+        "timestamp_registro": "2026-11-03 15:03:49"
     }
 ]

@@ -167,7 +167,7 @@ class TherapyConfigScreen(QWidget):
         filter_layout.setContentsMargins(20, 20, 20, 20)
         filter_layout.setSpacing(18)
 
-        title = QLabel("LLENADO DE FILTRO")
+        title = QLabel("")
         title.setObjectName("card_title")
         filter_layout.addWidget(title)
 
