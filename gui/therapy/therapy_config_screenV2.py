@@ -210,7 +210,7 @@ class TherapyConfigScreen(QWidget):
         fields = [
             ("Flujo de Sangre (Qb, mL/min):", self.input_blood_flow, "bloodFlowControlSetPoint", "Flujo de Sangre (Qb)"),
             ("Flujo Dializante (Qd, mL/min):", self.input_dialysate_flow, None, None),
-            ("Flujo UF (L/h):", self.lbl_input_UF, None, None),
+            ("Objetivo UF (L/h):", self.lbl_input_UF, None, None),
             ("Temperatura (°C):", self.input_temperature, "dialyTempControlSetPoint", "Temperatura"),
             ("Conductividad (mS/cm):", self.input_conductivity, "dialyCondControlSetPoint", "Conductividad"),
             ("Tiempo de Terapia (hh:mm)", self.input_duration, None, None),
