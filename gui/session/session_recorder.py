@@ -5,7 +5,6 @@ from pathlib import Path
 
 from PySide6.QtCore import QDateTime
 
-from core.operator_messages import resolver
 from utilities.csv_logger import CsvLogger
 from utilities.platform_runtime import get_runtime_data_path, safe_int
 from utilities.therapy_report_generator import TherapyReportGenerator
@@ -340,16 +339,10 @@ class SessionRecorder:
             if status_code in (14, 15) and treatment_mode != 3:
                 if hasattr(self.window, "treatment_controller") and self.window.treatment_controller is not None:
                     self.window.treatment_controller.stop_treatment()
-                
-                aviso = resolver("CIERRE_ABRUPTO_TERAPIA", self.window.state.current_phase)
-                if aviso:
-                    self.window.show_catalog_message("CIERRE_ABRUPTO_TERAPIA")
+                self.window.show_catalog_message("CIERRE_ABRUPTO_TERAPIA")
             elif treatment_mode == 3 and status_code == 6:
                 self.window._write_boolean_command("dialyStartDialysisButt", False)
                 self.window._write_boolean_command("dialyStopDialysisButt", True)
-                
-                aviso = resolver("CIERRE_ABRUPTO_LIMPIEZA", self.window.state.current_phase)
-                if aviso:
-                    self.window.show_catalog_message("CIERRE_ABRUPTO_LIMPIEZA")
+                self.window.show_catalog_message("CIERRE_ABRUPTO_LIMPIEZA")
         except Exception as e:
             logger.error(f"Error manejando cierre abrupto: {e}")
