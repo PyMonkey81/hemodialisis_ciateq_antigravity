@@ -2,6 +2,7 @@ import logging
 import time
 
 from core.state_manager import TreatmentPhase
+from core.operator_messages import resolver
 from gui.therapy.heparin_config_screenV2 import (
     HEPARIN_AUTO_STOP_HOURS_TAG,
     HEPARIN_AUTO_STOP_MINUTES_TAG,
@@ -136,11 +137,14 @@ class HeparinCoordinator:
                     )
                 
                 # Mostrar aviso
-                msg = (
-                    f"Tiempo de heparina limitado a {clamped_h:02d}:{clamped_m:02d}. "
-                    "No se infunde durante los últimos 30 minutos de la terapia."
+                aviso = resolver(
+                    "HEP_TIEMPO_LIMITADO",
+                    self.window.state.current_phase,
+                    horas=clamped_h,
+                    minutos=clamped_m
                 )
-                self.window.show_warning_message(msg, 5000)
+                if aviso:
+                    self.window.show_catalog_message("HEP_TIEMPO_LIMITADO", horas=clamped_h, minutos=clamped_m)
         
         except Exception as e:
             logger.error(f"Error validando tiempo de heparina: {e}", exc_info=True)
@@ -198,7 +202,10 @@ class HeparinCoordinator:
             )
             self.window._write_boolean_command("heparinePumpsStopButton", True)
             self.window._heparin_auto_stop_latched = True
-            self.window.show_warning_message("Paro automático de bomba de heparina por temporizador", 4500)
+            
+            aviso = resolver("HEP_PARO_AUTO", self.window.state.current_phase)
+            if aviso:
+                self.window.show_catalog_message("HEP_PARO_AUTO")
 
     def set_heparin_infusion_enabled(self, enabled: bool):
         """Habilita/deshabilita la infusión automática de heparina (checkbox de terapia)."""

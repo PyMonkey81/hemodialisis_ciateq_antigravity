@@ -101,6 +101,7 @@ from gui.components.tank_gauge import TankGauge
 from gui.components.conductivity_bar import ConductivityBar
 from gui.components.floating_message import FloatingMessage
 from gui.components.floating_confirm import FloatingConfirmDialog
+from gui.components.floating_message_dialog import FloatingMessageDialog
 
 from gui.configuration.alarm_screen_config import AlarmScreenConfig 
 from gui.configuration.alarm_screen_service_config import AlarmScreenServiceConfig
@@ -2691,6 +2692,27 @@ class HemodialysisHMI(QMainWindow):
     def show_error_message(self, text: str, timeout_ms: int = 5000):
         return self._get_operator_alerts().show_error_message(text, timeout_ms)
     
+    def show_catalog_message(self, clave: str, **campos):
+        """
+        Muestra un aviso del catálogo de operador usando FloatingMessageDialog.
+        
+        Si el aviso no es permitido en la fase actual, no muestra nada.
+        Si se muestra, espera a que el operador acepte (sin timeout).
+        
+        Args:
+            clave: Clave del aviso (ej: "HEP_TIEMPO_LIMITADO")
+            **campos: Campos para formatear el texto (ej: horas=2, minutos=30)
+        """
+        from core.operator_messages import resolver
+        
+        aviso = resolver(clave, self.state.current_phase, **campos)
+        if aviso is None:
+            # Aviso no permitido en esta fase
+            return
+        
+        # Mostrar diálogo modal (espera hasta aceptar)
+        dialog = FloatingMessageDialog(self)
+        dialog.show_message(aviso["texto"])
 
     def update_connection_status(self):
         """
