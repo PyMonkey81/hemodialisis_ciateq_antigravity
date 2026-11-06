@@ -2706,14 +2706,17 @@ class HemodialysisHMI(QMainWindow):
         
         aviso = resolver(clave, self.state.current_phase, **campos)
         if aviso is None:
-            # Aviso no permitido en esta fase
             return
         
-        # Mostrar diálogo con FloatingConfirmDialog (solo botón Aceptar)
+        texto = aviso["texto"]
+        QTimer.singleShot(0, lambda: self._show_catalog_dialog(texto))
+    
+    def _show_catalog_dialog(self, texto: str):
+        """Abre el diálogo de aviso del catálogo (llamado desde QTimer cuando _timer_lock está liberado)"""
         dialog = FloatingConfirmDialog(self)
-        dialog.btn_cancel.hide()  # Ocultar botón Cancelar
+        dialog.btn_cancel.hide()
         dialog.btn_accept.setText("Aceptar")
-        dialog.show_confirm(aviso["texto"], accept_text="Aceptar", cancel_text="")
+        dialog.show_confirm(texto, accept_text="Aceptar", cancel_text="")
 
     def update_connection_status(self):
         """
