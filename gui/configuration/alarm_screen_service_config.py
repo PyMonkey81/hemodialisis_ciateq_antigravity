@@ -13,12 +13,53 @@ from gui.theme_manager import ThemeManager
 from core.alarm_config_manager import AlarmConfigManager
 from typing import Dict, List
 import logging
+import os
+import re
 logger = logging.getLogger(__name__)
 
 try:
     from core.variables_map import VARIABLES
 except ImportError:
     VARIABLES = {0x01: {}, 0x02: {}}
+
+
+def _load_hidden_service_variables():
+    """
+    Lee el archivo variables_map.py como texto y busca variables marcadas 
+    con el comentario 'no mostrar en catalogo'. Retorna un set de tags ocultos.
+    """
+    hidden_tags = set()
+    try:
+        variables_map_path = os.path.join(os.path.dirname(__file__), '..', '..', 'core', 'variables_map.py')
+        with open(variables_map_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                # Buscar líneas que contengan 'no mostrar en catalogo'
+                if 'no mostrar en catalogo' in line:
+                    # Extraer parte antes del comentario
+                    parts = line.split('#')[0]
+                    
+                    # Buscar patrón dict: "tag": "nombre_tag"
+                    dict_match = re.search(r'"tag"\s*:\s*"([^"]+)"', parts)
+                    if dict_match:
+                        hidden_tags.add(dict_match.group(1))
+                    else:
+                        # Para tuplas, buscar el último string entre comillas (que no sea un color/nivel)
+                        colors = {'cian', 'amarillo', 'rojo', 'verde', 'naranja', 'purpura'}
+                        last_tag = None
+                        for m in re.finditer(r'"([^"]+)"', parts):
+                            tag_candidate = m.group(1)
+                            if tag_candidate not in colors:
+                                last_tag = tag_candidate
+                        if last_tag:
+                            hidden_tags.add(last_tag)
+    except Exception as e:
+        logger.warning(f"No se pudo cargar variables ocultas de servicio: {e}")
+    
+    return hidden_tags
+
+
+# Cargar tags ocultos al importar
+_HIDDEN_SERVICE_TAGS = _load_hidden_service_variables()
 
 
 class AlarmScreenServiceConfig(QWidget):
@@ -146,6 +187,10 @@ class AlarmScreenServiceConfig(QWidget):
             for info in group.values():
                 if info.get("tag") and info.get("type") in ("double", "bool"):
                     tag = info["tag"]
+
+                    # Saltar variables marcadas como 'no mostrar en catalogo'
+                    if tag in _HIDDEN_SERVICE_TAGS:
+                        continue
                     name = info.get("name", tag)
                     unit = info.get("unit", "")
 

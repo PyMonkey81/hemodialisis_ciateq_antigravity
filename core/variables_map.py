@@ -90,36 +90,36 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
             for i, (name, label, nivel, tag) in enumerate([
                 # --- VARIABLES DE CONTROL (ESCRITURA/LECTURA) - ID 0 a 40 (RW=True) ---
                 
-                ("Bomba peristáltica - Arranque", "INICIAR B.S.", "cian", "bloodPumpStartButton"),      # 0
-                ("Bomba peristáltica - Paro", "PARAR B.S.", "cian", "bloodPumpStopButton"),             # 1
-                ("Bomba peristáltica - Avance", "FWD B.S.", "cian", "bloodPumpFWDButton"),              # 2
-                ("Bomba peristáltica - Reversa", "BCK B.S.", "cian", "bloodPumpREVButton"),             # 3
-                ("Bomba de purga - Arranque", "INICIAR PURGA", "cian", "dialyserPumpStartButton"),      # 4
-                ("Bomba de purga - Paro", "PARAR PURGA", "cian", "dialyserPumpStopButton"),             # 5
-                ("Bomba Heparina - Arranque", "INIC. HEPARINA", "cian", "heparinePumpsStartButton"),    # 6
-                ("Bomba Heparina - Paro", "PARAR HEPARINA", "cian", "heparinePumpsStopButton"),         # 7
-                ("Bomba Heparina - Avance", "FWD HEPARINA", "cian", "heparinePumpFWDButton"),           # 8
-                ("Bomba Heparina - Reversa", "REV HEPARINA", "cian", "heparinePumpREVButton"),          # 9
-                ("Control Flujo Sangre - Habilitar", "HAB. CTRL FLUJO", "cian", "bloodControlLoopEnable"), # 10
-                ("Control Flujo Sangre - Auto/Manual", "AUTO/MAN FLUJO", "cian", "bloodControlLoopMode"),  # 11
-                ("Control Conductividad - Habilitar", "HAB. CTRL COND", "cian", "dialyCondCtrlLoopEnable"),# 12
-                ("Control Conductividad - Auto/Manual", "AUTO/MAN COND", "cian", "dialyCondCtrlLoopMode"), # 13
-                ("Control Temp Dializante - Habilitar", "HAB. CTRL TEMP", "cian", "dialyTempCtrlLoopEnable"),# 14
-                ("Control Temp Dializante - Auto/Manual", "AUTO/MAN TEMP", "cian", "dialyTempCtrlLoopMode"), # 15
-                ("Bomba Heparina - Home", "HOME HEPARINA", "cian", "heparinePumpHomePosition"),         # 16
-                ("Cámara Balance - Start", "INICIO CAM.BAL", "cian", "dialiserBalChambStrButt"),        # 17
-                ("Cámara Balance - Stop", "PARO CAM.BAL", "cian", "dialiserBalChambStpButt"),           # 18
-                ("Bolo Heparina", "BOLO HEPARINA", "cian", "heparinApplyBolusDose"),                    # 19
-                ("Pausar/Continuar", "PAUSA/CONT.", "cian", "heparineOperPauseResume"),                 # 20
-                ("Operar Elementos Dializante", "ELEM. DIALIZ.", "cian", "dialyCircuitElementsOpSel"),  # 21
-                ("Bomba Purga Dializante - Start", "INI PURGA DIAL", "cian", "dialyPurgePumpStartButt"), # 22
-                ("Bomba Purga Dializante - Stop", "FIN PURGA DIAL", "cian", "dialyPurgePumpStopButt"),   # 23
-                ("Bomba UF - Start", "INICIAR UF", "cian", "dialyUltraFPumpStartButt"),                 # 24
-                ("Bomba UF - Stop", "PARAR UF", "cian", "dialyUltraFPumpStoptButt"),                    # 25
-                ("Bomba Bicarbonato - Start", "INI BICARBONATO", "cian", "dialyBicarbonPumpStartButt"), # 26
-                ("Bomba Bicarbonato - Stop", "FIN BICARBONATO", "cian", "dialyBicarbonPumpStopButt"),   # 27
-                ("Bomba Ácido Cítrico - Start", "INI AC.CITRICO", "cian", "dialyCitricAcPumpStartButt"),# 28
-                ("Bomba Ácido Cítrico - Stop", "FIN AC.CITRICO", "cian", "dialyCitricAcPumpStopButt"),  # 29
+                ("Bomba peristáltica - Arranque", "INICIAR B.S.", "cian", "bloodPumpStartButton"),      # 0  no mostrar en catalogo
+                ("Bomba peristáltica - Paro", "PARAR B.S.", "cian", "bloodPumpStopButton"),             # 1  no mostrar en catalogo
+                ("Bomba peristáltica - Avance", "FWD B.S.", "cian", "bloodPumpFWDButton"),              # 2  no mostrar en catalogo
+                ("Bomba peristáltica - Reversa", "BCK B.S.", "cian", "bloodPumpREVButton"),             # 3  no mostrar en catalogo
+                ("Bomba de purga - Arranque", "INICIAR PURGA", "cian", "dialyserPumpStartButton"),      # 4  no mostrar en catalogo
+                ("Bomba de purga - Paro", "PARAR PURGA", "cian", "dialyserPumpStopButton"),             # 5  no mostrar en catalogo
+                ("Bomba Heparina - Arranque", "INIC. HEPARINA", "cian", "heparinePumpsStartButton"),    # 6  no mostrar en catalogo
+                ("Bomba Heparina - Paro", "PARAR HEPARINA", "cian", "heparinePumpsStopButton"),         # 7  no mostrar en catalogo
+                ("Bomba Heparina - Avance", "FWD HEPARINA", "cian", "heparinePumpFWDButton"),           # 8  no mostrar en catalogo
+                ("Bomba Heparina - Reversa", "REV HEPARINA", "cian", "heparinePumpREVButton"),          # 9  no mostrar en catalogo
+                ("Control Flujo Sangre - Habilitar", "HAB. CTRL FLUJO", "cian", "bloodControlLoopEnable"), # 10  no mostrar en catalogo
+                ("Control Flujo Sangre - Auto/Manual", "AUTO/MAN FLUJO", "cian", "bloodControlLoopMode"),  # 11  no mostrar en catalogo
+                ("Control Conductividad - Habilitar", "HAB. CTRL COND", "cian", "dialyCondCtrlLoopEnable"),# 12  no mostrar en catalogo
+                ("Control Conductividad - Auto/Manual", "AUTO/MAN COND", "cian", "dialyCondCtrlLoopMode"), # 13  no mostrar en catalogo
+                ("Control Temp Dializante - Habilitar", "HAB. CTRL TEMP", "cian", "dialyTempCtrlLoopEnable"),# 14  no mostrar en catalogo
+                ("Control Temp Dializante - Auto/Manual", "AUTO/MAN TEMP", "cian", "dialyTempCtrlLoopMode"), # 15  no mostrar en catalogo
+                ("Bomba Heparina - Home", "HOME HEPARINA", "cian", "heparinePumpHomePosition"),         # 16  no mostrar en catalogo
+                ("Cámara Balance - Start", "INICIO CAM.BAL", "cian", "dialiserBalChambStrButt"),        # 17  no mostrar en catalogo
+                ("Cámara Balance - Stop", "PARO CAM.BAL", "cian", "dialiserBalChambStpButt"),           # 18  no mostrar en catalogo
+                ("Bolo Heparina", "BOLO HEPARINA", "cian", "heparinApplyBolusDose"),                    # 19  no mostrar en catalogo
+                ("Pausar/Continuar", "PAUSA/CONT.", "cian", "heparineOperPauseResume"),                 # 20  no mostrar en catalogo
+                ("Operar Elementos Dializante", "ELEM. DIALIZ.", "cian", "dialyCircuitElementsOpSel"),  # 21  no mostrar en catalogo
+                ("Bomba Purga Dializante - Start", "INI PURGA DIAL", "cian", "dialyPurgePumpStartButt"), # 22  no mostrar en catalogo
+                ("Bomba Purga Dializante - Stop", "FIN PURGA DIAL", "cian", "dialyPurgePumpStopButt"),   # 23  no mostrar en catalogo
+                ("Bomba UF - Start", "INICIAR UF", "cian", "dialyUltraFPumpStartButt"),                 # 24  no mostrar en catalogo
+                ("Bomba UF - Stop", "PARAR UF", "cian", "dialyUltraFPumpStoptButt"),                    # 25  no mostrar en catalogo
+                ("Bomba Bicarbonato - Start", "INI BICARBONATO", "cian", "dialyBicarbonPumpStartButt"), # 26  no mostrar en catalogo
+                ("Bomba Bicarbonato - Stop", "FIN BICARBONATO", "cian", "dialyBicarbonPumpStopButt"),   # 27  no mostrar en catalogo
+                ("Bomba Ácido Cítrico - Start", "INI AC.CITRICO", "cian", "dialyCitricAcPumpStartButt"),# 28  no mostrar en catalogo
+                ("Bomba Ácido Cítrico - Stop", "FIN AC.CITRICO", "cian", "dialyCitricAcPumpStopButt"),  # 29  no mostrar en catalogo
                 ("Válvula Agua Entrada", "VALV ENTRADA", "cian", "dialyWaterInletValveButt"),           # 30
                 ("Válvula Recirculación", "VALV RECIRCUL", "cian", "dialyRecirculatValveButt"),         # 31
                 ("Válvula Cámara Caliente", "VALV CAM.CAL.", "cian", "dialyHotChambValveButt"),         # 32
@@ -128,24 +128,24 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
                 ("Válvula Corte Entrada Filtro", "CORTE ENT FILT", "cian", "dialyInputFilterCutButt"),  # 35
                 ("Válvula Corte Salida Filtro", "CORTE SAL FILT", "cian", "dialyOutputFilterCutButt"),  # 36
                 ("Válvula de Drenaje", "VALV DRENAJE", "cian", "dialyWaterDrainValveButt"),             # 37
-                ("Fin de Ciclo Cámara Balance", "FIN CICLO BAL", "amarillo", "dialyBalanceChambCycleEnd"),# 38
-                ("Iniciar Diálisis", "INICIO DIALISIS", "cian", "dialyStartDialysisButt"),              # 39
-                ("Parar Diálisis", "PARO DIALISIS", "cian", "dialyStopDialysisButt"),                   # 40
+                ("Fin de Ciclo Cámara Balance", "FIN CICLO BAL", "amarillo", "dialyBalanceChambCycleEnd"),# 38 no mostrar en catalogo
+                ("Iniciar Diálisis", "INICIO DIALISIS", "cian", "dialyStartDialysisButt"),              # 39 no mostrar en catalogo
+                ("Parar Diálisis", "PARO DIALISIS", "cian", "dialyStopDialysisButt"),                   # 40 no mostrar en catalogo
                 ("Protección Resistores Calefactor", "PROT CALEFACTOR", "cian", "watterTankHeaterProtect"), # 41     alarma que se activa constantemente pero no importante para usuario
-                ("Disponible para Función Digital 3", "RESERVA 3", "cian", "availableBoolVariable1"),       # 42
-                ("Disponible para Función Digital 4", "RESERVA 4", "cian", "availableBoolVariable2"),       # 43
-                ("Disponible para Función Digital 5", "RESERVA 5", "cian", "availableBoolVariable3"),       # 44
-                ("Disponible para Función Digital 6", "RESERVA 6", "cian", "availableBoolVariable4"),       # 45
-                ("Disponible para Función Digital 7", "RESERVA 7", "cian", "availableBoolVariable5"),       # 46
+                ("Disponible para Función Digital 3", "RESERVA 3", "cian", "availableBoolVariable1"),       # 42  no mostrar en catalogo
+                ("Disponible para Función Digital 4", "RESERVA 4", "cian", "availableBoolVariable2"),       # 43  no mostrar en catalogo
+                ("Disponible para Función Digital 5", "RESERVA 5", "cian", "availableBoolVariable3"),       # 44  no mostrar en catalogo
+                ("Disponible para Función Digital 6", "RESERVA 6", "cian", "availableBoolVariable4"),       # 45  no mostrar en catalogo
+                ("Disponible para Función Digital 7", "RESERVA 7", "cian", "availableBoolVariable5"),       # 46  no mostrar en catalogo
                 ("Disponible para Función Digital 8", "RESERVA 8", "cian", "availableBoolVariable6"),       # 47
                 ("Detector Burbuja Aire en Sangre", "AIRE EN LINEA", "rojo", "airBubbleInBloodDetected"),   # 48 (ALARMA)
                 ("Detector Sangre en Dializante", "FUGA SANGRE", "rojo", "bloodInDialyCircDetected"),       # 49 (ALARMA)
                 ("Nivel Alto Tanque Agua", "NIVEL AGUA ALTO", "amarillo", "dialyTankHiLevelSwitch"),        # 50
                 ("Nivel Cámara Deaereación", "NIVEL DEAERAC.", "amarillo", "dialyDeaerChamLevSwitch"),      # 51
                 ("Disponible para Función Digital 11", "RESERVA 11", "cian", "availableBoolVariable7"),     # 52
-                ("Start Operation mode", "ESTADO START", "cian", "dialyModeOperationStart"),                      # 53
-                ("Stop Operation mode", "ESTADO STOP", "cian", "dialyModeOperationStop"),                         # 54
-                ("Pause Operation mode", "ESTADO PAUSE", "cian", "dialyModeOperationPause"),    # 55
+                ("Start Operation mode", "ESTADO START", "cian", "dialyModeOperationStart"),                      # 53 no mostrar en catalogo
+                ("Stop Operation mode", "ESTADO STOP", "cian", "dialyModeOperationStop"),                         # 54 no mostrar en catalogo
+                ("Pause Operation mode", "ESTADO PAUSE", "cian", "dialyModeOperationPause"),    # 55 no mostrar en catalogo
                 ("Llenado de filtro", "LLENADO DE FILTRO", "cian", "dialyFilterFillButton"),    # 56
                 ("Sobrepresión Bomba Diálisis", "SOBREPRESIÓN DIALIZANTE", "rojo", "dialyDialyPumpOverPress"),    # 57
                 ("Sobrepresión Bomba Deaeración", "SOBREPRESIÓN DEAERACIÓN", "rojo", "dialyDeaerPumpOverPress"),    # 58
@@ -159,26 +159,26 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
     # ================================================================
     0x02: {
         0x00: {"name": "Presión intermembrana", "label": "PTM", "type": "double", "rw": True, "unit": "mmHg", "limites": (1, 100), "tag": "interMembPresClinicData", "nivel": "cian"},           # 0
-        0x01: {"name": "Selección de modo de tratamiento", "label": "MODO TTO", "type": "double", "rw": True, "unit": "NA", "limites": (0, 100), "tag": "treatmentModeSelection", "nivel": "cian"}, # 1 *dialyOpModeSelector  
-        0x02: {"name": "Estado actual de proceso de cebado", "label": "ESTADO CEBADO", "type": "double", "rw": True, "unit": "NA", "limites": (0, 100), "tag": "primingProcessStatus", "nivel": "cian"},  # 2 dialyCurrProcessState       
-        0x03: {"name": "Número de ciclos UF", "label": "CICLOS UF", "type": "double", "rw": True, "unit": "ml", "limites": (0, 100000), "tag": "ultraFilterCycleCount", "nivel": "cian"},  # 3
-        0x04: {"name": "Selector de ciclos cámara de balance", "label": "SET CICLOS BAL.", "type": "double", "rw": True, "unit": "n", "limites": (1, 100), "tag": "balanceChamberCycleSet", "nivel": "cian"}, # 4
+        0x01: {"name": "Selección de modo de tratamiento", "label": "MODO TTO", "type": "double", "rw": True, "unit": "NA", "limites": (0, 100), "tag": "treatmentModeSelection", "nivel": "cian"}, # 1 *dialyOpModeSelector  no mostrar en catalogo
+        0x02: {"name": "Estado actual de proceso de cebado", "label": "ESTADO CEBADO", "type": "double", "rw": True, "unit": "NA", "limites": (0, 100), "tag": "primingProcessStatus", "nivel": "cian"},  # 2 dialyCurrProcessState no mostrar en catalogo
+        0x03: {"name": "Número de ciclos UF", "label": "CICLOS UF", "type": "double", "rw": True, "unit": "ml", "limites": (0, 100000), "tag": "ultraFilterCycleCount", "nivel": "cian"},  # 3 no mostrar en catalogo
+        0x04: {"name": "Selector de ciclos cámara de balance", "label": "SET CICLOS BAL.", "type": "double", "rw": True, "unit": "n", "limites": (1, 100), "tag": "balanceChamberCycleSet", "nivel": "cian"}, # 4 no mostrar en catalogo
         0x05: {"name": "Volumen de heparina dosificado actual", "label": "VOL. HEPARINA", "type": "double", "rw": True, "unit": "ml", "limites": (0, 100), "tag": "heparineCurrentDosage", "nivel": "cian"},# 5
-        0x06: {"name": "Número de ciclos Camara de balance", "label": "CICLOS ACTUAL", "type": "double", "rw": True, "unit": "c", "limites": (0, 10000), "tag": "balanceChamberCycleCount", "nivel": "cian"},# 6
+        0x06: {"name": "Número de ciclos Camara de balance", "label": "CICLOS ACTUAL", "type": "double", "rw": True, "unit": "c", "limites": (0, 10000), "tag": "balanceChamberCycleCount", "nivel": "cian"},# 6 no mostrar en catalogo
     },
     # ================================================================
     # SETPOINTS (0x03)
     # ================================================================
     0x03: {
-        0x00: {"name": "Velocidad de UltraFiltrado", "label": "TASA UF", "type": "double", "rw": True, "unit": "L/h", "limites": (0, 2), "tag": "ultraFilterPumpSpeed", "nivel": "cian"},              # 7
-        0x01: {"name": "Ajuste de tiempo de ciclo de cámara de balance", "label": "TIEMPO CICLO", "type": "double", "rw": True, "unit": "s", "limites": (0, 100), "tag": "balanceChamberSetTiming", "nivel": "cian"}, # 8
-        0x02: {"name": "Tiempo auto-paro heparina: horas", "label": "T. HEP (H)", "type": "double", "rw": True, "unit": "h", "limites": (0, 10), "tag": "heparineAutoStopHours", "nivel": "cian"},         # 9
-        0x03: {"name": "Tiempo auto-paro heparina: minutos", "label": "T. HEP (M)", "type": "double", "rw": True, "unit": "m", "limites": (0, 59), "tag": "heparineAutoStopMinutes", "nivel": "cian"},    # 10
-        0x04: {"name": "Tamaño de escala de jeringa", "label": "ESC. JERINGA", "type": "double", "rw": True, "unit": "mm/ml", "limites": (1, 10), "tag": "heparineSyringeSize", "nivel": "cian"},      # 11
+        0x00: {"name": "Velocidad de UltraFiltrado", "label": "TASA UF", "type": "double", "rw": True, "unit": "L/h", "limites": (0, 2), "tag": "ultraFilterPumpSpeed", "nivel": "cian"},              # 7 no mostrar en catalogo
+        0x01: {"name": "Ajuste de tiempo de ciclo de cámara de balance", "label": "TIEMPO CICLO", "type": "double", "rw": True, "unit": "s", "limites": (0, 100), "tag": "balanceChamberSetTiming", "nivel": "cian"}, # 8 no mostrar en catalogo
+        0x02: {"name": "Tiempo auto-paro heparina: horas", "label": "T. HEP (H)", "type": "double", "rw": True, "unit": "h", "limites": (0, 10), "tag": "heparineAutoStopHours", "nivel": "cian"},         # 9 no mostrar en catalogo
+        0x03: {"name": "Tiempo auto-paro heparina: minutos", "label": "T. HEP (M)", "type": "double", "rw": True, "unit": "m", "limites": (0, 59), "tag": "heparineAutoStopMinutes", "nivel": "cian"},    # 10 no mostrar en catalogo
+        0x04: {"name": "Tamaño de escala de jeringa", "label": "ESC. JERINGA", "type": "double", "rw": True, "unit": "mm/ml", "limites": (1, 10), "tag": "heparineSyringeSize", "nivel": "cian"},      # 11 no mostrar en catalogo
         0x05: {"name": "Dosis de heparina por terapia ml/h", "label": "DOSIS HEPAR", "type": "double", "rw": True, "unit": "ml/h", "limites": (0, 50), "tag": "heparineTherapyDosage", "nivel": "cian"},   # 12
         0x06: {"name": "Cantidad de bolo", "label": "CANT. BOLO", "type": "double", "rw": True, "unit": "ml", "limites": (0, 10), "tag": "heparineBolusQuantity", "nivel": "cian"},                       # 13
-        0x07: {"name": "Ajuste de velocidad de bomba bicarbonato", "label": "VEL BICARB", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "bicarbonatePumpSpeed", "nivel": "cian"},# 14
-        0x08: {"name": "Ajuste de velocidad de ácido cítrico", "label": "VEL ACIDO", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "citricAcidPumpSpeed", "nivel": "cian"},     # 15
+        0x07: {"name": "Ajuste de velocidad de bomba bicarbonato", "label": "VEL BICARB", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "bicarbonatePumpSpeed", "nivel": "cian"},# 14  no mostrar en catalogo
+        0x08: {"name": "Ajuste de velocidad de ácido cítrico", "label": "VEL ACIDO", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "citricAcidPumpSpeed", "nivel": "cian"},     # 15 no mostrar en catalogo
     },
 
     # ================================================================
@@ -187,27 +187,27 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
     0x04: {
         0x00: {"name": "Setpoint flujo sanguíneo", "label": "SP FLUJO S.", "type": "double", "rw": True, "unit": "ml/min", "limites": (0, 600), "tag": "bloodFlowControlSetPoint", "nivel": "cian"},        # 16
         0x01: {"name": "Cálculo flujo circuito sanguíneo", "label": "CALC FLUJO S.", "type": "double", "rw": True, "unit": "ml/min", "limites": (0, 600), "tag": "bloodFlowVariableData", "nivel": "cian"},   # 17 
-        0x02: {"name": "Salida control flujo sanguíneo", "label": "OUT FLUJO S.", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "bloodFlowControlOutput", "nivel": "cian"},         # 18
-        0x03: {"name": "Kp control de flujo sanguíneo", "label": "KP FLUJO S.", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "bloodFlowControlPropGain", "nivel": "cian"},          # 19 
-        0x04: {"name": "Ki control de flujo sanguíneo", "label": "KI FLUJO S.", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "bloodFlowControlInteGain", "nivel": "cian"},          # 20
-        0x05: {"name": "Kd control de flujo sanguíneo", "label": "KD FLUJO S.", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "bloodFlowControlDeriGain", "nivel": "cian"},          # 21
+        0x02: {"name": "Salida control flujo sanguíneo", "label": "OUT FLUJO S.", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "bloodFlowControlOutput", "nivel": "cian"},         # 18  no mostrar en catalogo
+        0x03: {"name": "Kp control de flujo sanguíneo", "label": "KP FLUJO S.", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "bloodFlowControlPropGain", "nivel": "cian"},          # 19  no mostrar en catalogo
+        0x04: {"name": "Ki control de flujo sanguíneo", "label": "KI FLUJO S.", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "bloodFlowControlInteGain", "nivel": "cian"},          # 20  no mostrar en catalogo
+        0x05: {"name": "Kd control de flujo sanguíneo", "label": "KD FLUJO S.", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "bloodFlowControlDeriGain", "nivel": "cian"},          # 21  no mostrar en catalogo
         0x06: {"name": "Setpoint conductividad", "label": "SP COND.", "type": "double", "rw": True, "unit": "mS/cm", "limites": (13.0, 15.0), "tag": "dialyCondControlSetPoint", "nivel": "cian"},       # 22
         0x07: {"name": "Conductividad medida", "label": "COND. REAL", "type": "double", "rw": False, "unit": "mS/cm", "limites": (12.5, 15.5), "tag": "dialyCondVariableData", "nivel": "amarillo"},       # 23
-        0x08: {"name": "Salida control de conductividad", "label": "OUT COND.", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "dialyCondControlOutput", "nivel": "cian"},       # 24
-        0x09: {"name": "Kp control de conductividad", "label": "KP COND.", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyCondControlPropGain", "nivel": "cian"},            # 25
-        0x0A: {"name": "Ki control de conductividad", "label": "KI COND.", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyCondControlInteGain", "nivel": "cian"},            # 26
-        0x0B: {"name": "Kd control de conductividad", "label": "KD COND.", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyCondControlDeriGain", "nivel": "cian"},            # 27
+        0x08: {"name": "Salida control de conductividad", "label": "OUT COND.", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "dialyCondControlOutput", "nivel": "cian"},       # 24 no mostrar en catalogo
+        0x09: {"name": "Kp control de conductividad", "label": "KP COND.", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyCondControlPropGain", "nivel": "cian"},            # 25  no mostrar en catalogo
+        0x0A: {"name": "Ki control de conductividad", "label": "KI COND.", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyCondControlInteGain", "nivel": "cian"},            # 26  no mostrar en catalogo
+        0x0B: {"name": "Kd control de conductividad", "label": "KD COND.", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyCondControlDeriGain", "nivel": "cian"},            # 27  no mostrar en catalogo
         0x0C: {"name": "Setpoint temperatura", "label": "SP TEMP.", "type": "double", "rw": True, "unit": "°C", "limites": (35.0, 39.0), "tag": "dialyTempControlSetPoint", "nivel": "cian"},            # 28 
         0x0D: {"name": "Temperatura medida", "label": "TEMP. REAL", "type": "double", "rw": False, "unit": "°C", "limites": (34.5, 39.5), "tag": "dialyTempVariableData", "nivel": "amarillo"},            # 29
-        0x0E: {"name": "Salida control temperatura", "label": "OUT TEMP.", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "dialyTempControlOutput", "nivel": "cian"},            # 30 
-        0x0F: {"name": "Kp control temperatura", "label": "KP TEMP.", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyTempControlPropGain", "nivel": "cian"},                 # 31
-        0x10: {"name": "Ki control temperatura", "label": "KI TEMP.", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyTempControlInteGain", "nivel": "cian"},                 # 32
-        0x11: {"name": "Kd control temperatura", "label": "KD TEMP.", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyTempControlDeriGain", "nivel": "cian"},                 # 33
-        0x12: {"name": "Ganancia Feedforward flujo", "label": "GAN FF FLUJO", "type": "double", "rw": True, "unit": "", "limites": (0, 5), "tag": "bloodFlowFeedForwardGain", "nivel": "cian"},              # 34
-        0x13: {"name": "Tiempo adelanto Feedforward flujo", "label": "T. ADELANTO FF", "type": "double", "rw": True, "unit": "s", "limites": (0, 10), "tag": "bloodFlowFeedForwardLead", "nivel": "cian"},     # 35
+        0x0E: {"name": "Salida control temperatura", "label": "OUT TEMP.", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "dialyTempControlOutput", "nivel": "cian"},            # 30 no mostrar en catalogo
+        0x0F: {"name": "Kp control temperatura", "label": "KP TEMP.", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyTempControlPropGain", "nivel": "cian"},                 # 31 no mostrar en catalogo
+        0x10: {"name": "Ki control temperatura", "label": "KI TEMP.", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyTempControlInteGain", "nivel": "cian"},                 # 32 no mostrar en catalogo
+        0x11: {"name": "Kd control temperatura", "label": "KD TEMP.", "type": "double", "rw": True, "unit": "", "limites": (0, 10), "tag": "dialyTempControlDeriGain", "nivel": "cian"},                 # 33 no mostrar en catalogo
+        0x12: {"name": "Ganancia Feedforward flujo", "label": "GAN FF FLUJO", "type": "double", "rw": True, "unit": "", "limites": (0, 5), "tag": "bloodFlowFeedForwardGain", "nivel": "cian"},              # 34  no mostrar en catalogo
+        0x13: {"name": "Tiempo adelanto Feedforward flujo", "label": "T. ADELANTO FF", "type": "double", "rw": True, "unit": "s", "limites": (0, 10), "tag": "bloodFlowFeedForwardLead", "nivel": "cian"},     # 35 no mostrar en catalogo
         0x14: {"name": "Setpoint flujo dializante", "label": "SP FLUJO DIAL", "type": "double", "rw": True, "unit": "ml/min", "limites": (300, 800), "tag": "dialyFlowControlOutput", "nivel": "cian"},       # 36
         0x15: {"name": "Salida bomba de purga", "label": "OUT B.PURGA", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "dialyDeaerControlOutput", "nivel": "cian"},                # 37
-        0x16: {"name": "Posición inicial de jeringa", "label": "POS. INI. JER.", "type": "double", "rw": True, "unit": "", "limites": (0,4), "tag": "heparineSyringeVolume", "nivel": "cian"},           # 38
+        0x16: {"name": "Posición inicial de jeringa", "label": "POS. INI. JER.", "type": "double", "rw": True, "unit": "", "limites": (0,4), "tag": "heparineSyringeVolume", "nivel": "cian"},           # 38 no mostrar en catalogo
         0x17: {"name": "Parámetro control variable 2", "label": "Param var 2", "type": "double", "rw": False, "unit": "", "limites": (0, 10000), "tag": "variableCtrlParamData2", "nivel": "cian"},           # 39
         0x18: {"name": "Parámetro control variable 3", "label": "PARAM VAR 3", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData3", "nivel": "cian"},           # 40
         0x19: {"name": "Parámetro control variable 4", "label": "PARAM VAR 4", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData4", "nivel": "cian"},           # 41
@@ -240,7 +240,7 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
     # CALIBRACIÓN - ANALÓGICAS (0x06) 
     # ================================================================
     0x06: {
-        0x00: {"name": "Factor calibración bomba heparina", "label": "CAL HEPARINA", "type": "double", "rw": True, "unit": "ml/rev", "limites": (0.01, 10.0), "tag": "heparCalibFactorData", "nivel": "cian"},          # 59
+        0x00: {"name": "Factor calibración bomba heparina", "label": "CAL HEPARINA", "type": "double", "rw": True, "unit": "ml/rev", "limites": (0.01, 10.0), "tag": "heparCalibFactorData", "nivel": "cian"},          # 59 no mostrar en catalogo
         0x01: {"name": "Presión de ultrafiltrado", "label": "P. ULTRAFILT", "type": "double", "rw": True, "unit": "mmHg", "limites": (-50, 500), "tag": "dialyUFilPresProcessData", "nivel": "amarillo"},               # 60 
         0x02: {"name": "Presión en cámara de balance", "label": "P. CAM.BAL", "type": "double", "rw": False, "unit": "mmHg", "limites": (-100, 600), "tag": "dialyBChamPresProcessData", "nivel": "amarillo"},        # 61 PT- 7
         0x03: {"name": "Presión arterial del circuito de sangre", "label": "P. ART CIRC", "type": "double", "rw": False, "unit": "mmHg", "limites": (-300, 600), "tag": "bloodArteryPressureData", "nivel": "rojo"},   # 62 
