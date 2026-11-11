@@ -277,12 +277,12 @@ double *dialyBChamPresProcessData   = &iFace.allDoubleVariables[ 61 ];        //
 double *bloodArteryPressureData     = &iFace.allDoubleVariables[ 62 ];        // Variable que guarda la presión arterial del circuito de sangre del paciente 
 double *bloodVenousPressureData     = &iFace.allDoubleVariables[ 63 ];        // Variable que guarda la presión venosa del circuito de sangre del paciente 
 double *dialyCycleOperationCount    = &iFace.allDoubleVariables[ 64 ];        // Contador de ciclos de dialización de la máquina
-double *parameterCalFactData7       = &iFace.allDoubleVariables[ 65 ];        //
-double *parameterControlData8       = &iFace.allDoubleVariables[ 66 ];        //
-double *parameterControlData9       = &iFace.allDoubleVariables[ 67 ];        //
-double *parameterControlData10      = &iFace.allDoubleVariables[ 68 ];        //
-double *parameterControlData11      = &iFace.allDoubleVariables[ 69 ];        //
-double *parameterControlData12      = &iFace.allDoubleVariables[ 70 ];        //
+double *artPresCircAlarmHiLimData   = &iFace.allDoubleVariables[ 65 ];        //
+double *artPresCircAlarmLoLimData   = &iFace.allDoubleVariables[ 66 ];        //
+double *venPresCircAlarmHiLimData   = &iFace.allDoubleVariables[ 67 ];        //
+double *venPresCircAlarmLoLimData   = &iFace.allDoubleVariables[ 68 ];        //
+double *membPressAlarmHiLimData     = &iFace.allDoubleVariables[ 69 ];        //
+double *membPressAlarmLoLimData     = &iFace.allDoubleVariables[ 70 ];        //
 
 // Alarm Presets - Tipo 0x07
 double *artPresCircAlarmHiLimData  = &iFace.allDoubleVariables[ 71 ];       // Variable para guardar el valor de la alarma de Presión arterial del circuito Alta
