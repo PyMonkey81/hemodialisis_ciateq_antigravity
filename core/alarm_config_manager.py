@@ -1,6 +1,7 @@
 # core/alarm_config_manager.py
 from PySide6.QtCore import QSettings
 from typing import List, Tuple, Dict, Set
+import json
 
 from core.variables_map import VARIABLES
 import logging
@@ -13,6 +14,9 @@ class AlarmConfigManager:
     - enabled_tags: Qué variables están activadas para monitoreo (Servicio Técnico)
     - limits: Límite inferior y superior por tag (Operador)
     - severity: Nivel de alarma por tag (Operador)
+    
+    Los límites se guardan en memoria (diccionario) para evitar perder datos
+    al releer QSettings.
     """
     def __init__(self, organization: str = "HemodialisisApp", app_name: str = "AlarmSystem"):
         self.settings = QSettings(organization, app_name)
@@ -21,6 +25,35 @@ class AlarmConfigManager:
         self.KEY_ENABLED = "alarms/enabled_tags"
         self.KEY_LIMITS = "alarms/limits"      # dict: tag -> [min, max]
         self.KEY_SEVERITY = "alarms/severity"  # dict: tag -> "cian" | "naranja" | "amarillo" | "rojo"
+        
+        # Diccionario en memoria para límites: tag -> [min, max]
+        # Se carga una sola vez al inicializar
+        self._limits_cache: Dict[str, list] = {}
+        self._load_limits_from_settings()
+
+    def _load_limits_from_settings(self):
+        """Carga los límites desde QSettings (puede ser dict viejo o JSON nuevo).
+        Si es diccionario, lo copia directamente.
+        Si es JSON string, lo parsea.
+        Si es vacío o inválido, deja el cache vacío.
+        No rellena con valores del mapa."""
+        try:
+            raw = self.settings.value(self.KEY_LIMITS, "")
+            
+            if isinstance(raw, dict):
+                # QSettings devolvió un diccionario (formato viejo)
+                self._limits_cache = dict(raw)
+            elif isinstance(raw, str) and raw.strip():
+                # QSettings devolvió un string, intentar parsear JSON
+                loaded = json.loads(raw)
+                self._limits_cache = dict(loaded) if isinstance(loaded, dict) else {}
+            else:
+                # Vacío o no es dict ni string
+                self._limits_cache = {}
+                
+        except (json.JSONDecodeError, ValueError, TypeError) as e:
+            logger.warning(f"Error cargando límites de QSettings: {e}, cache vacío")
+            self._limits_cache = {}
 
     # ====================== Métodos para obtener valores por defecto del VARIABLES_MAP ======================
     def _get_default_info_from_variables_map(self, tag: str) -> dict:
@@ -50,6 +83,15 @@ class AlarmConfigManager:
             return severity_from_map
         return "cian" # Fallback general si no hay nivel en el mapa
     
+    def get_parameter_name(self, tag: str) -> str:
+        """Devuelve el nombre legible del parámetro para mostrar en mensajes."""
+        info = self._get_default_info_from_variables_map(tag)
+        name = info.get("name", info.get("label", tag))
+        unit = info.get("unit", "")
+        if unit:
+            return f"{name} ({unit})"
+        return name
+    
     # ====================== ENABLED TAGS (Servicio Técnico) ======================
     def get_enabled_tags(self) -> List[str]:
         """Devuelve lista de tags habilitados"""
@@ -77,22 +119,26 @@ class AlarmConfigManager:
 
     # ====================== LIMITS (Operador) ======================
     def get_limits(self, tag: str) -> Tuple[float, float]:
-        """Devuelve (min, max). Si no existe en QSettings → usa defaults de VARIABLES_MAP."""
-        limits_dict: Dict = self.settings.value(self.KEY_LIMITS, {})
-        if tag in limits_dict:
+        """Devuelve (min, max). Lee primero del diccionario en memoria.
+        Si no existe en memoria → usa defaults de VARIABLES_MAP."""
+        if tag in self._limits_cache:
             try:
-                minv, maxv = limits_dict[tag]
+                minv, maxv = self._limits_cache[tag]
                 return float(minv), float(maxv)
             except (ValueError, TypeError):
-                pass # Si el formato es incorrecto en QSettings, ignorar y usar el default
+                pass  # Si el formato es incorrecto, ignorar y usar el default
         
         return self.get_default_limits_from_variables_map(tag) 
 
     def set_limits(self, tag: str, min_val: float, max_val: float):
-        limits_dict_raw = self.settings.value(self.KEY_LIMITS, {})
-        limits_dict = dict(limits_dict_raw) if isinstance(limits_dict_raw, dict) else {}
-        limits_dict[tag] = [float(min_val), float(max_val)]
-        self.settings.setValue(self.KEY_LIMITS, limits_dict)
+        """Guarda límites en memoria y en QSettings como JSON.
+        Actualiza el diccionario en memoria, luego serializa a JSON."""
+        # Actualizar el diccionario en memoria
+        self._limits_cache[tag] = [float(min_val), float(max_val)]
+        
+        # Guardar como JSON en QSettings
+        limits_json_str = json.dumps(self._limits_cache)
+        self.settings.setValue(self.KEY_LIMITS, limits_json_str)
         self.settings.sync()
     # ====================== SEVERITY ======================
     def get_severity(self, tag: str) -> str:

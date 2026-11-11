@@ -246,12 +246,12 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x03: {"name": "Presión arterial del circuito de sangre", "label": "P. ART CIRC", "type": "double", "rw": False, "unit": "mmHg", "limites": (-300, 600), "tag": "bloodArteryPressureData", "nivel": "rojo"},   # 62 
         0x04: {"name": "Presión venosa del circuito de sangre", "label": "P. VEN CIRC", "type": "double", "rw": False, "unit": "mmHg", "limites": (-100, 500), "tag": "bloodVenousPressureData", "nivel": "rojo"},     # 63
         0x05: {"name": "Contador de ciclos de dialización", "label": "CONT CICLOS", "type": "double", "rw": False, "unit": "ciclos", "limites": (0, 100000), "tag": "dialyCycleOperationCount", "nivel": "cian"},      # 64
-        0x06: {"name": "Factor calibración parámetro 7", "label": "CAL PARAM 7", "type": "double", "rw": True, "unit": "", "limites": (0.01, 100.0), "tag": "parameterCalFactData7", "nivel": "cian"},                 # 65
-        0x07: {"name": "Parámetro control 8", "label": "PARAM CTRL 8", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "parameterControlData8", "nivel": "cian"},                                # 66
-        0x08: {"name": "Parámetro control 9", "label": "PARAM CTRL 9", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "parameterControlData9", "nivel": "cian"},                                # 67
-        0x09: {"name": "Parámetro control 10", "label": "PARAM CTRL 10", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "parameterControlData10", "nivel": "cian"},                              # 68
-        0x0A: {"name": "Parámetro control 11", "label": "PARAM CTRL 11", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "parameterControlData11", "nivel": "cian"},                              # 69
-        0x0B: {"name": "Parámetro control 12", "label": "PARAM CTRL 12", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "parameterControlData12", "nivel": "cian"},                              # 70
+        0x06: {"name": "Limite alto presión arterial", "label": "PA ALTA", "type": "double", "rw": True, "unit": "", "limites": (-300, 300), "tag": "artPresCircAlarmHiLimData", "nivel": "rojo"},                 # 65
+        0x07: {"name": "Limite bajo presión arterial", "label": "PA BAJA", "type": "double", "rw": True, "unit": "", "limites": (-300, 300), "tag": "artPresCircAlarmLoLimData", "nivel": "rojo"},                                # 66
+        0x08: {"name": "Limite alto presión venosa", "label": "PV ALTA", "type": "double", "rw": True, "unit": "", "limites": (-100, 500), "tag": "venPresCircAlarmHiLimData", "nivel": "rojo"},                                # 67
+        0x09: {"name": "Limite bajo presión venosa", "label": "PV BAJA", "type": "double", "rw": True, "unit": "", "limites": (-100, 500), "tag": "venPresCircAlarmLoLimData", "nivel": "rojo"},                              # 68
+        0x0A: {"name": "limite alto presión transmembrana", "label": "PTM ALTA", "type": "double", "rw": True, "unit": "", "limites": (-100, 1000), "tag": "membPressAlarmHiLimData", "nivel": "rojo"},                              # 69
+        0x0B: {"name": "Limite bajo presión transmembrana", "label": "PTM BAJA", "type": "double", "rw": True, "unit": "", "limites": (-100, 1000), "tag": "membPressAlarmLoLimData", "nivel": "rojo"},                              # 70
     },
 
     # ================================================================

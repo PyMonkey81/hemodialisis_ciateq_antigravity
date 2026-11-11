@@ -183,12 +183,60 @@ class FirmwareGateway:
         except Exception as e:
             logger.error(f"Error en write_boolean_command '{tag}': {e}")
 
+    def _emit_pressure_alarm_limits(self, art_min, art_max, ven_min, ven_max, ptm_min, ptm_max):
+        """Escribe los 6 límites de presión al dispositivo via write_double.
+        art_min/max: límites arteriales
+        ven_min/max: límites venosos
+        ptm_min/max: límites de presión transmembrana (None si no está en pantalla)
+        """
+        pares = (
+            ("artPresCircAlarmLoLimData", art_min),
+            ("artPresCircAlarmHiLimData", art_max),
+            ("venPresCircAlarmLoLimData", ven_min),
+            ("venPresCircAlarmHiLimData", ven_max),
+            ("membPressAlarmLoLimData", ptm_min),
+            ("membPressAlarmHiLimData", ptm_max),
+        )
+        if not self.window.serial_comm or not self.window.serial_comm.is_connected:
+            logger.warning("ALARMAS NO ENVIADAS: serial del control desconectado")
+            return
+        for tag, value in pares:
+            if value is None:
+                logger.info("OMITO alarma %s: valor None (fila no en pantalla)", tag)
+                continue
+            group, address = self._resolve_tag(tag)
+            if group is None or address is None:
+                logger.error("Tag de alarma no está en el mapa: %s", tag)
+                continue
+            self.window.serial_comm.write_double(group, address, float(value))
+            logger.info("ESCRIBO alarma %s grupo %s id %s = %s", tag, hex(group), address, value)
+
+    def _write_pressure_limits_on_connection(self):
+        """Escribe límites de presión al conectar leyendo SOLO del cache.
+        Si una fila no está guardada, NO la escribe."""
+        if not self.window.serial_comm or not self.window.serial_comm.is_connected:
+            return
+
+        try:
+            cache = self.window.config_manager._limits_cache
+
+            if not cache:
+                logger.info("Cache vacío: no hay límites guardados para escribir al conectar")
+                return
+
+            art_min, art_max = cache.get("bloodArteryPressureData", (None, None))
+            ven_min, ven_max = cache.get("bloodVenousPressureData", (None, None))
+            ptm_min, ptm_max = cache.get("CALC_PTM", (None, None))
+            self._emit_pressure_alarm_limits(art_min, art_max, ven_min, ven_max, ptm_min, ptm_max)
+        except Exception as e:
+            logger.warning(f"Error escribiendo límites de presión al conectar: {e}")
+
     def _resolve_tag(self, tag: str) -> tuple[int | None, int | None]:
         """
         Resuelve un tag a (group, address) usando el mapa inverso.
         Mucho más rápido y limpio.
         """
-        if not hasattr(self.window, '_tags_cache'):
+        if not isinstance(getattr(self.window, '_tags_cache', None), dict):
             self.window._tags_cache = {}
 
         if tag in self.window._tags_cache:

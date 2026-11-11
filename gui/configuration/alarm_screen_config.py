@@ -31,9 +31,10 @@ class AlarmScreenConfig(QWidget):
     Muestra tanto variables numéricas (con límites) como booleanas (solo severidad).
     """
 
-    def __init__(self, config_manager: AlarmConfigManager, parent=None):
+    def __init__(self, config_manager: AlarmConfigManager, parent=None, write_setpoint_callback=None):
         super().__init__(parent)
         self.config_manager = config_manager
+        self.write_setpoint_callback = write_setpoint_callback
         self.inputs: Dict[str, dict] = {}   # tag -> {'min': widget, 'max': widget, 'level': widget, 'type': str}
         self.header_labels: List[QLabel] = []
         self.row_labels: List[QLabel] = []
@@ -365,27 +366,77 @@ class AlarmScreenConfig(QWidget):
         self._floating_msg.show_error_message(text, timeout_ms)
         
     def save_configuration(self):
+        """Guarda la configuración de alarmas: primero valida todas las filas,
+        luego guarda en JSON, finalmente escribe los límites de presión al dispositivo."""
+        # PASO 1: Validar todas las filas sin guardar nada
         for tag, widgets in self.inputs.items():
             try:
-                level = widgets['level'].currentText()
-                self.config_manager.set_severity(tag, level)
-
-                # Solo guardar límites si es variable numérica
                 if widgets.get('type') == "double":
                     min_v = float(widgets['min'].text())
                     max_v = float(widgets['max'].text())
 
                     if min_v >= max_v:
-                        
-                        self.show_warning_message("Límite inferior debe ser menor que el superior.", timeout_ms=2000)
+                        param_name = (
+                            self.config_manager.get_parameter_name(tag)
+                            if hasattr(self.config_manager, "get_parameter_name")
+                            else tag
+                        )
+                        self.show_warning_message(f"{param_name}: límite inferior debe ser menor que el superior.", timeout_ms=2000)
                         return
 
+            except ValueError:
+                param_name = (
+                    self.config_manager.get_parameter_name(tag)
+                    if hasattr(self.config_manager, "get_parameter_name")
+                    else tag
+                )
+                self.show_error_message(f"{param_name}: valor inválido.", timeout_ms=3000)
+                return
+
+        # PASO 2: Si toda validación pasó, guardar severidad y límites
+        for tag, widgets in self.inputs.items():
+            try:
+                level = widgets['level'].currentText()
+                self.config_manager.set_severity(tag, level)
+
+                if widgets.get('type') == "double":
+                    min_v = float(widgets['min'].text())
+                    max_v = float(widgets['max'].text())
                     self.config_manager.set_limits(tag, min_v, max_v)
 
             except ValueError:
-                self.show_error_message(f"Valor inválido en {tag}.", timeout_ms=3000)
+                param_name = (
+                    self.config_manager.get_parameter_name(tag)
+                    if hasattr(self.config_manager, "get_parameter_name")
+                    else tag
+                )
+                self.show_error_message(f"{param_name}: valor inválido.", timeout_ms=3000)
                 return
+
+        # PASO 3: Guardar en QSettings
         self.config_manager.save_config()
+
+        # PASO 4: Leer valores de las casillas para escribir al dispositivo
+        try:
+            art_min = float(self.inputs["bloodArteryPressureData"]['min'].text())
+            art_max = float(self.inputs["bloodArteryPressureData"]['max'].text())
+
+            ven_min = float(self.inputs["bloodVenousPressureData"]['min'].text())
+            ven_max = float(self.inputs["bloodVenousPressureData"]['max'].text())
+
+            if "CALC_PTM" in self.inputs:
+                ptm_min = float(self.inputs["CALC_PTM"]['min'].text())
+                ptm_max = float(self.inputs["CALC_PTM"]['max'].text())
+            else:
+                ptm_min = None
+                ptm_max = None
+
+            if self.write_setpoint_callback:
+                self.write_setpoint_callback(art_min, art_max, ven_min, ven_max, ptm_min, ptm_max)
+
+        except (ValueError, KeyError) as e:
+            logger.warning(f"Error leyendo valores de casillas para escribir alarmas: {e}")
+
         self.show_success_message("Configuración de alarmas guardada correctamente.", timeout_ms=2000)
 
     def restore_all_defaults(self):
@@ -413,6 +464,27 @@ class AlarmScreenConfig(QWidget):
         
         # Guardar todos los cambios al archivo JSON
         self.config_manager.save_config()
+
+        # Escribir límites de presión arterial, venosa y PTM al dispositivo
+        try:
+            art_min = float(self.inputs["bloodArteryPressureData"]['min'].text())
+            art_max = float(self.inputs["bloodArteryPressureData"]['max'].text())
+
+            ven_min = float(self.inputs["bloodVenousPressureData"]['min'].text())
+            ven_max = float(self.inputs["bloodVenousPressureData"]['max'].text())
+
+            if "CALC_PTM" in self.inputs:
+                ptm_min = float(self.inputs["CALC_PTM"]['min'].text())
+                ptm_max = float(self.inputs["CALC_PTM"]['max'].text())
+            else:
+                ptm_min = None
+                ptm_max = None
+
+            if self.write_setpoint_callback:
+                self.write_setpoint_callback(art_min, art_max, ven_min, ven_max, ptm_min, ptm_max)
+
+        except (ValueError, KeyError) as e:
+            logger.warning(f"Error leyendo valores de casillas para escribir alarmas en restore_all_defaults: {e}")
         
         self.show_info_message("Todos los límites y niveles han sido restaurados a sus valores por defecto.", timeout_ms=2000)
 
@@ -585,4 +657,3 @@ class AlarmScreenConfig(QWidget):
         super().showEvent(event)
         self.apply_theme_styles(ThemeManager.instance().current_theme_name)
         self.setFocus()
-

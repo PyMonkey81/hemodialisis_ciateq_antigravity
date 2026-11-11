@@ -566,6 +566,7 @@ class HemodialysisHMI(QMainWindow):
 
         # Pantalla de configuración para Operador
         self.alarm_config_limits_screen = AlarmScreenConfig(
+            write_setpoint_callback=self._emit_pressure_alarm_limits,
             config_manager=self.config_manager,
             parent=self
         )
@@ -2729,6 +2730,7 @@ class HemodialysisHMI(QMainWindow):
             self._set_ui_connected_state(current_is_connected)
             if current_is_connected:
                 self._connection_just_established_ticks = 3
+                self._write_pressure_limits_on_connection()
          
         self._is_connected_prev_state = current_is_connected
         current_widget = self.screen_stack.currentWidget()
@@ -2921,6 +2923,14 @@ class HemodialysisHMI(QMainWindow):
 
     def _write_boolean_command(self, tag: str, state: bool):
         return self._get_firmware_gateway()._write_boolean_command(tag, state)
+
+    def _emit_pressure_alarm_limits(self, art_min, art_max, ven_min, ven_max, ptm_min, ptm_max):
+        return self._get_firmware_gateway()._emit_pressure_alarm_limits(
+            art_min, art_max, ven_min, ven_max, ptm_min, ptm_max
+        )
+
+    def _write_pressure_limits_on_connection(self):
+        return self._get_firmware_gateway()._write_pressure_limits_on_connection()
 
     def _resolve_tag(self, tag: str) -> tuple[int | None, int | None]:
         return self._get_firmware_gateway()._resolve_tag(tag)
