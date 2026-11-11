@@ -58,6 +58,8 @@ class HeparinConfigScreen(QWidget):
         self._selected_flujo_index = 1
         self._selected_heparin_flow_index = 1
         self._selected_syringe_index = 0
+        self._pending_bolus_start_dosage = None
+        self._pending_bolus_volume = 0.0
         self._field_labels = []
         self._ctrl_buttons = []
 
@@ -754,6 +756,9 @@ class HeparinConfigScreen(QWidget):
                 if isinstance(widget, ClickableLineEdit):
                     widget.setText(f"{value:.1f}")
 
+        # Verificar si el bolo pendiente ya se dosificó por completo
+        self._check_pending_bolus_completed()
+
     def _syringe_max_volume_ml(self) -> float:
         # Jeringa siempre fija a 20 ml
         return 20.0
@@ -848,9 +853,55 @@ class HeparinConfigScreen(QWidget):
         if not bool(self.current_values.get("heparineInfusionEnabled", 1.0)):
             logger.debug("Bolo bloqueado: heparina deshabilitada")
             return
+        if self._pending_bolus_start_dosage is not None:
+            logger.info("Bolo bloqueado: ya hay un bolo pendiente de aplicarse")
+            self._show_bolus_message("Ya hay un bolo pendiente de aplicarse.")
+            return
         if not self._can_apply_bolus():
             return
+
+        bolus_quantity = safe_float(self.current_values.get("heparineBolusQuantity"), 0.0)
+
+        dialog = FloatingConfirmDialog(self.parent_window if self.parent_window else self)
+        confirmed = dialog.show_confirm(
+            f"¿Aplica un bolo de {bolus_quantity:.2f} ml?",
+            accept_text="Aceptar",
+            cancel_text="Cancelar",
+        )
+        if not confirmed:
+            logger.info("Bolo cancelado por el operador (bolo=%.2f ml)", bolus_quantity)
+            return
+
+        # Guardar el dosaje vigente justo antes de enviar el bolo
+        self._pending_bolus_start_dosage = safe_float(self.current_values.get("heparineCurrentDosage"), 0.0)
+        self._pending_bolus_volume = bolus_quantity
         self.on_user_boolean_command("heparinApplyBolusDose", True)
+
+    def _check_pending_bolus_completed(self):
+        if self._pending_bolus_start_dosage is None:
+            return
+        current_dosage = safe_float(self.current_values.get("heparineCurrentDosage"), 0.0)
+        delivered = current_dosage - self._pending_bolus_start_dosage
+        if delivered >= self._pending_bolus_volume - HEPARIN_BOLUS_EPSILON_ML:
+            bolus_volume = self._pending_bolus_volume
+            # Limpiar antes de mostrar el diálogo modal para evitar re-disparos
+            self._pending_bolus_start_dosage = None
+            self._pending_bolus_volume = 0.0
+            logger.info("Bolo completado (bolo=%.2f ml, dosificado=%.2f ml)", bolus_volume, delivered)
+
+            alert_owner = self.parent_window if self.parent_window is not None else self
+            if getattr(alert_owner, "_operator_dialog_open", False):
+                return
+            alert_owner._operator_dialog_open = True
+            try:
+                dialog = FloatingConfirmDialog(alert_owner)
+                dialog.btn_cancel.hide()
+                dialog.show_confirm(
+                    f"Bolo de {bolus_volume:.2f} ml enviado.",
+                    accept_text="Aceptar",
+                )
+            finally:
+                alert_owner._operator_dialog_open = False
 
     def _adjust_syringe_volume(self):
         # Firmware: se cambio el bit que avanza el driver al volumen de jeringa.
