@@ -325,9 +325,23 @@ class KTVScreen(QWidget):
 
         active = phase == TreatmentPhase.RUNNING
         btn.setEnabled(active)
-        combo.setEnabled(phase in (TreatmentPhase.IDLE, TreatmentPhase.PAUSED, TreatmentPhase.RUNNING))
+        enabled_phases = (
+            TreatmentPhase.IDLE,
+            TreatmentPhase.PREPARING,
+            TreatmentPhase.READY,
+            TreatmentPhase.PAUSED,
+            TreatmentPhase.RUNNING,
+        )
+        combo.setEnabled(phase in enabled_phases)
 
-        if phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+        if phase in (TreatmentPhase.PREPARING, TreatmentPhase.READY):
+            current_text = combo.currentText()
+            if current_text != "Deshabilitado":
+                freq_text = "cada 15 min" if current_text == "15 minutos" else "cada 30 min"
+                lbl_schedule.setText(f"Al iniciar: {freq_text}")
+            else:
+                lbl_schedule.setText("Próxima medición: No programado")
+        elif phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
             lbl_schedule.setText("Próxima medición: No programado")
 
     def update_patient_data(self, new_values: dict):
