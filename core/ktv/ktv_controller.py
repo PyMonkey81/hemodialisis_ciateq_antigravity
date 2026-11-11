@@ -6,7 +6,7 @@ from core.ktv.ktv_grafcet import KtvGrafcet, KtvStep # Import KtvGrafcet and Ktv
 from logic.ktv_calculator import CalculadoraKtV # Import CalculadoraKtV
 from core.state_manager import TreatmentPhase # Import TreatmentPhase
 from logic.heitmann import heitmann # Import heitmann
-from logic.calculos import convertir_ciclos_a_flujo # Import convertir_ciclos_a_flujo
+
 
 
 logger = logging.getLogger(__name__)
@@ -474,13 +474,12 @@ class KtvController(QObject): # KtvController ahora hereda de QObject
         """Callback: Realiza el cálculo de Kt/V con acumulación correcta."""
         current_values = self._current_values_accessor()
         
-        # balanceChamberSetTiming is a cycle timing value, convert it to mL/min
-        chamber_cycles = current_values.get("balanceChamberSetTiming", 0)
-        qd = convertir_ciclos_a_flujo(chamber_cycles)
+        # balanceChamberSetTiming ya está en mL/min en current_values (convertido en update_value)
+        qd = float(current_values.get("balanceChamberSetTiming", 0) or 0)
 
-        # If conversion returns 0, skip D calculation
-        if qd == 0:
-            logger.warning("[KtvController] balanceChamberSetTiming conversion returned 0, skipping Kt/V calculation")
+        # Si Qd es 0 o no está disponible, no calcular esa D
+        if qd <= 0:
+            logger.warning("[KtvController] balanceChamberSetTiming es 0 o no está disponible, omitiendo cálculo de Kt/V")
             return
         qf = current_values.get("ultraFilterPumpSpeed", 10)  # L/h
         qb = current_values.get("bloodFlowVariableData", 300)  # ml/min
