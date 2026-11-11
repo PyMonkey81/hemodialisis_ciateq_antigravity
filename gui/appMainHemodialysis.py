@@ -202,6 +202,59 @@ def resource_path(relative_path):
     return str(base_path / relative_path)
 
 
+class LogoButton(QPushButton):
+    """Botón plano para logo CIATEQ que maneja toque corto (salida) y largo (sin acción).
+    Solo abre diálogo de salida si está en pantalla de inicio (INDEX_HOME)."""
+    
+    def __init__(self, icon_path: str, close_callback=None, screen_stack=None, parent=None):
+        super().__init__(parent)
+        self.close_callback = close_callback
+        self.screen_stack = screen_stack
+        self.press_time = None
+        self.long_press_threshold = 800  # ms
+        self.long_press_timer = QTimer()
+        self.long_press_timer.setSingleShot(True)
+        self.long_press_timer.timeout.connect(self._handle_long_press)
+        
+        # Configurar botón plano
+        self.setFlat(True)
+        self.setFocusPolicy(Qt.NoFocus)
+        self.setStyleSheet("border: none; padding: 0px;")
+        
+        # Cargar icono
+        pixmap = QPixmap(icon_path).scaled(180, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.setIcon(pixmap)
+        self.setIconSize(pixmap.size())
+        self.setFixedSize(180, 120)
+    
+    def mousePressEvent(self, event):
+        """Registrar inicio del toque."""
+        super().mousePressEvent(event)
+        self.press_time = time.time()
+        self.long_press_timer.start(self.long_press_threshold)
+    
+    def mouseReleaseEvent(self, event):
+        """Diferenciar entre toque corto y largo."""
+        self.long_press_timer.stop()
+        if self.press_time is not None:
+            elapsed = (time.time() - self.press_time) * 1000
+            if elapsed < self.long_press_threshold:
+                # Toque corto: abrir diálogo de salida solo si está en pantalla de inicio
+                self._handle_short_press()
+        super().mouseReleaseEvent(event)
+    
+    def _handle_short_press(self):
+        """Toque corto: abrir diálogo de confirmación para salir si está en INDEX_HOME."""
+        # Solo actuar si estamos en la pantalla de inicio (INDEX_HOME = 0)
+        if self.screen_stack and self.screen_stack.currentIndex() == 0:
+            if self.close_callback:
+                self.close_callback()
+    
+    def _handle_long_press(self):
+        """Toque largo: no hacer nada (sin dibujar recuadro ni seleccionar)."""
+        pass
+
+
 class HemodialysisHMI(QMainWindow):
 
     # Screen indices
@@ -1024,11 +1077,16 @@ class HemodialysisHMI(QMainWindow):
 
         #logo 1
         
-        logo1 = QLabel()
+        logo1 = LogoButton(
+            icon_path=resource_path("resources/images/logo_ciateq__.png"),
+            close_callback=self._show_exit_confirmation,
+            screen_stack=self.screen_stack,
+            parent=self
+        )
         logo1.setObjectName("header_logo_left")
-        logo1.setAlignment(Qt.AlignCenter)
+
         self._orig_pixmap_logo1 = QPixmap(resource_path("resources/images/logo_ciateq__.png")).scaled(180, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        logo1.setPixmap(self._orig_pixmap_logo1)
+
         self.logo1 = logo1
         header_layout.addWidget(logo1)
         header_layout.addStretch(1)
@@ -1165,7 +1223,7 @@ class HemodialysisHMI(QMainWindow):
             ("Servicio", "#06298a", self.show_options_screen),
             ("Alarmas",             "#06298a", self.show_alarms_screen),
             ("Historial",            "#06298a", self.show_history_screen),
-            ("Salir",               "#dc2626", self.close),
+
         ]
 
         for text, color, callback in nav_items:
@@ -1470,7 +1528,7 @@ class HemodialysisHMI(QMainWindow):
         logo_bg = "#F8FAFC" if bool(t.get("is_dark", False)) else "transparent"
         logo_border = f"1px solid {border}" if bool(t.get("is_dark", False)) else "none"
         logo_style = (
-            f"QLabel {{ background-color: {logo_bg}; border: {logo_border}; "
+            f"QLabel, QPushButton {{ background-color: {logo_bg}; border: {logo_border}; "
             f"border-radius: 10px; padding: 4px 8px; }}"
         )
         for logo_attr in ("logo1", "logo2"):
@@ -1960,10 +2018,7 @@ class HemodialysisHMI(QMainWindow):
             enabled = False
 
             # ==================== REGLAS POR BOTÓN ====================
-            if text == "Salir":
-                enabled = True  # Casi siempre disponible cuando hay conexión
-
-            elif text == "Servicio":
+            if text == "Servicio":
                 enabled = True  # Siempre accesible (configuración, mantenimiento, etc.)
 
             elif text == "Alarmas":
@@ -2024,7 +2079,7 @@ class HemodialysisHMI(QMainWindow):
 
             elif phase == TreatmentPhase.IDLE:
                 enabled = text in ["Resumen\nTerapia", "Tipo de\nTratamiento", "Inicio", 
-                                 "Servicio", "Alarmas", "Historial", "Salir"]
+                                 "Servicio", "Alarmas", "Historial"]
                 if text == "Limpieza":
                     enabled = (treatment_mode == 3)
 
@@ -2040,8 +2095,8 @@ class HemodialysisHMI(QMainWindow):
                         btn.setStyleSheet(self.BTN_ENABLED_START_TREATMENT_STYLE)
                     else:
                         btn.setStyleSheet(self.BTN_ENABLED_START_TREATMENT_STYLE)
-                elif text == "Salir":
-                    btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE)
+
+
                 elif text == current_nav_text:
                     btn.setStyleSheet(self.BTN_ACTIVE_STYLE)
                 else:
@@ -2055,10 +2110,7 @@ class HemodialysisHMI(QMainWindow):
     def _handle_disconnected_state(self):
         """Estado sin conexión"""
         for text, btn in self.navigation_buttons.items():
-            if text == "Salir":
-                btn.setEnabled(True)
-                btn.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE)
-            elif text == "Servicio":
+            if text == "Servicio":
                 btn.setEnabled(True)
                 btn.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
             else:
@@ -2105,8 +2157,8 @@ class HemodialysisHMI(QMainWindow):
             button.setStyleSheet(self.BTN_ENABLED_START_TREATMENT_STYLE)
         elif style_type == "active":
             button.setStyleSheet(self.BTN_ACTIVE_STYLE)
-        elif style_type == "exit":
-            button.setStyleSheet(self.BTN_ENABLED_EXIT_STYLE)
+
+
         else:
             button.setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE)
 
@@ -3141,13 +3193,22 @@ class HemodialysisHMI(QMainWindow):
         return self._get_session_recorder()._check_and_handle_unclean_close()
         
 
+    def _show_exit_confirmation(self):
+        """Muestra diálogo de confirmación para salir de la aplicación."""
+        dialog = FloatingConfirmDialog(self)
+        mensaje = "¿Desea salir de la aplicación?"
+        reply = dialog.show_confirm(mensaje, accept_text="Sí", cancel_text="No")
+        if reply:
+            self.closeEvent(None)
+
     def closeEvent(self, event):        
         self.end_dialysis_session() # Cierra los loggers
         logger.error("[INFO] closeEvent → performing shutdown...")
         self.shutdown() # shutdown ya guarda las horas
         self.unclean_close.mark_clean()
         # time.sleep(1.0) 
-        event.accept()
+        if event:
+            event.accept()
         QApplication.quit()
 
 
