@@ -132,6 +132,7 @@ from gui.theme_manager import ThemeManager
 from gui.service.theme_config_screen import ThemeConfigScreen
 from gui.session.session_recorder import SessionRecorder
 from gui.session.operator_alerts import OperatorAlerts
+from gui.session.hardware_state_sync import HardwareStateSync
 from gui.therapy.profile_coordinator import ProfileCoordinator
 from gui.therapy.heparin_coordinator import HeparinCoordinator
 from gui.therapy.treatment_start import TreatmentStart
@@ -900,65 +901,16 @@ class HemodialysisHMI(QMainWindow):
         self.show_error_message(message, 4000)
         self.ktv_controller.abort(f"Error de estado: {message}") # Abortar Ktv por error global
 
+    def _get_hardware_state_sync(self) -> HardwareStateSync:
+        syncer = getattr(self, "hardware_state_sync", None)
+        if syncer is None:
+            syncer = HardwareStateSync(self)
+            self.hardware_state_sync = syncer
+        return syncer
+
     def _sync_state_with_hardware(self):
         """Sincroniza el estado interno con el estado real del hardware (fuente de verdad)"""
-        if not hasattr(self, 'current_values'):
-            return
-
-        status_code = safe_int(self.current_values.get("primingProcessStatus", 0), 0)
-        treatment_mode = safe_int(self.current_values.get("treatmentModeSelection", 0), 0)
-        reason = "Sincronización automática con hardware"
-
-        logger.info(f"Sincronizando estado - Status: {status_code}, Mode: {treatment_mode}")
-
-        mapper = getattr(self, "hardware_mapper", None)
-        if mapper is not None:
-            target_phase = mapper.get_phase(status_code, treatment_mode)
-            if target_phase == TreatmentPhase.CLEANING:
-                self.state.set_phase(TreatmentPhase.CLEANING, reason)
-                if hasattr(self, "current_process_status") and self.current_process_status is not None:
-                    self.current_process_status.setText(mapper.get_display_text(status_code, treatment_mode))
-                if hasattr(self, "screen_state_manager") and self.screen_state_manager is not None:
-                    self.screen_state_manager.update_all_screens(TreatmentPhase.CLEANING)
-                self._refresh_navigation_bar()
-                return
-            elif target_phase == TreatmentPhase.IDLE and status_code not in (1, 16):
-                self.state.set_phase(TreatmentPhase.IDLE, "Sincronización inicial - Sin actividad")
-            else:
-                self.state.set_phase(target_phase, reason)
-            if hasattr(self, "screen_state_manager") and self.screen_state_manager is not None:
-                self.screen_state_manager.update_all_screens(target_phase)
-            return
-
-        # Modo Limpieza (sin mapper)
-        if treatment_mode == 3:
-            if status_code == 6:  # Infusión = limpieza activa
-                self.state.set_phase(TreatmentPhase.CLEANING, reason)
-                if hasattr(self, "screen_state_manager") and self.screen_state_manager is not None:
-                    self.screen_state_manager.update_all_screens(TreatmentPhase.CLEANING)
-                self._refresh_navigation_bar()
-            elif status_code in [2, 3, 4, 5]:
-                self.state.set_phase(TreatmentPhase.PREPARING, reason)
-                if hasattr(self, "screen_state_manager") and self.screen_state_manager is not None:
-                    self.screen_state_manager.update_all_screens(TreatmentPhase.PREPARING)
-            else:
-                self.state.reset_to_idle(reason)
-            return        
-        if status_code == 13:
-             self.state.set_phase(TreatmentPhase.READY, reason)
-             self.screen_state_manager.update_all_screens(TreatmentPhase.READY)
-        elif status_code == 14:
-             self.state.set_phase(TreatmentPhase.RUNNING, reason)
-             self.screen_state_manager.update_all_screens(TreatmentPhase.RUNNING)
-        elif status_code == 15:
-             self.state.set_phase(TreatmentPhase.PAUSED, reason)
-             self.screen_state_manager.update_all_screens(TreatmentPhase.PAUSED)
-        elif status_code in [2, 3, 4, 5, 6, 7,8,9,10,11,12]:
-             self.state.set_phase(TreatmentPhase.PREPARING, reason)
-             self.screen_state_manager.update_all_screens(TreatmentPhase.PREPARING)
-        else:
-             self.state.set_phase(TreatmentPhase.IDLE, "Sincronización inicial - Sin actividad")
-             self.screen_state_manager.update_all_screens(TreatmentPhase.IDLE)
+        return self._get_hardware_state_sync()._sync_state_with_hardware()
 
     
 
