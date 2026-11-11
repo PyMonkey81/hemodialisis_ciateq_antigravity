@@ -224,7 +224,7 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x03: {"name": "Presión venosa en línea sanguínea", "label": "P. VENOSA", "type": "double", "rw": True, "unit": "mmHg", "limites": (-50, 300), "tag": "venouPresProcessData", "nivel": "rojo"},     # 46
         0x04: {"name": "Presión del dializante Entrada del filtro (EF)", "label": "P. DIAL ENT", "type": "double", "rw": True, "unit": "mmHg", "limites": (-200, 600), "tag": "dialyPresIFProcessData", "nivel": "amarillo"}, # 47
         0x05: {"name": "Presión del dializante Salida del filtro (SF)", "label": "P. DIAL SAL", "type": "double", "rw": True, "unit": "mmHg", "limites": (-200, 600), "tag": "dialyPresOFProcessData", "nivel": "amarillo"},  # 48
-        0x06: {"name": "Presión entrada agua alimentación", "label": "P. AGUA RED", "type": "double", "rw": True, "unit": "bar", "limites": (0, 5), "tag": "dialyLineWaterPresData", "nivel": "cian"},        # 49
+        0x06: {"name": "Falla suministro agua", "label": "P. AGUA RED", "type": "double", "rw": True, "unit": "bar", "limites": (2.0, 5.0), "tag": "dialyLineWaterPresData", "nivel": "cian"},        # 49
         0x07: {"name": "Temperatura del dializante EF", "label": "TEMP DIAL ENT", "type": "double", "rw": True, "unit": "°C", "limites": (35.0, 39.0), "tag": "dialyTempIFProcessData", "nivel": "amarillo"},   # 50
         0x08: {"name": "Temperatura del dializante SF", "label": "TEMP DIAL SAL", "type": "double", "rw": True, "unit": "°C", "limites": (35.0, 39.0), "tag": "dialyTempIOFProcessData", "nivel": "amarillo"},   # 51 
         0x09: {"name": "Flujo de líquido de sustitución", "label": "FLUJO SUST.", "type": "double", "rw": True, "unit": "ml/h", "limites": (0, 5000), "tag": "subsLiqFlowProcessData", "nivel": "cian"},      # 52

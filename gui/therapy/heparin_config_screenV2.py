@@ -164,7 +164,7 @@ class HeparinConfigScreen(QWidget):
         # Campos
         fields = [
             # ("Vol. Dosis Heparina (ml):", "heparineTherapyDosage", "input_heparin"),
-            ("Flujo Heparina (ml/h):", None, "heparin_flow_combo"), 
+            ("Flujo Heparina (ml/h):", "heparineTherapyFlow", "input_heparin_flow"), 
             ("Tamaño de Jeringa:", None, "syringe_combo"),
             ("Vol. Heparina en Jeringa (ml):", "heparineSyringeVolume", "input_vol_hep"),
             ("Tiempo Heparina (hh:mm):", None, "input_heparin_auto_stop"),
@@ -190,6 +190,11 @@ class HeparinConfigScreen(QWidget):
                             HEPARIN_AUTO_STOP_MINUTES_TAG, "Paro automático heparina"
                         )
                     )
+                elif "flow" in widget_name:
+                    w.clicked.connect(
+                        lambda t="heparineTherapyFlow", wd=w, tit="Flujo Heparina (ml/h)": 
+                        self.open_numpad(t, wd, tit)
+                    )
                 else:
                     title_map = {
                         "input_heparin": "Dosis Heparina",
@@ -199,12 +204,6 @@ class HeparinConfigScreen(QWidget):
                         lambda t=tag, wd=w, tit=title_map.get(widget_name, ""): 
                         self.open_numpad(t, wd, tit)
                     )
-                setattr(self, widget_name, w)
-
-            elif widget_name == "heparin_flow_combo":
-                w = QComboBox()
-                w.addItems(["1.0", "2.0", "3.0", "4.0"])
-                w.currentIndexChanged.connect(self._on_flow_hep_changed)
                 setattr(self, widget_name, w)
 
             elif widget_name == "syringe_combo":
@@ -296,18 +295,6 @@ class HeparinConfigScreen(QWidget):
         self._apply_disabled_styles(heparin_enabled)
 
 
-    def _on_flow_hep_changed(self, index):  
-        self._selected_heparin_flow_index = index
-        if hasattr(self, "heparin_flow_combo") and self.heparin_flow_combo is not None:
-            flujo_value = safe_float(self.heparin_flow_combo.currentText(), 0.0)
-            self.current_values["heparineTherapyFlow"] = flujo_value
-            if self.parent_window and hasattr(self.parent_window, "current_values"):
-                self.parent_window.current_values["heparineTherapyFlow"] = flujo_value
-            self.on_user_input_setpoint("heparineTherapyFlow", flujo_value)
-            # Recalcular dosage cuando cambia el flujo
-            self._recalculate_therapy_dosage()
-
-
     def open_numpad(self, tag: str, input_widget: ClickableLineEdit, title: str):
         # Verificar si es bolo y heparina está deshabilitada
         if tag == "heparineBolusQuantity" and not bool(self.current_values.get("heparineInfusionEnabled", 1.0)):
@@ -320,6 +307,15 @@ class HeparinConfigScreen(QWidget):
             if new_value is not None:
                 float_val = safe_float(new_value, 0.0)
                 
+                # --- LÓGICA ESPECIAL PARA EL FLUJO DE HEPARINA ---
+                if tag == "heparineTherapyFlow":
+                    if float_val < 0.1 or float_val > 10.0:
+                        logger.info("Flujo fuera de rango (%.2f ml/h). Rango válido: 0.1 a 10.0", float_val)
+                        self._show_bolus_message("El flujo debe estar entre 0.1 y 10.0 ml/h.")
+                        return
+                    # Redondear a 1 decimal
+                    float_val = round(float_val, 1)
+
                 # --- LÓGICA ESPECIAL PARA EL VOLUMEN DE JERINGA ---
                 if tag == "heparineSyringeVolume":
                     if not self._validate_syringe_fill_volume(float_val):
@@ -338,6 +334,10 @@ class HeparinConfigScreen(QWidget):
                 # Escribir al puerto (enviar setpoint)
                 self.on_user_input_setpoint(tag, float_val)
                 print(f"Setpoint enviado: {tag} = {float_val}")
+
+                # Si es flujo, recalcular dosis
+                if tag == "heparineTherapyFlow":
+                    self._recalculate_therapy_dosage()
 
                 # --- EJECUTAR BOLO SI ES EL TAG DE JERINGA ---
                 if tag == "heparineSyringeVolume":
@@ -494,7 +494,7 @@ class HeparinConfigScreen(QWidget):
         self.bolus_label.setEnabled(enabled)
         
         # Deshabilitar/habilitar parámetros de heparina
-        for widget_name in ("heparin_flow_combo", "input_heparin_auto_stop", "input_vol_hep", "syringe_combo"):
+        for widget_name in ("input_heparin_flow", "input_heparin_auto_stop", "input_vol_hep", "syringe_combo"):
             widget = getattr(self, widget_name, None)
             if widget is not None and hasattr(widget, "setEnabled"):
                 # En RUNNING/PAUSED, input_heparin_auto_stop siempre queda deshabilitado
@@ -610,7 +610,7 @@ class HeparinConfigScreen(QWidget):
             self.bolus_label.setStyleSheet(label_style)
             
             # Restaurar estilos de combos e inputs de heparina
-            for widget_name in ("heparin_flow_combo", "input_heparin_auto_stop", "input_vol_hep", "syringe_combo"):
+            for widget_name in ("input_heparin_flow", "input_heparin_auto_stop", "input_vol_hep", "syringe_combo"):
                 widget = getattr(self, widget_name, None)
                 if widget is None:
                     continue
@@ -655,7 +655,7 @@ class HeparinConfigScreen(QWidget):
             self.bolus_label.setStyleSheet(disabled_label_style)
             
             # Aplicar estilos disabled a combos e inputs de heparina
-            for widget_name in ("heparin_flow_combo", "input_heparin_auto_stop", "input_vol_hep", "syringe_combo"):
+            for widget_name in ("input_heparin_flow", "input_heparin_auto_stop", "input_vol_hep", "syringe_combo"):
                 widget = getattr(self, widget_name, None)
                 if widget is None:
                     continue
@@ -682,12 +682,9 @@ class HeparinConfigScreen(QWidget):
             auto_m = int(self.current_values.get(HEPARIN_AUTO_STOP_MINUTES_TAG, 0) or 0)
             time_hours = auto_h + (auto_m / 60.0)
             
-            # Obtener flujo del combo (ml/h)
-            if not hasattr(self, "heparin_flow_combo") or self.heparin_flow_combo is None:
-                logger.warning("heparin_flow_combo no disponible para cálculo de dosage")
-                return
-            
-            flow_ml_per_h = safe_float(self.heparin_flow_combo.currentText(), 0.0)
+            # Obtener flujo de current_values (ml/h); si no hay valor, usar 1.0
+            raw_flow = self.current_values.get("heparineTherapyFlow")
+            flow_ml_per_h = safe_float(raw_flow if raw_flow is not None else 1.0, 1.0)
             
             # Calcular dosage: tiempo * flujo
             dosage_ml = round(time_hours * flow_ml_per_h, 2)
@@ -744,6 +741,7 @@ class HeparinConfigScreen(QWidget):
 
         # Solo actualizar input_vol_hep, no syringe_combo (que ahora es una etiqueta)
         variables_to_update = {
+            "heparineTherapyFlow": self.input_heparin_flow,
             "heparineSyringeVolume": self.input_vol_hep
         }
 

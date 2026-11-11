@@ -56,6 +56,7 @@ import sys
 import time
 import logging
 import json
+from collections import deque
 from typing import List, Tuple
 
 from PySide6.QtWidgets import *
@@ -317,6 +318,8 @@ class HemodialysisHMI(QMainWindow):
         self.cleaning_logger = None
         # Atributos críticos inicializados temprano para evitar fallos durante arranque parcial.
         self.current_values = {}
+        self.temp_readings = deque()  # (timestamp, value) pairs
+        self.dialyTempIFProcessData_avg = 0.0  # Promedio de los últimos 3 segundos
         self.bioz_urea_controller = None
         
         # Diccionario para ignorar lecturas de ciertos tags hasta un tiempo especificado (evita
@@ -2258,6 +2261,19 @@ class HemodialysisHMI(QMainWindow):
             except Exception as e:
                 logger.error(f"Error converting CB flow: {e}")
 
+        # Calcular promedio de temperatura SOLO PARA DISPLAY (incluso si el valor no cambió)
+        if tag == "dialyTempIFProcessData":
+            if not hasattr(self, "temp_readings") or self.temp_readings is None:
+                self.temp_readings = deque()
+            current_time = time.monotonic()
+            self.temp_readings.append((current_time, value))
+            while self.temp_readings and (current_time - self.temp_readings[0][0]) > 3.0:
+                self.temp_readings.popleft()
+            if self.temp_readings:
+                self.dialyTempIFProcessData_avg = sum(v for _, v in self.temp_readings) / len(self.temp_readings)
+            else:
+                self.dialyTempIFProcessData_avg = value
+
         # Evita trabajo redundante cuando el valor entrante no cambia.
         previous_value = self.current_values.get(tag)
         if previous_value == value:
@@ -2442,6 +2458,14 @@ class HemodialysisHMI(QMainWindow):
                             border-radius: 10px;
                         }}
                     """)
+    def _get_temperature_display_value(self):
+        """Retorna el promedio de temperatura de los últimos 3 segundos para display.
+        El promedio se calcula una sola vez en update_value().
+        Mantiene el valor raw en current_values para alarmas y perfiles."""
+        if getattr(self, "temp_readings", None):
+            return self.dialyTempIFProcessData_avg
+        return self.current_values.get("dialyTempIFProcessData", 0.0)
+
     def _update_gauges(self):
         
         gauge_mapping = {
@@ -2452,7 +2476,10 @@ class HemodialysisHMI(QMainWindow):
         }
         for tag, gauge in gauge_mapping.items():
             if gauge is not None:
-                value = self.current_values.get(tag, 0.0)
+                if tag == "dialyTempIFProcessData":
+                    value = self._get_temperature_display_value()
+                else:
+                    value = self.current_values.get(tag, 0.0)
                 try:
                     gauge.setValue(value)
                 except Exception as e:

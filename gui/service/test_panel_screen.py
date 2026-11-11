@@ -488,7 +488,12 @@ class TestPanelScreen(QWidget):
         self._update_label_display(self.label_cond_ef, self.current_values.get("dialyConductIFProcessData", 0.0),1)
         self._update_label_display(self.label_cond_sf, self.current_values.get("dialyConductOFProcessData", 0.0),1)
 
-        self._update_label_display(self.label_temp_ef, self.current_values.get("dialyTempIFProcessData",0.0),1) # temperatura a la entrada del filtro 
+        # Usar promedio de temperatura solo para display de T. Dial. EF
+        if hasattr(self, 'parent_window') and hasattr(self.parent_window, '_get_temperature_display_value'):
+            temp_ef_display = self.parent_window._get_temperature_display_value()
+        else:
+            temp_ef_display = self.current_values.get("dialyTempIFProcessData", 0.0)
+        self._update_label_display(self.label_temp_ef, temp_ef_display, 1) # temperatura a la entrada del filtro 
         self._update_label_display(self.label_temp_sf, self.current_values.get("dialyTempIOFProcessData",0.0),1) # temperatura a la salida del filtro
         self._update_input_display(self.label_temp_tank,self.current_values.get("dialyTempVariableData",0.0))  #Calculo de control de temperatura de dializante 
         

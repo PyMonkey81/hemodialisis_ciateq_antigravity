@@ -572,7 +572,7 @@ class DialysisScreen(QWidget):
         buttons_layout = QGridLayout(self.buttons_container)
         buttons_layout.setSpacing(10)
         buttons_layout.setContentsMargins(14, 14, 14, 14)
-        for i in range(3):
+        for i in range(4):
             buttons_layout.setColumnStretch(i, 1)
 
         self.action_buttons = {}
@@ -581,6 +581,7 @@ class DialysisScreen(QWidget):
             ("INICIAR", "#16a34a", getattr(self.parent_window, "start_treatment", lambda: None)),
             ("PAUSAR", "#f59e0b", getattr(self.parent_window, "pause_treatment", lambda: None)),
             ("DETENER", "#dc2626", getattr(self.parent_window, "stop_treatment", lambda: None)),
+            ("APLICAR\nBOLO", "nav", self.apply_bolus_clicked),
             ("MENÚ TERAPIA", "nav", self.show_therapy_config),
             ("MENÚ PACIENTE", "nav", self.show_patient_config),
             ("HEPARINA", "nav", self.show_heparin_config_screen),
@@ -596,8 +597,8 @@ class DialysisScreen(QWidget):
             btn.setProperty("color_role", color_role)
             btn.clicked.connect(callback)
             self.action_buttons[text] = btn
-            row = i // 3
-            col = i % 3
+            row = i // 4
+            col = i % 4
             buttons_layout.addWidget(btn, row, col)
 
         layout.addWidget(self.buttons_container, 1, 0, 1, 1)
@@ -751,7 +752,13 @@ class DialysisScreen(QWidget):
         }
 
         for tag, widget in parameter_mapping.items():
-            value = self.current_values.get(tag, 0.0)
+            if tag == "dialyTempIFProcessData":
+                if hasattr(self, 'parent_window') and hasattr(self.parent_window, '_get_temperature_display_value'):
+                    value = self.parent_window._get_temperature_display_value()
+                else:
+                    value = self.current_values.get(tag, 0.0)
+            else:
+                value = self.current_values.get(tag, 0.0)
             self._set_label_value(tag, widget, value)
 
         air_bubble = self.current_values.get("airBubbleInBloodDetected", 0.0)
@@ -797,6 +804,11 @@ class DialysisScreen(QWidget):
             font-size: 18px;
             border: {border_style};
         """)
+
+    def apply_bolus_clicked(self):
+        """Delegado para aplicar bolo desde botonera de Diálisis."""
+        if self.parent_window and hasattr(self.parent_window, 'heparin_config_screen'):
+            self.parent_window.heparin_config_screen.apply_bolus()
 
     def show_heparin_config_screen(self):
         if self.parent_window and hasattr(self.parent_window, "show_heparin_config_screen"):

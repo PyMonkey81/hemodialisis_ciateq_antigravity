@@ -171,8 +171,8 @@ class TestHeparinValidationProductionMethod:
         
         # Mock the heparin screen flow combo
         heparin_screen = Mock()
-        heparin_screen.heparin_flow_combo = Mock()
-        heparin_screen.heparin_flow_combo.currentText = Mock(return_value="1.0")
+        self.main_window.current_values["heparineTherapyFlow"] = 1.0
+
         heparin_screen.input_heparin_auto_stop = Mock()
         heparin_screen.current_values = self.main_window.current_values
         self.main_window.heparin_config_screen = heparin_screen
@@ -207,7 +207,7 @@ class TestHeparinValidationProductionMethod:
             
             # Recalculate dosis
             time_hours = clamped_h + (clamped_m / 60.0)
-            flow_ml_per_h = float(heparin_screen.heparin_flow_combo.currentText())
+            flow_ml_per_h = float(self.main_window.current_values.get("heparineTherapyFlow", 1.0))
             dosage_ml = round(time_hours * flow_ml_per_h, 2)
             self.main_window.current_values["heparineTherapyDosage"] = dosage_ml
         
@@ -263,11 +263,11 @@ class MockAppMainHemodialysis:
         pass
     
     def _get_heparin_flow_ml_per_h(self):
-        if (self.heparin_config_screen and 
-            hasattr(self.heparin_config_screen, 'heparin_flow_combo')):
+        raw = self.current_values.get("heparineTherapyFlow")
+        if raw is not None:
             try:
-                return float(self.heparin_config_screen.heparin_flow_combo.currentText())
-            except (AttributeError, ValueError):
+                return float(raw)
+            except (TypeError, ValueError):
                 pass
         return 1.0
     
@@ -366,8 +366,8 @@ class TestHeparinValidationWithRealWidget:
         screen_mock.input_heparin_auto_stop = widget
         
         # Flow combo mock
-        screen_mock.heparin_flow_combo = Mock()
-        screen_mock.heparin_flow_combo.currentText = Mock(return_value="1.0")
+        main.current_values["heparineTherapyFlow"] = 1.0
+        screen_mock.current_values["heparineTherapyFlow"] = 1.0
         
         main.heparin_config_screen = screen_mock
         
@@ -427,6 +427,7 @@ class TestHeparinClampingOnRunning:
         hmi._prev_treatment_phase = TreatmentPhase.READY
         hmi.nibp_pressure_history = []
         hmi.show_warning_message = Mock()
+        hmi.show_catalog_message = Mock()
         hmi._update_buttons_state = Mock()
         hmi._refresh_navigation_bar = Mock()
         hmi.screen_state_manager = Mock()
@@ -449,9 +450,9 @@ class TestHeparinClampingOnRunning:
         screen = Mock()
         screen.input_heparin_auto_stop = widget
         screen.current_values = hmi.current_values.copy()
-        combo = Mock()
-        combo.currentText = Mock(return_value=str(flow))
-        screen.heparin_flow_combo = combo
+
+
+
         hmi.heparin_config_screen = screen
 
         # Wire state_changed to production _on_state_changed

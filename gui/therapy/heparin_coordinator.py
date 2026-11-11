@@ -142,14 +142,16 @@ class HeparinCoordinator:
             logger.error(f"Error validando tiempo de heparina: {e}", exc_info=True)
 
     def _get_heparin_flow_ml_per_h(self) -> float:
-        """Obtiene el flujo de heparina del combo en ml/h."""
+        """Obtiene el flujo de heparina en ml/h desde current_values."""
         try:
-            if (hasattr(self.window, 'heparin_config_screen') and 
-                self.window.heparin_config_screen is not None and
-                hasattr(self.window.heparin_config_screen, 'heparin_flow_combo')):
-                flow_text = self.window.heparin_config_screen.heparin_flow_combo.currentText()
-                return float(flow_text)
-        except (AttributeError, ValueError):
+            raw = self.window.current_values.get("heparineTherapyFlow")
+            if raw is None and hasattr(self.window, "heparin_config_screen") and self.window.heparin_config_screen is not None:
+                screen_vals = getattr(self.window.heparin_config_screen, "current_values", None)
+                if isinstance(screen_vals, dict):
+                    raw = screen_vals.get("heparineTherapyFlow")
+            if raw is not None:
+                return float(raw)
+        except (AttributeError, TypeError, ValueError):
             pass
         
         # Default a 1.0 ml/h si no se puede obtener
