@@ -336,13 +336,27 @@ class SessionRecorder:
 
         treatment_mode = safe_int(self.window.current_values.get("treatmentModeSelection", 0), 0)
         try:
+            has_process_running = False
             if status_code in (14, 15) and treatment_mode != 3:
-                if hasattr(self.window, "treatment_controller") and self.window.treatment_controller is not None:
-                    self.window.treatment_controller.stop_treatment()
-                self.window.show_catalog_message("CIERRE_ABRUPTO_TERAPIA")
+                has_process_running = True
+                logger.warning(
+                    f"Cierre no limpio detectado con terapia en progreso: primingProcessStatus={status_code}"
+                )
+
+
             elif treatment_mode == 3 and status_code == 6:
-                self.window._write_boolean_command("dialyStartDialysisButt", False)
-                self.window._write_boolean_command("dialyStopDialysisButt", True)
-                self.window.show_catalog_message("CIERRE_ABRUPTO_LIMPIEZA")
+                has_process_running = True
+                logger.warning(
+                    f"Cierre no limpio detectado con limpieza en progreso: treatmentModeSelection={treatment_mode}, primingProcessStatus={status_code}"
+                )
+
+            if has_process_running:
+                msg = "La aplicación no cerró de forma limpia. Hay un proceso en curso y no se detuvo."
+                logger.warning(f"Aviso: {msg}")
+                self.window.show_operator_message(msg)
+            else:
+                logger.info(
+                    f"Cierre no limpio detectado pero no hay proceso en curso (primingStatus={status_code}, mode={treatment_mode})"
+                )
         except Exception as e:
             logger.error(f"Error manejando cierre abrupto: {e}")
