@@ -267,11 +267,19 @@ class CalculadoraKtV:
         if self.volumen_distribucion_v <= 0:
             return 0.0
 
-        t_restante = max(0.0, t_total_minutes - current_time_minutes)
-        kt_proyectado = self.kt_acumulado + (self.d_vigente * t_restante)
+        if self.d_vigente <= 0 or self.tiempo_ultima_medicion is None:
+            return 0.0
+
+        tiempo_desde_ultima_medicion = t_total_minutes - self.tiempo_ultima_medicion
+        if current_time_minutes < self.tiempo_ultima_medicion:
+            tiempo_desde_ultima_medicion = t_total_minutes - current_time_minutes
+
+        kt_proyectado = self.kt_acumulado + (self.d_vigente * tiempo_desde_ultima_medicion)
+
         
         logger.debug(
-            f"[KTV_CALC] Kt/V proyectado: t_restante={t_restante:.2f} min, "
+            f"[KTV_CALC] Kt/V proyectado: t_última_med={self.tiempo_ultima_medicion:.2f} min, "
+            f"t_total={t_total_minutes:.2f} min, tiempo_desde_última={tiempo_desde_ultima_medicion:.2f} min, "
             f"D_vigente={self.d_vigente:.1f}, Kt_proyectado={kt_proyectado:.1f}, "
             f"Kt/V={kt_proyectado / self.volumen_distribucion_v:.3f}"
         )
