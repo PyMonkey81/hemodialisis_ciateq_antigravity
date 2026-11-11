@@ -1155,7 +1155,7 @@ class HemodialysisHMI(QMainWindow):
 
         nav_items = [
             ("Inicio",              "#06298a", self.show_home_screen),
-            ("Diálisis",            "#06298a", self.show_dialysis_screen),
+            ("Resumen\nTerapia",            "#06298a", self.show_dialysis_screen),
             ("Tipo de\nTratamiento","#06298a", self.show_treatment_mode_screen), 
             ("Iniciar\nTratamiento", "#39ec21", self.start_treatment),
             ("Limpieza",            "#06298a", self.show_cleaning_screen),
@@ -1332,7 +1332,7 @@ class HemodialysisHMI(QMainWindow):
         self.right_content.show()
         self.navigation_buttons["Inicio"].setEnabled(True)        
         self.navigation_buttons["Inicio"].setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE) # NUEVO: usa el estilo de clase
-        self._highlight_active_nav_button("Diálisis")
+        self._highlight_active_nav_button("Resumen\nTerapia")
 
     def show_treatment_mode_screen(self):
         self.screen_stack.setCurrentWidget(self.treatment_mode_screen)
@@ -1602,7 +1602,7 @@ class HemodialysisHMI(QMainWindow):
             self.patient_config_screen.update_values(self.current_values)
         self.left_content.show()
         self.right_content.show()
-        self._highlight_active_nav_button("Diálisis")
+        self._highlight_active_nav_button("Resumen\nTerapia")
 
     def show_therapy_config_screen(self):
         self.screen_stack.setCurrentWidget(self.therapy_config_screen)
@@ -1610,7 +1610,7 @@ class HemodialysisHMI(QMainWindow):
             self.therapy_config_screen.update_values(self.current_values)
         self.left_content.show()
         self.right_content.show()
-        self._highlight_active_nav_button("Diálisis")
+        self._highlight_active_nav_button("Resumen\nTerapia")
 
     def show_conductivity_profile_screen(self):
         can_open, msg = self.can_configure_conductivity_profile()
@@ -1625,7 +1625,7 @@ class HemodialysisHMI(QMainWindow):
             self.conductivity_profile_screen.refresh_from_parent()
         self.left_content.show()
         self.right_content.show()
-        self._highlight_active_nav_button("Diálisis")
+        self._highlight_active_nav_button("Resumen\nTerapia")
 
     def show_uf_profile_screen(self):
         can_open, msg = self.can_configure_uf_profile()
@@ -1640,7 +1640,7 @@ class HemodialysisHMI(QMainWindow):
             self.uf_profile_screen.refresh_from_parent()
         self.left_content.show()
         self.right_content.show()
-        self._highlight_active_nav_button("Diálisis")
+        self._highlight_active_nav_button("Resumen\nTerapia")
 
     def show_heparin_config_screen(self):
         self.screen_stack.setCurrentWidget(self.heparin_config_screen)
@@ -1648,7 +1648,7 @@ class HemodialysisHMI(QMainWindow):
             self.heparin_config_screen.update_values(self.current_values)
         self.left_content.show()
         self.right_content.show()
-        self._highlight_active_nav_button("Diálisis")
+        self._highlight_active_nav_button("Resumen\nTerapia")
     
     def show_config_comm_screen(self):
         self.screen_stack.setCurrentWidget(self.comm_port_screen)
@@ -1701,7 +1701,7 @@ class HemodialysisHMI(QMainWindow):
         self.KTVScreen.update_patient_data(self.current_values) # Función auxiliar para datos del paciente
         self.left_content.show()
         self.right_content.show()
-        self._highlight_active_nav_button("Diálisis")
+        self._highlight_active_nav_button("Resumen\nTerapia")
 
     def show_nibp_screen(self):
         # TEMPORAL: acceso desde el card de signos vitales de dialysis_screen.
@@ -1710,7 +1710,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.setCurrentWidget(self.nibp_screen)
         self.left_content.show()
         self.right_content.show()
-        self._highlight_active_nav_button("Diálisis")
+        self._highlight_active_nav_button("Resumen\nTerapia")
 
     def show_nibp_history_screen(self):
         """Muestra la pantalla de Tomas del historial de presión arterial (sin borrar el historial)."""
@@ -1721,7 +1721,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.setCurrentWidget(self.nibp_history_screen)
         self.left_content.show()
         self.right_content.show()
-        self._highlight_active_nav_button("Diálisis")
+        self._highlight_active_nav_button("Resumen\nTerapia")
 
     def show_nibp_chart_screen(self):
         """Muestra la pantalla de Gráfica de presión arterial (sin borrar el historial)."""
@@ -1732,7 +1732,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.setCurrentWidget(self.nibp_chart_screen)
         self.left_content.show()
         self.right_content.show()
-        self._highlight_active_nav_button("Diálisis")
+        self._highlight_active_nav_button("Resumen\nTerapia")
 
     def show_nibp_limits_screen(self):
         """Muestra la pantalla de Límites de presión arterial."""
@@ -1740,7 +1740,7 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.setCurrentWidget(self.nibp_limits_screen)
         self.left_content.show()
         self.right_content.show()
-        self._highlight_active_nav_button("Diálisis")
+        self._highlight_active_nav_button("Resumen\nTerapia")
 
     def get_therapy_duration_minutes(self) -> int:
         hours = safe_int(self.current_values.get("heparineTherapyHours", 0), 0)
@@ -1887,18 +1887,18 @@ class HemodialysisHMI(QMainWindow):
 
         mapping = {
             self._main_screen: "Inicio",
-            self.dialysis_screen: "Diálisis",
+            self.dialysis_screen: "Resumen\nTerapia",
             self.treatment_mode_screen: "Tipo de\nTratamiento",
             self.cleaning_screen: "Limpieza",
             self.options_screen: "Servicio",
             self.alarms_screen: "Alarmas",
             self.history_screen: "Historial",
-            self.KTVScreen: "Diálisis",                    # ← Importante
-            self.patient_config_screen: "Diálisis",
-            self.therapy_config_screen: "Diálisis",
-            self.conductivity_profile_screen: "Diálisis",
-            self.uf_profile_screen: "Diálisis",
-            self.heparin_config_screen: "Diálisis",
+            self.KTVScreen: "Resumen\nTerapia",                    # ← Importante
+            self.patient_config_screen: "Resumen\nTerapia",
+            self.therapy_config_screen: "Resumen\nTerapia",
+            self.conductivity_profile_screen: "Resumen\nTerapia",
+            self.uf_profile_screen: "Resumen\nTerapia",
+            self.heparin_config_screen: "Resumen\nTerapia",
         }
 
         # Pantallas de servicio
@@ -1926,7 +1926,7 @@ class HemodialysisHMI(QMainWindow):
         for text, btn in self.navigation_buttons.items():
             if text == active_button_text:
                 btn.setStyleSheet(self.BTN_ACTIVE_STYLE)
-            elif text in ["Inicio", "Diálisis", "Tipo de\nTratamiento", 
+            elif text in ["Inicio", "Resumen\nTerapia", "Tipo de\nTratamiento", 
                           "Limpieza", "Servicio", "Alarmas", "Historial"]:
                 # Solo restauramos estilo si el botón está habilitado
                 if btn.isEnabled():
@@ -1969,7 +1969,7 @@ class HemodialysisHMI(QMainWindow):
             elif text == "Historial":
                 enabled = True
 
-            elif text == "Diálisis":
+            elif text == "Resumen\nTerapia":
                 enabled = phase not in (TreatmentPhase.CLEANING,)
 
             elif text == "Limpieza":
@@ -1993,14 +1993,14 @@ class HemodialysisHMI(QMainWindow):
                 enabled = text in ["Limpieza", "Alarmas", "Historial", "Servicio"]
 
             elif phase == TreatmentPhase.RUNNING:
-                enabled = text in ["Diálisis", "Alarmas", "Historial"]
+                enabled = text in ["Resumen\nTerapia", "Alarmas", "Historial"]
 
             elif phase == TreatmentPhase.PAUSED:
-                enabled = text in ["Diálisis", "Iniciar\nTratamiento", "Servicio", 
+                enabled = text in ["Resumen\nTerapia", "Iniciar\nTratamiento", "Servicio", 
                              "Alarmas", "Historial"]
 
             elif phase == TreatmentPhase.READY:
-                enabled = text in ["Diálisis", "Iniciar\nTratamiento", "Servicio", 
+                enabled = text in ["Resumen\nTerapia", "Iniciar\nTratamiento", "Servicio", 
                              "Alarmas", "Historial"]
                 if text == "Iniciar\nTratamiento":
                     # enabled = temp_ok and cond_ok
@@ -2014,13 +2014,13 @@ class HemodialysisHMI(QMainWindow):
                 status = int(self.current_values.get("primingProcessStatus", 0))
                 if self.hardware_mapper.is_preparing(status):
                     # Durante cebado normal
-                    enabled = text in ["Diálisis", "Alarmas", "Historial", "Servicio"]
+                    enabled = text in ["Resumen\nTerapia", "Alarmas", "Historial", "Servicio"]
                 else:
                     # Cuando se detiene el priming
                     enabled = True
 
             elif phase == TreatmentPhase.IDLE:
-                enabled = text in ["Diálisis", "Tipo de\nTratamiento", "Inicio", 
+                enabled = text in ["Resumen\nTerapia", "Tipo de\nTratamiento", "Inicio", 
                                  "Servicio", "Alarmas", "Historial", "Salir"]
                 if text == "Limpieza":
                     enabled = (treatment_mode == 3)
