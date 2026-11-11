@@ -251,6 +251,8 @@ class DialysisScreen(QWidget):
         self.themed_sublabels: list[QLabel] = []
         self.themed_unit_labels: list[QLabel] = []
         self._last_air_bubble_state = 0.0
+        self.last_valid_nibp_hr = None
+        self.last_spo2_pulse = None
 
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setAutoFillBackground(True)
@@ -965,18 +967,25 @@ class DialysisScreen(QWidget):
             self.nibp_value.setText("-- / --")
 
         if hr_bpm >= 0:
-            self.hr_value.setText(str(hr_bpm))
+            self.last_valid_nibp_hr = hr_bpm
+            self._update_hr_display()
         else:
-            self.hr_value.setText("--")
+            self._update_hr_display()
 
     def update_spo2(self, data):
         if not data:
             self.spo2_value.setText("-- %")
             self.spo2_status_label.setText("")
+            self._update_hr_display()
             return
 
         value = data.get("spo2")
         self.spo2_value.setText(f"{value} %" if value is not None else "-- %")
+
+        pr = data.get("pr")
+        if pr is not None and isinstance(pr, (int, float)) and not isinstance(pr, bool):
+            self.last_spo2_pulse = pr
+        self._update_hr_display()
 
         if data.get("sensor_off"):
             status_text = "Sensor desconectado"
@@ -991,6 +1000,32 @@ class DialysisScreen(QWidget):
         else:
             status_text = ""
         self.spo2_status_label.setText(status_text)
+
+    def _update_hr_display(self):
+        spo2_enabled = False
+        if hasattr(self, "parent_window") and hasattr(self.parent_window, "nibp_screen"):
+            nibp_screen = self.parent_window.nibp_screen
+            if hasattr(nibp_screen, "_config") and isinstance(nibp_screen._config, dict):
+                spo2_enabled = bool(nibp_screen._config.get("spo2_enabled", False))
+
+        if (
+            spo2_enabled
+            and hasattr(self, "last_spo2_pulse")
+            and self.last_spo2_pulse is not None
+            and isinstance(self.last_spo2_pulse, (int, float))
+            and not isinstance(self.last_spo2_pulse, bool)
+        ):
+            self.hr_value.setText(str(int(self.last_spo2_pulse)))
+        elif (
+            getattr(self, "last_valid_nibp_hr", None) is not None
+            and self.last_valid_nibp_hr >= 0
+        ):
+            self.hr_value.setText(str(self.last_valid_nibp_hr))
+        else:
+            self.hr_value.setText("--")
+
+    def on_spo2_checkbox_changed(self):
+        self._update_hr_display()
 
     def set_priming_buttons_state(self, enable_start_priming: bool, enable_stop_priming: bool):
         btn_start_priming = self.action_buttons.get("INICIAR CEBADO")
