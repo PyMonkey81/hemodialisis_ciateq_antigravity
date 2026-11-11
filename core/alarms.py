@@ -95,7 +95,11 @@ class AlarmSystem(QObject):
             # Lógica para boolean_triggers: si es tipo 'bool', trigger es True (activa en 1.0) por defecto.
             # Puedes añadir un campo 'boolean_active_on_false' en VARIABLES_MAP si necesitas invertir esto.
             if var_type_from_map == "bool":
-                self.boolean_triggers.append(True) # Activa si valor != 0.0 (es decir, 1.0)
+                # Caso especial: dialyWaterTankFull se activa cuando el tanque NO está lleno (valor == 0.0)
+                if tag == "dialyWaterTankFull":
+                    self.boolean_triggers.append(False) # Activa si valor == 0.0 (tanque vacío/falta de agua)
+                else:
+                    self.boolean_triggers.append(True) # Activa si valor != 0.0 (es decir, 1.0)
             else:
                 self.boolean_triggers.append(False) # No se usa para numéricas, es un placeholder.
             
@@ -106,7 +110,9 @@ class AlarmSystem(QObject):
         self.previous_emitted_levels = list(self.severity_levels)
 
         # Reiniciar el estado de valores y estados previos para la nueva configuración
-        self.current_values = [0.0] * self.alarm_count
+        self.current_values = [
+            1.0 if tag == "dialyWaterTankFull" else 0.0 for tag in self.tags
+        ]
         self.previous_states = [False] * self.alarm_count
         # event_history se mantiene, es un log.
 
@@ -165,7 +171,9 @@ class AlarmSystem(QObject):
 
                     current_time = time.strftime("%H:%M:%S")
                     status_text = "ACTIVADA" if is_active else "DESACTIVADA"
-                    event_msg = f"{status_text} - {self.display_names[i]}"
+                    # Mensaje personalizado para falta de agua
+                    display_text = "FALTA AGUA" if tag == "dialyWaterTankFull" else self.display_names[i]
+                    event_msg = f"{status_text} - {display_text}"
 
                     with self.lock: # Proteger el acceso al historial
                         self.event_history.append((event_msg, value, current_time))
@@ -217,7 +225,9 @@ class AlarmSystem(QObject):
     def reset(self) -> None:
         """Reinicia estado en tiempo de ejecución (manteniendo configuración)"""
         with self.lock:
-            self.current_values = [0.0] * self.alarm_count
+            self.current_values = [
+                1.0 if tag == "dialyWaterTankFull" else 0.0 for tag in self.tags
+            ]
             self.previous_states = [False] * self.alarm_count
             self.event_history.clear()
 
