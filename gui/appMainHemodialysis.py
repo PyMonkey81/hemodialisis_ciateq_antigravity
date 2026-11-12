@@ -134,6 +134,7 @@ from gui.session.session_recorder import SessionRecorder
 from gui.session.operator_alerts import OperatorAlerts
 from gui.session.hardware_state_sync import HardwareStateSync
 from gui.shell.main_shell import MainShell
+from gui.shell.side_indicators import SideIndicators
 from gui.therapy.profile_coordinator import ProfileCoordinator
 from gui.therapy.heparin_coordinator import HeparinCoordinator
 from gui.therapy.treatment_start import TreatmentStart
@@ -333,6 +334,13 @@ class HemodialysisHMI(QMainWindow):
             shell = MainShell(self)
             self.main_shell = shell
         return shell
+
+    def _get_side_indicators(self) -> SideIndicators:
+        indicators = getattr(self, "side_indicators", None)
+        if indicators is None:
+            indicators = SideIndicators(self)
+            self.side_indicators = indicators
+        return indicators
 
     def _build_header_label_style(self, background: str = "", is_process: bool = False) -> str:
         return self._get_main_shell()._build_header_label_style(background, is_process=is_process)
@@ -1081,54 +1089,7 @@ class HemodialysisHMI(QMainWindow):
 
         self.main_layout.addWidget(header_container, 0, 0, 1, 6)
 
-        # ==================================================================== 
-        #                  GAUGES IZQUIERDA (PA + PV) 
-        # ====================================================================
-        self.left_container = QWidget()  #CONTENEDOR FIJO SIEMPRE VISIBLE
-        self.left_container.setFixedSize(180, 903)
-        left_layout_outer = QVBoxLayout(self.left_container)
-        left_layout_outer.setContentsMargins(0, 0, 0, 0)
-
-        self.left_content = QWidget() # CONTENEDOR DE WIDGETS
-        self.left_content.setFixedSize(180, 903)
-        left_inner_layout = QVBoxLayout(self.left_content)
-        left_inner_layout.setContentsMargins(0, 0, 0, 0)
-        left_inner_layout.setSpacing(0)
-
-        self.arterial_pressure_gauge = TankGauge("Art", -100, 400, "mmHg", "#dc2626")
-        self.venous_pressure_gauge   = TankGauge("Ven",  -50, 400, "mmHg", "#1640f9")
-        self.arterial_pressure_gauge.setFixedSize(180, 451)
-        self.venous_pressure_gauge.setFixedSize(180, 452)
-        left_inner_layout.addWidget(self.arterial_pressure_gauge)
-        left_inner_layout.addWidget(self.venous_pressure_gauge)
-
-        left_layout_outer.addWidget(self.left_content)
-        self.main_layout.addWidget(self.left_container, 1, 0, 2, 1)
-        #=========================================================================================
-        # ===================== Right gauges (Temp + Conductivity) ===============================
-        #=========================================================================================
-        self.right_container = QWidget() # CONTENEDOR DERECHO FIJO 
-        self.right_container.setFixedSize(180, 903)
-        right_outer_layout = QVBoxLayout(self.right_container)
-        right_outer_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.right_content = QWidget() # CONTENEDOR DE WIDGETS 
-        self.right_content.setFixedSize(180, 903)
-        right_inner_layout = QVBoxLayout(self.right_content)
-        right_inner_layout.setContentsMargins(0, 0, 0, 0)
-        right_inner_layout.setSpacing(0)
-
-        self.dialysate_temp_gauge = TankGauge("Temp.", 0, 50, "°C", "#A31A1A")
-        self.conductivity_bar = ConductivityBar()
-
-        self.dialysate_temp_gauge.setFixedWidth(180)
-        self.conductivity_bar.setFixedWidth(180)
-
-        right_inner_layout.addWidget(self.dialysate_temp_gauge, 1)
-        right_inner_layout.addWidget(self.conductivity_bar, 1)
-
-        right_outer_layout.addWidget(self.right_content)
-        self.main_layout.addWidget(self.right_container, 1, 5, 2, 1)
+        self._get_side_indicators().setup_ui()
 
         # ── Bottom navigation bar ────────────────────────
         self.nav_bar = QWidget()
@@ -2105,23 +2066,7 @@ class HemodialysisHMI(QMainWindow):
         return self.current_values.get("dialyTempIFProcessData", 0.0)
 
     def _update_gauges(self):
-        
-        gauge_mapping = {
-            "bloodArteryPressureData":   self.arterial_pressure_gauge,
-            "bloodVenousPressureData":   self.venous_pressure_gauge,
-            "dialyTempIFProcessData":  self.dialysate_temp_gauge,
-            "dialyCondVariableData":  self.conductivity_bar,
-        }
-        for tag, gauge in gauge_mapping.items():
-            if gauge is not None:
-                if tag == "dialyTempIFProcessData":
-                    value = self._get_temperature_display_value()
-                else:
-                    value = self.current_values.get(tag, 0.0)
-                try:
-                    gauge.setValue(value)
-                except Exception as e:
-                    logger.error(f"Error actualizando gauge {tag}: {e}")
+        return self._get_side_indicators()._update_gauges()
    
 
 
