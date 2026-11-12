@@ -226,3 +226,7 @@ class HeparinCoordinator:
             # self._write_boolean_command("heparinePumpsStopButton", True)
             self.window._heparin_infusion_forced_stop_latched = True
             logger.info("[HEPARIN] disabled")
+
+    def on_second(self):
+        self._update_heparin_auto_stop_timer()
+        self._update_heparin_infusion_enable_guard()

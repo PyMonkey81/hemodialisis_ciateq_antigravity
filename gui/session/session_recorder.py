@@ -360,3 +360,7 @@ class SessionRecorder:
                 )
         except Exception as e:
             logger.error(f"Error manejando cierre abrupto: {e}")
+
+
+    def on_second(self):
+        self._check_and_handle_unclean_close()

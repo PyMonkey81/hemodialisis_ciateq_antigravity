@@ -377,3 +377,7 @@ class ProfileCoordinator:
                 elapsed_min,
                 target_l_h,
             )
+
+    def on_second(self):
+        self._apply_conductivity_profile_from_state()
+        self._apply_uf_profile_from_state()

@@ -810,14 +810,19 @@ class HemodialysisHMI(QMainWindow):
             self._nibp_coordinator = coordinator
         return coordinator
 
+    @property
+    def nibp_coordinator(self) -> NibpCoordinator:
+        return self._get_nibp_coordinator()
+
+    @nibp_coordinator.setter
+    def nibp_coordinator(self, value):
+        self._nibp_coordinator = value
+
     def _apply_nibp_auto_spo2_for_phase(self, phase: TreatmentPhase):
         return self._get_nibp_coordinator()._apply_nibp_auto_spo2_for_phase(phase)
 
     def _on_nibp_measure_requested(self):
         return self._get_nibp_coordinator()._on_nibp_measure_requested()
-
-    def _check_nibp_auto_measurement(self):
-        return self._get_nibp_coordinator()._check_nibp_auto_measurement()
 
     def _on_treatment_started(self, start_time):
         logger.info("Tratamiento INICIADO")
@@ -1185,6 +1190,14 @@ class HemodialysisHMI(QMainWindow):
             self._heparin_coordinator = coordinator
         return coordinator
 
+    @property
+    def heparin_coordinator(self) -> HeparinCoordinator:
+        return self._get_heparin_coordinator()
+
+    @heparin_coordinator.setter
+    def heparin_coordinator(self, value):
+        self._heparin_coordinator = value
+
     def _validate_and_clamp_heparin_auto_stop_time(self):
         return self._get_heparin_coordinator()._validate_and_clamp_heparin_auto_stop_time()
     
@@ -1534,6 +1547,14 @@ class HemodialysisHMI(QMainWindow):
             self._profile_coordinator = coordinator
         return coordinator
 
+    @property
+    def profile_coordinator(self) -> ProfileCoordinator:
+        return self._get_profile_coordinator()
+
+    @profile_coordinator.setter
+    def profile_coordinator(self, value):
+        self._profile_coordinator = value
+
     def can_configure_conductivity_profile(self, allow_disable: bool = False) -> tuple[bool, str]:
         return self._get_profile_coordinator().can_configure_conductivity_profile(allow_disable)
 
@@ -1545,9 +1566,6 @@ class HemodialysisHMI(QMainWindow):
 
     def disable_conductivity_profile(self, show_message: bool = False) -> bool:
         return self._get_profile_coordinator().disable_conductivity_profile(show_message)
-
-    def _apply_conductivity_profile_from_state(self, log_forced: bool = False):
-        return self._get_profile_coordinator()._apply_conductivity_profile_from_state(log_forced)
 
     # ────────────────────────────────────────────────
     #              Perfil de Ultrafiltración (UF)
@@ -1564,9 +1582,6 @@ class HemodialysisHMI(QMainWindow):
 
     def disable_uf_profile(self, show_message: bool = False) -> bool:
         return self._get_profile_coordinator().disable_uf_profile(show_message)
-
-    def _apply_uf_profile_from_state(self, log_forced: bool = False):
-        return self._get_profile_coordinator()._apply_uf_profile_from_state(log_forced)
 
     # ────────────────────────────────────────────────
     #              Utility Methods
@@ -1600,7 +1615,7 @@ class HemodialysisHMI(QMainWindow):
 
             if second_elapsed:
                 self.update_connection_status()
-                self._check_and_handle_unclean_close()
+                self.session_recorder.on_second()
                 self.update_date_time()
 
                 if self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.IDLE):
@@ -1614,13 +1629,9 @@ class HemodialysisHMI(QMainWindow):
                         uf_removed_liters=uf_rem_l,
                     )
 
-                self._check_nibp_auto_measurement()
-
-                self._apply_conductivity_profile_from_state()
-                self._apply_uf_profile_from_state()
-
-                self._update_heparin_auto_stop_timer()
-                self._update_heparin_infusion_enable_guard()
+                self.nibp_coordinator.on_second()
+                self.profile_coordinator.on_second()
+                self.heparin_coordinator.on_second()
                 
                 # Actualizar encabezado durante la espera de 90 s después del llenado de filtro
                 self._update_header_during_filter_fill()
@@ -1640,14 +1651,8 @@ class HemodialysisHMI(QMainWindow):
     def _coerce_heparin_auto_stop_seconds(self) -> int:
         return self._get_heparin_coordinator()._coerce_heparin_auto_stop_seconds()
 
-    def _update_heparin_auto_stop_timer(self):
-        return self._get_heparin_coordinator()._update_heparin_auto_stop_timer()
-
     def set_heparin_infusion_enabled(self, enabled: bool):
         return self._get_heparin_coordinator().set_heparin_infusion_enabled(enabled)
-
-    def _update_heparin_infusion_enable_guard(self):
-        return self._get_heparin_coordinator()._update_heparin_infusion_enable_guard()
 
     # ============================================================
     # MÉTODOS DE NAVEGACIÓN MEJORADOS
@@ -2614,11 +2619,16 @@ class HemodialysisHMI(QMainWindow):
         return self._get_session_recorder().register_cleaning_session()
 
     @property
-    def unclean_close(self) -> SessionRecorder:
+    def session_recorder(self) -> SessionRecorder:
         return self._get_session_recorder()
 
-    def _check_and_handle_unclean_close(self):
-        return self._get_session_recorder()._check_and_handle_unclean_close()
+    @session_recorder.setter
+    def session_recorder(self, value):
+        self._session_recorder = value
+
+    @property
+    def unclean_close(self) -> SessionRecorder:
+        return self._get_session_recorder()
         
 
     def _show_exit_confirmation(self):

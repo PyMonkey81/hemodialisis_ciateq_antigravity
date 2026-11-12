@@ -92,6 +92,9 @@ class NibpCoordinator:
         self.window._nibp_auto_last_interval_index = current_index
         self.window._on_nibp_measure_requested()
 
+    def on_second(self):
+        self._check_nibp_auto_measurement()
+
     def _load_nibp_config_and_apply(self):
         """Carga config/nibp_config.json y aplica update_config; enabled=False no abre puerto."""
         loaded = safe_json_load(NIBP_CONFIG_PATH, {})
