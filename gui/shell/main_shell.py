@@ -184,7 +184,7 @@ class MainShell:
             if logo_lbl is not None:
                 logo_lbl.setStyleSheet(logo_style)
 
-        for lbl_attr in ("treatment_mode_selected", "remaining_time_display", "date_time_label"):
+        for lbl_attr in ("remaining_time_display", "date_time_label"):
             lbl = getattr(self.window, lbl_attr, None)
             if lbl is not None:
                 lbl.setStyleSheet(self.window._build_header_label_style(header_pill, is_process=False))
@@ -260,24 +260,104 @@ class MainShell:
 
         self.window._refresh_navigation_bar()
 
+    def _apply_home_chrome(self, *_):
+        """En Inicio oculta los indicadores del header (deja solo logos) y deja solo Resumen Terapia/Diálisis y Servicio en la barra."""
+        on_home = (
+            hasattr(self.window, "screen_stack")
+            and hasattr(self.window, "_main_screen")
+            and self.window.screen_stack.currentWidget() is self.window._main_screen
+        )
+        for attr in (
+            "status_label",
+            "current_process_status",
+            "treatment_mode_selected",
+            "remaining_time_display",
+            "date_time_label",
+        ):
+            widget = getattr(self.window, attr, None)
+            if widget is not None:
+                widget.setVisible(not on_home)
+
+        for text, btn in getattr(self.window, "navigation_buttons", {}).items():
+            if btn is not None:
+                if on_home:
+                    btn.setVisible(text in ("Diálisis", "Resumen\nTerapia", "Servicio"))
+                else:
+                    btn.setVisible(True)
+
+    def _on_treatment_mode_label_click(self):
+        """Maneja el click en el label de tipo de tratamiento del header.
+        Abre la pantalla de selección de tratamiento si está permitido según la fase actual."""
+        if not self.window.serial_comm or not self.window.serial_comm.is_connected:
+            return
+
+        phase = self.window.state.current_phase
+
+        # Permitir cambio solo en IDLE o PREPARING (cuando no está en cebado activo)
+        if phase == TreatmentPhase.IDLE:
+            self.window.show_treatment_mode_screen()
+        elif phase == TreatmentPhase.PREPARING:
+            status = int(self.window.current_values.get("primingProcessStatus", 0))
+            if not self.window.hardware_mapper.is_preparing(status):
+                # Solo si se detuvo el cebado
+                self.window.show_treatment_mode_screen()
+
+    def _update_treatment_mode_label_state(self):
+        """Actualiza el estado (habilitado/deshabilitado) y estilo del label de tipo de tratamiento."""
+        if not hasattr(self.window, "treatment_mode_selected") or self.window.treatment_mode_selected is None:
+            return
+
+        if not self.window.serial_comm or not self.window.serial_comm.is_connected:
+            self.window.treatment_mode_selected.setEnabled(False)
+            self.window.treatment_mode_selected.setStyleSheet(
+                self.window._build_header_label_style("#6b7280", is_process=False)
+            )
+            return
+
+        phase = self.window.state.current_phase
+        can_change = False
+
+        if phase == TreatmentPhase.IDLE:
+            can_change = True
+        elif phase == TreatmentPhase.PREPARING:
+            status = int(self.window.current_values.get("primingProcessStatus", 0))
+            if not self.window.hardware_mapper.is_preparing(status):
+                can_change = True
+
+        self.window.treatment_mode_selected.setEnabled(can_change)
+        if can_change:
+            self.window.treatment_mode_selected.setStyleSheet(
+                self.window._build_header_label_style("#1d4ed8", is_process=False)
+            )
+        else:
+            self.window.treatment_mode_selected.setStyleSheet(
+                self.window._build_header_label_style("#6b7280", is_process=False)
+            )
+
     def _get_current_screen_nav_text(self) -> str:
         """Devuelve el texto del botón de navegación correspondiente a la pantalla actual."""
         current = self.window.screen_stack.currentWidget()
 
+        nav_buttons = getattr(self.window, "navigation_buttons", {}) or {}
+        dialysis_nav_text = (
+            "Diálisis"
+            if ("Diálisis" in nav_buttons and "Resumen\nTerapia" not in nav_buttons)
+            else "Resumen\nTerapia"
+        )
+
         mapping = {
             self.window._main_screen: "Inicio",
-            self.window.dialysis_screen: "Resumen\nTerapia",
-            self.window.treatment_mode_screen: "Tipo de\nTratamiento",
+            self.window.dialysis_screen: dialysis_nav_text,
             self.window.cleaning_screen: "Limpieza",
             self.window.options_screen: "Servicio",
             self.window.alarms_screen: "Alarmas",
             self.window.history_screen: "Historial",
-            self.window.KTVScreen: "Resumen\nTerapia",                    # ← Importante
-            self.window.patient_config_screen: "Resumen\nTerapia",
-            self.window.therapy_config_screen: "Resumen\nTerapia",
-            self.window.conductivity_profile_screen: "Resumen\nTerapia",
-            self.window.uf_profile_screen: "Resumen\nTerapia",
-            self.window.heparin_config_screen: "Resumen\nTerapia",
+            self.window.KTVScreen: dialysis_nav_text,                    # ← Importante
+            self.window.patient_config_screen: dialysis_nav_text,
+            self.window.therapy_config_screen: dialysis_nav_text,
+            self.window.conductivity_profile_screen: dialysis_nav_text,
+            self.window.uf_profile_screen: dialysis_nav_text,
+            self.window.heparin_config_screen: dialysis_nav_text,
         }
 
         # Pantallas de servicio
@@ -304,7 +384,7 @@ class MainShell:
         for text, btn in self.window.navigation_buttons.items():
             if text == active_button_text:
                 btn.setStyleSheet(self.window.BTN_ACTIVE_STYLE)
-            elif text in ["Inicio", "Resumen\nTerapia", "Tipo de\nTratamiento",
+            elif text in ["Inicio", "Diálisis", "Resumen\nTerapia",
                           "Limpieza", "Servicio", "Alarmas", "Historial"]:
                 # Solo restauramos estilo si el botón está habilitado
                 if btn.isEnabled():
@@ -314,6 +394,7 @@ class MainShell:
         """Lógica centralizada y clara según especificación del usuario"""
         if not self.window.serial_comm or not self.window.serial_comm.is_connected:
             self.window._handle_disconnected_state()
+            self.window._update_treatment_mode_label_state()
             return
         # status_code = int(self.window.current_values.get("primingProcessStatus", 0))
         temp_actual = safe_float(self.window.current_values.get("dialyTempIFProcessData", 0.0), 0.0)
@@ -344,14 +425,11 @@ class MainShell:
             elif text == "Historial":
                 enabled = True
 
-            elif text == "Resumen\nTerapia":
+            elif text in ("Diálisis", "Resumen\nTerapia"):
                 enabled = phase not in (TreatmentPhase.CLEANING,)
 
             elif text == "Limpieza":
                 enabled = (treatment_mode == 3)
-
-            elif text == "Tipo de\nTratamiento":
-                enabled = phase in (TreatmentPhase.IDLE, TreatmentPhase.PREPARING)
 
             elif text == "Inicio":
                 enabled = phase in (TreatmentPhase.IDLE, TreatmentPhase.PREPARING)
@@ -364,33 +442,35 @@ class MainShell:
                 enabled = text in ["Limpieza", "Alarmas", "Historial", "Servicio"]
 
             elif phase == TreatmentPhase.RUNNING:
-                enabled = text in ["Resumen\nTerapia", "Alarmas", "Historial"]
+                enabled = text in ["Diálisis", "Resumen\nTerapia", "Alarmas", "Historial"]
 
             elif phase == TreatmentPhase.PAUSED:
-                enabled = text in ["Resumen\nTerapia", "Iniciar\nTratamiento", "Servicio",
+                enabled = text in ["Diálisis", "Resumen\nTerapia", "Iniciar\nTratamiento", "Servicio",
                              "Alarmas", "Historial"]
+                if text == "Iniciar\nTratamiento":
+                    enabled = self.window._can_start_treatment()
 
             elif phase == TreatmentPhase.READY:
-                enabled = text in ["Resumen\nTerapia", "Iniciar\nTratamiento", "Servicio",
+                enabled = text in ["Diálisis", "Resumen\nTerapia", "Iniciar\nTratamiento", "Servicio",
                              "Alarmas", "Historial"]
                 if text == "Iniciar\nTratamiento":
                     # enabled = temp_ok and cond_ok
                     enabled = self.window._can_start_treatment()
                 # Deshabilitamos explícitamente estos
-                if text in ["Inicio", "Tipo de\nTratamiento", "Limpieza"]:
+                if text in ["Inicio", "Limpieza"]:
                     enabled = False
 
             elif phase == TreatmentPhase.PREPARING:
                 status = int(self.window.current_values.get("primingProcessStatus", 0))
                 if self.window.hardware_mapper.is_preparing(status):
                     # Durante cebado normal
-                    enabled = text in ["Resumen\nTerapia", "Alarmas", "Historial", "Servicio"]
+                    enabled = text in ["Diálisis", "Resumen\nTerapia", "Alarmas", "Historial", "Servicio"]
                 else:
                     # Cuando se detiene el priming
                     enabled = True
 
             elif phase == TreatmentPhase.IDLE:
-                enabled = text in ["Resumen\nTerapia", "Tipo de\nTratamiento", "Inicio",
+                enabled = text in ["Diálisis", "Resumen\nTerapia", "Inicio",
                                  "Servicio", "Alarmas", "Historial"]
                 if text == "Limpieza":
                     enabled = (treatment_mode == 3)
@@ -418,6 +498,9 @@ class MainShell:
         # Actualizar texto del botón principal
         self.window._update_buttons_state()
 
+        # Actualizar estado del label de tipo de tratamiento
+        self.window._update_treatment_mode_label_state()
+
     def _handle_disconnected_state(self):
         """Estado sin conexión"""
         for text, btn in self.window.navigation_buttons.items():
@@ -439,7 +522,7 @@ class MainShell:
             btn.setEnabled(False)
         elif phase == TreatmentPhase.PAUSED:
             btn.setText("Reanudar\nTratamiento")
-            btn.setEnabled(True)
+            btn.setEnabled(self.window._can_start_treatment())
         elif phase == TreatmentPhase.READY:
             btn.setText("Iniciar\nTratamiento")
             btn.setEnabled(self.window._can_start_treatment())
@@ -583,9 +666,7 @@ class MainShell:
         mode_text = short_mode_map.get(mode_code, "HD")
         self.window.treatment_mode_selected.setText(mode_text)
         self.window.treatment_mode_selected.setAlignment(Qt.AlignCenter)
-        self.window.treatment_mode_selected.setStyleSheet(
-            self.window._build_header_label_style("#1d4ed8", is_process=False)
-        )
+        # El color y estado se actualizan en _update_treatment_mode_label_state()
 
     def update_remaining_time_header(self, remaining_str: str):
         if hasattr(self.window, "remaining_time_display") and self.window.remaining_time_display:

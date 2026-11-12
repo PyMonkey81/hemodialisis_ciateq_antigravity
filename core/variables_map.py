@@ -208,10 +208,10 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
         0x14: {"name": "Setpoint flujo dializante", "label": "SP FLUJO DIAL", "type": "double", "rw": True, "unit": "ml/min", "limites": (300, 800), "tag": "dialyFlowControlOutput", "nivel": "cian"},       # 36
         0x15: {"name": "Salida bomba de purga", "label": "OUT B.PURGA", "type": "double", "rw": True, "unit": "%", "limites": (0, 100), "tag": "dialyDeaerControlOutput", "nivel": "cian"},                # 37
         0x16: {"name": "Posición inicial de jeringa", "label": "POS. INI. JER.", "type": "double", "rw": True, "unit": "", "limites": (0,4), "tag": "heparineSyringeVolume", "nivel": "cian"},           # 38 no mostrar en catalogo
-        0x17: {"name": "Parámetro control variable 2", "label": "Param var 2", "type": "double", "rw": False, "unit": "", "limites": (0, 10000), "tag": "variableCtrlParamData2", "nivel": "cian"},           # 39
-        0x18: {"name": "Parámetro control variable 3", "label": "PARAM VAR 3", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData3", "nivel": "cian"},           # 40
-        0x19: {"name": "Parámetro control variable 4", "label": "PARAM VAR 4", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData4", "nivel": "cian"},           # 41
-        0x1A: {"name": "Parámetro control variable 5", "label": "PARAM VAR 5", "type": "double", "rw": True, "unit": "", "limites": (0, 1000), "tag": "variableCtrlParamData5", "nivel": "cian"},           # 42
+        0x17: {"name": "Limite alto de presion de agua", "label": "LIM. ALT. P. AGUA", "type": "double", "rw": True, "unit": "", "limites": (0, 20), "tag": "dialyLineWaterPresHiLimit", "nivel": "cian"},           # 39 no mostrar en catalogo
+        0x18: {"name": "Limite bajo de presion de agua", "label": "LIM. B. P. AGUA", "type": "double", "rw": True, "unit": "", "limites": (0, 20), "tag": "dialyLineWaterPresLoLimit", "nivel": "cian"},           # 40 no mostrar en catalogo
+        0x19: {"name": "Limite alto conductividad", "label": "LIM. ALT. COND.", "type": "double", "rw": True, "unit": "", "limites": (0, 20), "tag": "dialyConductHiLimitBand", "nivel": "cian"},           # 41 no mostrar en catalogo
+        0x1A: {"name": "Limite bajo conductividad", "label": "LIM. B. COND.", "type": "double", "rw": True, "unit": "", "limites": (0, 20), "tag": "dialyConductLoLimitBand", "nivel": "cian"},           # 42 no mostrar en catalogo
     },
 
     # ================================================================

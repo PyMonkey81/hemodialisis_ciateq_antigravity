@@ -183,11 +183,25 @@ class FirmwareGateway:
         except Exception as e:
             logger.error(f"Error en write_boolean_command '{tag}': {e}")
 
-    def _emit_pressure_alarm_limits(self, art_min, art_max, ven_min, ven_max, ptm_min, ptm_max):
-        """Escribe los 6 límites de presión al dispositivo via write_double.
+    def _emit_pressure_alarm_limits(
+        self,
+        art_min,
+        art_max,
+        ven_min,
+        ven_max,
+        ptm_min,
+        ptm_max,
+        water_min=None,
+        water_max=None,
+        cond_min=None,
+        cond_max=None,
+    ):
+        """Escribe los 10 límites de presión, agua y conductividad al dispositivo via write_double.
         art_min/max: límites arteriales
         ven_min/max: límites venosos
         ptm_min/max: límites de presión transmembrana (None si no está en pantalla)
+        water_min/max: límites de presión de agua (None si no está en pantalla)
+        cond_min/max: límites de conductividad (None si no está en pantalla)
         """
         pares = (
             ("artPresCircAlarmLoLimData", art_min),
@@ -196,6 +210,10 @@ class FirmwareGateway:
             ("venPresCircAlarmHiLimData", ven_max),
             ("membPressAlarmLoLimData", ptm_min),
             ("membPressAlarmHiLimData", ptm_max),
+            ("dialyLineWaterPresLoLimit", water_min),
+            ("dialyLineWaterPresHiLimit", water_max),
+            ("dialyConductLoLimitBand", cond_min),
+            ("dialyConductHiLimitBand", cond_max),
         )
         if not self.window.serial_comm or not self.window.serial_comm.is_connected:
             logger.warning("ALARMAS NO ENVIADAS: serial del control desconectado")
@@ -211,8 +229,15 @@ class FirmwareGateway:
             self.window.serial_comm.write_double(group, address, float(value))
             logger.info("ESCRIBO alarma %s grupo %s id %s = %s", tag, hex(group), address, value)
 
+    @staticmethod
+    def _unpack_cached_limits(cache: dict, tag: str):
+        entry = cache.get(tag)
+        if isinstance(entry, (tuple, list)) and len(entry) == 2:
+            return entry[0], entry[1]
+        return None, None
+
     def _write_pressure_limits_on_connection(self):
-        """Escribe límites de presión al conectar leyendo SOLO del cache.
+        """Escribe límites de presión, agua y conductividad al conectar leyendo SOLO del cache.
         Si una fila no está guardada, NO la escribe."""
         if not self.window.serial_comm or not self.window.serial_comm.is_connected:
             return
@@ -224,10 +249,15 @@ class FirmwareGateway:
                 logger.info("Cache vacío: no hay límites guardados para escribir al conectar")
                 return
 
-            art_min, art_max = cache.get("bloodArteryPressureData", (None, None))
-            ven_min, ven_max = cache.get("bloodVenousPressureData", (None, None))
-            ptm_min, ptm_max = cache.get("CALC_PTM", (None, None))
-            self._emit_pressure_alarm_limits(art_min, art_max, ven_min, ven_max, ptm_min, ptm_max)
+            art_min, art_max = self._unpack_cached_limits(cache, "bloodArteryPressureData")
+            ven_min, ven_max = self._unpack_cached_limits(cache, "bloodVenousPressureData")
+            ptm_min, ptm_max = self._unpack_cached_limits(cache, "CALC_PTM")
+            water_min, water_max = self._unpack_cached_limits(cache, "dialyLineWaterPresData")
+            cond_min, cond_max = self._unpack_cached_limits(cache, "dialyCondVariableData")
+            self._emit_pressure_alarm_limits(
+                art_min, art_max, ven_min, ven_max, ptm_min, ptm_max,
+                water_min, water_max, cond_min, cond_max
+            )
         except Exception as e:
             logger.warning(f"Error escribiendo límites de presión al conectar: {e}")
 

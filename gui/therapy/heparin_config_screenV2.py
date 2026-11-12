@@ -60,6 +60,7 @@ class HeparinConfigScreen(QWidget):
         self._selected_syringe_index = 0
         self._pending_bolus_start_dosage = None
         self._pending_bolus_volume = 0.0
+        self._heparin_depleted_alert_shown = False
         self._field_labels = []
         self._ctrl_buttons = []
 
@@ -758,6 +759,7 @@ class HeparinConfigScreen(QWidget):
 
         # Verificar si el bolo pendiente ya se dosificó por completo
         self._check_pending_bolus_completed()
+        self._check_heparin_depletion()
 
     def _syringe_max_volume_ml(self) -> float:
         # Jeringa siempre fija a 20 ml
@@ -903,11 +905,36 @@ class HeparinConfigScreen(QWidget):
             finally:
                 alert_owner._operator_dialog_open = False
 
+    def _check_heparin_depletion(self):
+        remaining, syringe_volume, current_dosage = self._heparin_remaining_ml()
+        if syringe_volume > 0 and remaining <= HEPARIN_BOLUS_EPSILON_ML:
+            if not self._heparin_depleted_alert_shown:
+                self._heparin_depleted_alert_shown = True
+                logger.info("Heparina agotada (jeringa=%.2f ml, dosificado=%.2f ml)", syringe_volume, current_dosage)
+
+                alert_owner = self.parent_window if self.parent_window is not None else self
+                if getattr(alert_owner, "_operator_dialog_open", False):
+                    return
+                alert_owner._operator_dialog_open = True
+                try:
+                    dialog = FloatingConfirmDialog(alert_owner)
+                    dialog.btn_cancel.hide()
+                    dialog.show_confirm(
+                        "La heparina de la jeringa se agotó.",
+                        accept_text="Aceptar",
+                    )
+                finally:
+                    alert_owner._operator_dialog_open = False
+        elif current_dosage < 20.0:
+            self._heparin_depleted_alert_shown = False
+
     def _adjust_syringe_volume(self):
         # Firmware: se cambio el bit que avanza el driver al volumen de jeringa.
         self.on_user_boolean_command("heparineSynringeAct", True)
 
     def on_user_input_setpoint(self, tag, value):
+        if tag == "heparineSyringeVolume":
+            self._heparin_depleted_alert_shown = False
         self.request_setpoint_change.emit(tag, value)
 
     def on_user_boolean_command(self, tag, state):

@@ -365,6 +365,20 @@ class AlarmScreenConfig(QWidget):
             self._floating_msg = FloatingMessage(self)
         self._floating_msg.show_error_message(text, timeout_ms)
         
+    def _read_input_limits(self, tag: str):
+        if tag not in self.inputs:
+            return None, None
+        widgets = self.inputs[tag]
+        try:
+            min_val = float(widgets['min'].text())
+        except (ValueError, KeyError, TypeError, AttributeError):
+            min_val = None
+        try:
+            max_val = float(widgets['max'].text())
+        except (ValueError, KeyError, TypeError, AttributeError):
+            max_val = None
+        return min_val, max_val
+
     def save_configuration(self):
         """Guarda la configuración de alarmas: primero valida todas las filas,
         luego guarda en JSON, finalmente escribe los límites de presión al dispositivo."""
@@ -418,21 +432,17 @@ class AlarmScreenConfig(QWidget):
 
         # PASO 4: Leer valores de las casillas para escribir al dispositivo
         try:
-            art_min = float(self.inputs["bloodArteryPressureData"]['min'].text())
-            art_max = float(self.inputs["bloodArteryPressureData"]['max'].text())
-
-            ven_min = float(self.inputs["bloodVenousPressureData"]['min'].text())
-            ven_max = float(self.inputs["bloodVenousPressureData"]['max'].text())
-
-            if "CALC_PTM" in self.inputs:
-                ptm_min = float(self.inputs["CALC_PTM"]['min'].text())
-                ptm_max = float(self.inputs["CALC_PTM"]['max'].text())
-            else:
-                ptm_min = None
-                ptm_max = None
+            art_min, art_max = self._read_input_limits("bloodArteryPressureData")
+            ven_min, ven_max = self._read_input_limits("bloodVenousPressureData")
+            ptm_min, ptm_max = self._read_input_limits("CALC_PTM")
+            water_min, water_max = self._read_input_limits("dialyLineWaterPresData")
+            cond_min, cond_max = self._read_input_limits("dialyCondVariableData")
 
             if self.write_setpoint_callback:
-                self.write_setpoint_callback(art_min, art_max, ven_min, ven_max, ptm_min, ptm_max)
+                self.write_setpoint_callback(
+                    art_min, art_max, ven_min, ven_max, ptm_min, ptm_max,
+                    water_min, water_max, cond_min, cond_max
+                )
 
         except (ValueError, KeyError) as e:
             logger.warning(f"Error leyendo valores de casillas para escribir alarmas: {e}")
@@ -465,23 +475,19 @@ class AlarmScreenConfig(QWidget):
         # Guardar todos los cambios al archivo JSON
         self.config_manager.save_config()
 
-        # Escribir límites de presión arterial, venosa y PTM al dispositivo
+        # Escribir límites de presión arterial, venosa, PTM, agua y conductividad al dispositivo
         try:
-            art_min = float(self.inputs["bloodArteryPressureData"]['min'].text())
-            art_max = float(self.inputs["bloodArteryPressureData"]['max'].text())
-
-            ven_min = float(self.inputs["bloodVenousPressureData"]['min'].text())
-            ven_max = float(self.inputs["bloodVenousPressureData"]['max'].text())
-
-            if "CALC_PTM" in self.inputs:
-                ptm_min = float(self.inputs["CALC_PTM"]['min'].text())
-                ptm_max = float(self.inputs["CALC_PTM"]['max'].text())
-            else:
-                ptm_min = None
-                ptm_max = None
+            art_min, art_max = self._read_input_limits("bloodArteryPressureData")
+            ven_min, ven_max = self._read_input_limits("bloodVenousPressureData")
+            ptm_min, ptm_max = self._read_input_limits("CALC_PTM")
+            water_min, water_max = self._read_input_limits("dialyLineWaterPresData")
+            cond_min, cond_max = self._read_input_limits("dialyCondVariableData")
 
             if self.write_setpoint_callback:
-                self.write_setpoint_callback(art_min, art_max, ven_min, ven_max, ptm_min, ptm_max)
+                self.write_setpoint_callback(
+                    art_min, art_max, ven_min, ven_max, ptm_min, ptm_max,
+                    water_min, water_max, cond_min, cond_max
+                )
 
         except (ValueError, KeyError) as e:
             logger.warning(f"Error leyendo valores de casillas para escribir alarmas en restore_all_defaults: {e}")

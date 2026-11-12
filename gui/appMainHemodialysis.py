@@ -257,6 +257,25 @@ class LogoButton(QPushButton):
         pass
 
 
+class ClickableTreatmentLabel(QLabel):
+    """QLabel clickeable para seleccionar tipo de tratamiento desde el header."""
+
+    def __init__(self, text: str = "", parent=None):
+        super().__init__(text, parent)
+        self.click_callback = None
+        self.setCursor(Qt.PointingHandCursor)
+
+    def set_callback(self, callback):
+        """Establece el callback a ejecutar al hacer click."""
+        self.click_callback = callback
+
+    def mousePressEvent(self, event):
+        """Ejecuta el callback al hacer click si el label está habilitado."""
+        super().mousePressEvent(event)
+        if self.isEnabled() and self.click_callback:
+            self.click_callback()
+
+
 class HemodialysisHMI(QMainWindow):
 
     # Screen indices
@@ -734,6 +753,7 @@ class HemodialysisHMI(QMainWindow):
         # Header update timers
         self.refresh_alarms_label()
         self.refresh_treatment_selected()
+        self._update_treatment_mode_label_state()
         
         self.serial_comm.connect_port()
         self.serial_comm.start_reading()
@@ -1002,7 +1022,8 @@ class HemodialysisHMI(QMainWindow):
         self.status_label.setStyleSheet(self._build_header_label_style("#2bbd37"))
 
         self.current_process_status = QLabel("PROCESO: --")
-        self.treatment_mode_selected = QLabel("HD")
+        self.treatment_mode_selected = ClickableTreatmentLabel("HD")
+        self.treatment_mode_selected.set_callback(self._on_treatment_mode_label_click)
         self.remaining_time_display = QLabel(
             "<div style='text-align:center;'>"
             "<span style='font-size:25px;'>T. RESTANTE</span><br>"
@@ -1118,12 +1139,17 @@ class HemodialysisHMI(QMainWindow):
         nav_layout.setContentsMargins(40, 20, 40, 20)
         nav_layout.setSpacing(10)
 
+        # Contenedor central para mantener los botones centrados
+        central_nav_widget = QWidget()
+        central_nav_layout = QHBoxLayout(central_nav_widget)
+        central_nav_layout.setContentsMargins(0, 0, 0, 0)
+        central_nav_layout.setSpacing(10)
+
         self.navigation_buttons = {}
 
         nav_items = [
             ("Inicio",              "#06298a", self.show_home_screen),
             ("Resumen\nTerapia",            "#06298a", self.show_dialysis_screen),
-            ("Tipo de\nTratamiento","#06298a", self.show_treatment_mode_screen), 
             ("Iniciar\nTratamiento", "#39ec21", self.start_treatment),
             ("Limpieza",            "#06298a", self.show_cleaning_screen),
             ("Servicio", "#06298a", self.show_options_screen),
@@ -1134,12 +1160,19 @@ class HemodialysisHMI(QMainWindow):
 
         for text, color, callback in nav_items:
             btn = QPushButton(text)
-            btn.setFixedHeight(110)           
+            btn.setFixedSize(200, 110)
             btn.clicked.connect(callback)
-            nav_layout.addWidget(btn)
+            central_nav_layout.addWidget(btn)
             self.navigation_buttons[text] = btn
 
+        # Agregar stretches a los lados para centrar el contenedor
+        nav_layout.addStretch()
+        nav_layout.addWidget(central_nav_widget)
+        nav_layout.addStretch()
+
         self.main_layout.addWidget(self.nav_bar, 2, 1, 1, 4)
+        self.screen_stack.currentChanged.connect(self._apply_home_chrome)
+        self._apply_home_chrome()
 #==========================================================================================
 #               FIN DE SETUP UI
 #==========================================================================================
@@ -1305,7 +1338,6 @@ class HemodialysisHMI(QMainWindow):
         self.screen_stack.setCurrentWidget(self.treatment_mode_screen)
         self.left_content.show()
         self.right_content.show()
-        self._highlight_active_nav_button("Tipo de\nTratamiento") 
 
     def show_cleaning_screen(self):
         self.screen_stack.setCurrentWidget(self.cleaning_screen)
@@ -1660,6 +1692,16 @@ class HemodialysisHMI(QMainWindow):
     # MÉTODOS DE NAVEGACIÓN MEJORADOS
     # ============================================================
 
+    def _apply_home_chrome(self, *_):
+        """En Inicio oculta los indicadores del header (deja solo logos) y deja solo Resumen Terapia/Diálisis y Servicio en la barra."""
+        return self._get_main_shell()._apply_home_chrome(*_)
+
+    def _on_treatment_mode_label_click(self):
+        return self._get_main_shell()._on_treatment_mode_label_click()
+
+    def _update_treatment_mode_label_state(self):
+        return self._get_main_shell()._update_treatment_mode_label_state()
+
     def _get_current_screen_nav_text(self) -> str:
         """Devuelve el texto del botón de navegación correspondiente a la pantalla actual."""
         return self._get_main_shell()._get_current_screen_nav_text()
@@ -1722,6 +1764,7 @@ class HemodialysisHMI(QMainWindow):
                 self.alarms_screen.reset_ui_state() 
             
             self.refresh_treatment_selected()
+            self._update_treatment_mode_label_state()
 
             # Solo mandamos al Home si NO estamos en área de servicio
             if not is_in_service_area:
@@ -1738,6 +1781,8 @@ class HemodialysisHMI(QMainWindow):
             
             if hasattr(self, 'alarms_screen') and self.alarms_screen:
                 self.alarms_screen.reset_ui_state() 
+            
+            self._update_treatment_mode_label_state()
 
             if not is_in_service_area:
                 self.show_home_screen()
@@ -1874,6 +1919,7 @@ class HemodialysisHMI(QMainWindow):
         # Manejo del tratamiento seleccionado
         if tag == "treatmentModeSelection":
             self.refresh_treatment_selected() # Llama al nuevo método para actualizar el label
+            self._update_treatment_mode_label_state()
             try:
                 status_code = safe_int(self.current_values.get("primingProcessStatus", 0), 0)
                 treatment_mode = safe_int(value, 0)
@@ -1887,6 +1933,14 @@ class HemodialysisHMI(QMainWindow):
                         self._refresh_navigation_bar()
             except Exception as e:
                 logger.warning(f"Error sincronizando estado al cambiar modo de tratamiento: {e}")
+
+        # Verificar si se completó el bolo pendiente o si se agotó la heparina cuando llega heparineCurrentDosage
+        if tag == "heparineCurrentDosage":
+            if hasattr(self, "heparin_config_screen") and self.heparin_config_screen is not None:
+                if hasattr(self.heparin_config_screen, "current_values") and isinstance(self.heparin_config_screen.current_values, dict):
+                    self.heparin_config_screen.current_values[tag] = value
+                self.heparin_config_screen._check_pending_bolus_completed()
+                self.heparin_config_screen._check_heparin_depletion()
         # ────────────────────────────────────────────────────────────────
         # Manejo de primingProcessStatus (estado del proceso + horas de operación)
         # ────────────────────────────────────────────────────────────────
@@ -2411,9 +2465,30 @@ class HemodialysisHMI(QMainWindow):
     def _write_boolean_command(self, tag: str, state: bool):
         return self._get_firmware_gateway()._write_boolean_command(tag, state)
 
-    def _emit_pressure_alarm_limits(self, art_min, art_max, ven_min, ven_max, ptm_min, ptm_max):
+    def _emit_pressure_alarm_limits(
+        self,
+        art_min,
+        art_max,
+        ven_min,
+        ven_max,
+        ptm_min,
+        ptm_max,
+        water_min=None,
+        water_max=None,
+        cond_min=None,
+        cond_max=None,
+    ):
         return self._get_firmware_gateway()._emit_pressure_alarm_limits(
-            art_min, art_max, ven_min, ven_max, ptm_min, ptm_max
+            art_min,
+            art_max,
+            ven_min,
+            ven_max,
+            ptm_min,
+            ptm_max,
+            water_min=water_min,
+            water_max=water_max,
+            cond_min=cond_min,
+            cond_max=cond_max,
         )
 
     def _write_pressure_limits_on_connection(self):
