@@ -582,11 +582,11 @@ class DialysisScreen(QWidget):
             ("PAUSAR", "#f59e0b", getattr(self.parent_window, "pause_treatment", lambda: None)),
             ("DETENER", "#dc2626", getattr(self.parent_window, "stop_treatment", lambda: None)),
             ("APLICAR\nBOLO", "nav", self.apply_bolus_clicked),
-            ("MENÚ TERAPIA", "nav", self.show_therapy_config),
-            ("MENÚ PACIENTE", "nav", self.show_patient_config),
+            ("MENÚ\nTERAPIA", "nav", self.show_therapy_config),
+            ("MENÚ\nPACIENTE", "nav", self.show_patient_config),
             ("HEPARINA", "nav", self.show_heparin_config_screen),
-            ("INICIAR CEBADO", "nav", getattr(self.parent_window, "start_priming", lambda: None)),
-            ("DETENER CEBADO", "nav", getattr(self.parent_window, "stop_priming", lambda: None)),
+            ("INICIAR\nCEBADO", "nav", getattr(self.parent_window, "start_priming", lambda: None)),
+            ("DETENER\nCEBADO", "nav", getattr(self.parent_window, "stop_priming", lambda: None)),
             ("Kt/V", "nav", getattr(self.parent_window, "show_ktv_screen", lambda: None)),
         ]
 
@@ -1040,8 +1040,8 @@ class DialysisScreen(QWidget):
         self._update_hr_display()
 
     def set_priming_buttons_state(self, enable_start_priming: bool, enable_stop_priming: bool):
-        btn_start_priming = self.action_buttons.get("INICIAR CEBADO")
-        btn_stop_priming = self.action_buttons.get("DETENER CEBADO")
+        btn_start_priming = self.action_buttons.get("INICIAR\nCEBADO") or self.action_buttons.get("INICIAR CEBADO")
+        btn_stop_priming = self.action_buttons.get("DETENER\nCEBADO") or self.action_buttons.get("DETENER CEBADO")
 
         if btn_start_priming:
             btn_start_priming.setEnabled(enable_start_priming)
