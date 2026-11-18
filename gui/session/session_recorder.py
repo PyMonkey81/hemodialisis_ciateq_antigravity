@@ -406,3 +406,14 @@ class SessionRecorder:
             start_time_str=start_time_str,
             end_time_str=end_time_str,
         )
+
+    def end_dialysis_session(self):
+        if self.window.csv_logger:
+            self.window.csv_logger.close()
+            self.window.csv_logger = None
+            logger.info("Sesión detenida - logger cerrado")
+
+        if self.window.treatment_logger:
+            self.window.treatment_logger.close()
+            self.window.treatment_logger = None
+            logger.info("Sesión detenida - logger cerrado")

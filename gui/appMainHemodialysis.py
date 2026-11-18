@@ -1225,15 +1225,7 @@ class HemodialysisHMI(QMainWindow):
 
 
     def end_dialysis_session(self):
-        if self.csv_logger:
-            self.csv_logger.close()
-            self.csv_logger = None
-            logger.info("Sesión detenida - logger cerrado")
-
-        if self.treatment_logger:
-            self.treatment_logger.close()
-            self.treatment_logger = None
-            logger.info("Sesión detenida - logger cerrado")
+        return self._get_session_recorder().end_dialysis_session()
         
 
     def _get_screen_router(self) -> ScreenRouter:
