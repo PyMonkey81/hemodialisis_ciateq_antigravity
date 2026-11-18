@@ -141,6 +141,7 @@ from gui.session.comm_binding import CommBinding
 from gui.session.cleaning_session import CleaningSession
 from gui.session.connection_presence import ConnectionPresence
 from gui.session.active_alarms import ActiveAlarms
+from gui.session.master_clock import MasterClock
 from gui.shell.main_shell import MainShell
 from gui.shell.side_indicators import SideIndicators
 from gui.therapy.profile_coordinator import ProfileCoordinator
@@ -1389,67 +1390,15 @@ class HemodialysisHMI(QMainWindow):
     # ────────────────────────────────────────────────
     #              Utility Methods
     # ────────────────────────────────────────────────
+    def _get_master_clock(self) -> MasterClock:
+        clock = getattr(self, "_master_clock", None)
+        if clock is None:
+            clock = MasterClock(self)
+            self._master_clock = clock
+        return clock
+
     def _master_timer_tick(self):
-        """Timer Maestro Centralizado"""
-        if self._timer_lock:
-            return
-        self._timer_lock = True
-        try:
-            now = QDateTime.currentDateTime()
-            second_elapsed = self.last_second_update.msecsTo(now) >= 1000
-            minute_elapsed = self.last_minute_update.secsTo(now) >= 60
-
-            # Mantener vivo el monitoreo de alarmas aunque no lleguen tramas nuevas.
-            self._sync_alarm_values_from_current_state()
-
-            self.ktv_controller.on_master_tick()
-
-            # ==================== LOGGERS ====================
-            if self.state.current_phase == TreatmentPhase.RUNNING:
-                self._log_treatment_current_data()      # Logger de tratamiento
-
-            elif self.state.current_phase == TreatmentPhase.CLEANING:
-                self._log_cleaning_current_data()       # Logger de limpieza
-
-            elif self.state.current_phase == TreatmentPhase.PREPARING:
-                self._log_current_data()                  # Cebado / Priming (el general)
-
-            self._update_gauges()
-
-            if second_elapsed:
-                self.update_connection_status()
-                self.session_recorder.on_second()
-                self.update_date_time()
-
-                if self.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED, TreatmentPhase.IDLE):
-                    self.treatment_controller.update_therapy_times()
-
-                if self.state.current_phase == TreatmentPhase.RUNNING and hasattr(self, "session_tracker"):
-                    uf_rem_l = self.dialysis_screen._uf_removed_liters() if hasattr(self, "dialysis_screen") else 0.0
-                    self.session_tracker.on_therapy_tick(
-                        self.current_values,
-                        float(self.treatment_controller.get_elapsed_seconds()),
-                        uf_removed_liters=uf_rem_l,
-                    )
-
-                self.nibp_coordinator.on_second()
-                self.profile_coordinator.on_second()
-                self.heparin_coordinator.on_second()
-                
-                # Actualizar encabezado durante la espera de 90 s después del llenado de filtro
-                self._update_header_during_filter_fill()
-
-                if self.screen_stack.currentWidget() == self.maintenance_screen:
-                    self.timer_manager._update_maintenance_screen()
-
-                self._refresh_navigation_bar()
-                self.last_second_update = now
-
-            if minute_elapsed:
-                self.last_minute_update = now
-
-        finally:
-            self._timer_lock = False
+        return self._get_master_clock()._master_timer_tick()
 
     def _coerce_heparin_auto_stop_seconds(self) -> int:
         return self._get_heparin_coordinator()._coerce_heparin_auto_stop_seconds()
