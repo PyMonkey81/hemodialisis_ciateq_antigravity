@@ -1,5 +1,6 @@
 import logging
 
+from connection.nibp_par_communication import NibpParCommunication
 from core.state_manager import TreatmentPhase
 from utilities.platform_runtime import (
     get_runtime_config_path,
@@ -28,6 +29,18 @@ NIBP_AUTO_FIRST_MEASURE_DELAY_S = 30
 class NibpCoordinator:
     def __init__(self, window):
         self.window = window
+
+    def start_module(self):
+        # Baumanómetro PAR NIBP2020 UP: deshabilitado por defecto, no abre puerto solo.
+        self.window.nibp = NibpParCommunication()
+        self.window.nibp.connected_changed.connect(self.window._on_nibp_connected_changed)
+        self.window.nibp.error_message.connect(self.window._on_nibp_error_message)
+        self.window.nibp.measurement_ready.connect(self.window._on_nibp_measurement_ready)
+        self.window._nibp_auto_spo2_active = False
+        self.window._nibp_auto_last_interval_index = -1
+        self.window._nibp_measuring = False
+        self.window._prev_treatment_phase = None  # Para detectar transición de no-PAUSED a RUNNING
+        self.window._load_nibp_config_and_apply()
 
     def _apply_nibp_auto_spo2_for_phase(self, phase: TreatmentPhase):
         """RUNNING/PAUSED + spo2_enabled: mantiene el stream SpO2 (interval_min nunca dispara 31).

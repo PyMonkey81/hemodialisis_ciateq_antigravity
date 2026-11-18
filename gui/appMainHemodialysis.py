@@ -529,17 +529,7 @@ class HemodialysisHMI(QMainWindow):
         self.serial_comm.data_received.connect(self.update_value)
         self._is_connected_prev_state = False # Rastrea estado de conexción
 
-        # Baumanómetro PAR NIBP2020 UP: deshabilitado por defecto, no abre puerto solo.
-        self.nibp = NibpParCommunication()
-        self.nibp.connected_changed.connect(self._on_nibp_connected_changed)
-        self.nibp.error_message.connect(self._on_nibp_error_message)
-        self.nibp.measurement_ready.connect(self._on_nibp_measurement_ready)
-        self._nibp_auto_spo2_active = False
-        self._nibp_auto_last_interval_index = -1
-        self._nibp_measuring = False
-        self._prev_treatment_phase = None  # Para detectar transición de no-PAUSED a RUNNING
-        self._load_nibp_config_and_apply()
-
+        self._get_nibp_coordinator().start_module()
         self._get_telemetry_inlet().start_bioz()
         self._get_telemetry_inlet().start_sensors()
         self._get_active_alarms().start_monitoring_stack()
