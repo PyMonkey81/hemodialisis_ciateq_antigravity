@@ -16,6 +16,11 @@ class HeparinCoordinator:
     def __init__(self, window):
         self.window = window
 
+    def arm_session(self):
+        self.window._heparin_auto_stop_latched = False
+        self.window._heparin_running_clamped = False
+        self.window._heparin_infusion_forced_stop_latched = False
+
     def _validate_and_clamp_heparin_auto_stop_time(self):
         """
         Valida y ajusta el tiempo de paro automático de heparina según la regla clínica.

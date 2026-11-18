@@ -497,9 +497,7 @@ class HemodialysisHMI(QMainWindow):
 
         self.current_treatment_start_date_time = None # Variable para reporte de inicio/tratamiento
         self.navigation_buttons = {} # nuevo
-        self._heparin_auto_stop_latched = False
-        self._heparin_running_clamped = False
-        self._heparin_infusion_forced_stop_latched = False
+        self._get_heparin_coordinator().arm_session()
         self.setup_ui()
         self._get_session_recorder().prepare_session()
 
