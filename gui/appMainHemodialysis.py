@@ -134,7 +134,6 @@ from gui.session.session_recorder import SessionRecorder
 from gui.session.operator_alerts import OperatorAlerts
 from gui.session.hardware_state_sync import HardwareStateSync
 from connection.telemetry_inlet import TelemetryInlet, LOCAL_SETPOINT_TAGS
-from gui.session.screen_router import ScreenRouter
 from gui.session.session_shutdown import SessionShutdown
 from gui.session.priming_session import PrimingSession
 from gui.session.comm_binding import CommBinding
@@ -987,100 +986,93 @@ class HemodialysisHMI(QMainWindow):
         return self._get_session_recorder().end_dialysis_session()
         
 
-    def _get_screen_router(self) -> ScreenRouter:
-        router = getattr(self, "screen_router", None)
-        if router is None:
-            router = ScreenRouter(self)
-            self.screen_router = router
-        return router
-
     def show_home_screen(self):
-        return self._get_screen_router().show_home_screen()
+        return self._get_main_shell().show_home_screen()
 
     def show_dialysis_screen(self):
-        return self._get_screen_router().show_dialysis_screen()
+        return self._get_main_shell().show_dialysis_screen()
 
     def show_treatment_mode_screen(self):
-        return self._get_screen_router().show_treatment_mode_screen()
+        return self._get_main_shell().show_treatment_mode_screen()
 
     def show_cleaning_screen(self):
-        return self._get_screen_router().show_cleaning_screen()
+        return self._get_main_shell().show_cleaning_screen()
 
     def show_options_screen(self):
-        return self._get_screen_router().show_options_screen()
+        return self._get_main_shell().show_options_screen()
 
     def show_theme_config_screen(self):
-        return self._get_screen_router().show_theme_config_screen()
+        return self._get_main_shell().show_theme_config_screen()
 
     def _apply_main_shell_theme(self, _theme_name: str = ""):
         """Actualiza dinámicamente los colores del contenedor principal, header, barra de navegación y tarjetas."""
         return self._get_main_shell()._apply_main_shell_theme(_theme_name)
 
     def show_alarms_screen(self):
-        return self._get_screen_router().show_alarms_screen()
+        return self._get_main_shell().show_alarms_screen()
 
     def show_manual_mode_screen(self):
-        return self._get_screen_router().show_manual_mode_screen()
+        return self._get_main_shell().show_manual_mode_screen()
 
     def show_test_panel_screen(self):
-        return self._get_screen_router().show_test_panel_screen()
+        return self._get_main_shell().show_test_panel_screen()
 
     def show_calibration_screen(self):
-        return self._get_screen_router().show_calibration_screen()
+        return self._get_main_shell().show_calibration_screen()
 
     def show_network_config_screen(self):
-        return self._get_screen_router().show_network_config_screen()
+        return self._get_main_shell().show_network_config_screen()
 
     def show_real_time_var_screen(self):
-        return self._get_screen_router().show_real_time_var_screen()
+        return self._get_main_shell().show_real_time_var_screen()
 
     def show_patient_config_screen(self):
-        return self._get_screen_router().show_patient_config_screen()
+        return self._get_main_shell().show_patient_config_screen()
 
     def show_therapy_config_screen(self):
-        return self._get_screen_router().show_therapy_config_screen()
+        return self._get_main_shell().show_therapy_config_screen()
 
     def show_conductivity_profile_screen(self):
-        return self._get_screen_router().show_conductivity_profile_screen()
+        return self._get_main_shell().show_conductivity_profile_screen()
 
     def show_uf_profile_screen(self):
-        return self._get_screen_router().show_uf_profile_screen()
+        return self._get_main_shell().show_uf_profile_screen()
 
     def show_heparin_config_screen(self):
-        return self._get_screen_router().show_heparin_config_screen()
+        return self._get_main_shell().show_heparin_config_screen()
 
     def show_config_comm_screen(self):
-        return self._get_screen_router().show_config_comm_screen()
+        return self._get_main_shell().show_config_comm_screen()
 
     def show_maintenance_screen(self):
-        return self._get_screen_router().show_maintenance_screen()
+        return self._get_main_shell().show_maintenance_screen()
 
     def show_alarm_config_limits_screen(self):
-        return self._get_screen_router().show_alarm_config_limits_screen()
+        return self._get_main_shell().show_alarm_config_limits_screen()
 
     def show_alarm_service_screen_config(self):
-        return self._get_screen_router().show_alarm_service_screen_config()
+        return self._get_main_shell().show_alarm_service_screen_config()
 
     def show_cleanning_config_screen(self):
-        return self._get_screen_router().show_cleanning_config_screen()
+        return self._get_main_shell().show_cleanning_config_screen()
 
     def show_history_screen(self):
-        return self._get_screen_router().show_history_screen()
+        return self._get_main_shell().show_history_screen()
 
     def show_ktv_screen(self):
-        return self._get_screen_router().show_ktv_screen()
+        return self._get_main_shell().show_ktv_screen()
 
     def show_nibp_screen(self):
-        return self._get_screen_router().show_nibp_screen()
+        return self._get_main_shell().show_nibp_screen()
 
     def show_nibp_history_screen(self):
-        return self._get_screen_router().show_nibp_history_screen()
+        return self._get_main_shell().show_nibp_history_screen()
 
     def show_nibp_chart_screen(self):
-        return self._get_screen_router().show_nibp_chart_screen()
+        return self._get_main_shell().show_nibp_chart_screen()
 
     def show_nibp_limits_screen(self):
-        return self._get_screen_router().show_nibp_limits_screen()
+        return self._get_main_shell().show_nibp_limits_screen()
 
     def get_therapy_duration_minutes(self) -> int:
         hours = safe_int(self.current_values.get("heparineTherapyHours", 0), 0)
