@@ -7,6 +7,15 @@ class MasterClock:
     def __init__(self, window):
         self.window = window
 
+    def prepare_clock(self):
+        # Control de tiempo de terapia (global)
+        self.window.therapy_start_time = None
+        self.window.total_therapy_seconds = 0
+        self.window.accumulated_therapy_seconds = 0
+
+        self.window.current_treatment_start_date_time = None  # Variable para reporte de inicio/tratamiento
+        self.window.navigation_buttons = {}  # nuevo
+
     def _master_timer_tick(self):
         """Timer Maestro Centralizado"""
         if self.window._timer_lock:

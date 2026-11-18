@@ -490,13 +490,7 @@ class HemodialysisHMI(QMainWindow):
         self._last_uf_profile_write_ts = 0
         self._last_uf_profile_step_ts_s = 0
         
-        # Control de tiempo de terapia (global)
-        self.therapy_start_time = None
-        self.total_therapy_seconds = 0
-        self.accumulated_therapy_seconds = 0       
-
-        self.current_treatment_start_date_time = None # Variable para reporte de inicio/tratamiento
-        self.navigation_buttons = {} # nuevo
+        self._get_master_clock().prepare_clock()
         self._get_heparin_coordinator().arm_session()
         self.setup_ui()
         self._get_session_recorder().prepare_session()
