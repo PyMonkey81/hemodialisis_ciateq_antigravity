@@ -1,12 +1,23 @@
 from datetime import datetime
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QPushButton
+from PySide6.QtGui import QColor, QPixmap
+from PySide6.QtWidgets import (
+    QFrame,
+    QGridLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QSizePolicy,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
 from core.state_manager import TreatmentPhase
 from core.variables_map import VARIABLES
 from gui.theme_manager import ThemeManager
+from gui.therapy.main_screen import MainScreen
 from utilities.platform_runtime import safe_float, safe_int
 
 
@@ -676,3 +687,248 @@ class MainShell:
                 f"<span style='font-size:32px;'>{remaining_str}</span>"
                 "</div>"
             )
+
+    def setup_ui(self):
+        from gui.appMainHemodialysis import ClickableTreatmentLabel, LogoButton, resource_path
+
+        central_widget = QWidget()
+        central_widget.setObjectName("main_central_widget")
+        central_widget.setStyleSheet("QWidget#main_central_widget { background: #FCFCFC; }")
+        self.window.setCentralWidget(central_widget)
+        self.window.main_layout = QGridLayout(central_widget)
+        self.window.main_layout.setSpacing(0)
+        self.window.main_layout.setContentsMargins(0, 0, 0, 0)
+
+        self.window.main_layout.setColumnStretch(0, 0)  # COLUMNA 0 → IZQUIERDA
+        self.window.main_layout.setColumnStretch(1, 1)  # COLUMNA 1 → STACKED + NAV (parte 1/4)
+        self.window.main_layout.setColumnStretch(2, 1)  # COLUMNA 2 → STACKED + NAV (parte 2/4)
+        self.window.main_layout.setColumnStretch(3, 1)  # COLUMNA 3 → STACKED + NAV (parte 3/4)
+        self.window.main_layout.setColumnStretch(4, 1)  # COLUMNA 4 → STACKED + NAV (parte 4/4)
+        self.window.main_layout.setColumnStretch(5, 0)  # COLUMNA 5 → DERECHA
+
+        # =========================================================================================
+        #                                    MAIN STACKED
+        # =========================================================================================
+        # En gui/appMainHemodialysis.py -> setup_ui
+        self.window.screen_stack = QStackedWidget()
+        self.window.screen_stack.setObjectName("main_screen_stack")
+
+        # ESTILO GLOBAL CENTRALIZADO
+        self.window.screen_stack.setStyleSheet("""
+            /* Asegura que el contenedor del stack y sus páginas sean claros */
+            QStackedWidget#main_screen_stack, 
+            QStackedWidget#main_screen_stack > QWidget {
+                background-color: #FCFCFC;
+            }
+
+            /* Estilo de las Cards (se aplica a Frames y GroupBoxes con este ID) */
+            QFrame#card, QFrame#graph_card, QGroupBox#card {
+                background-color: #ffffff;
+                border: 2px solid #cbd5e1;
+                border-radius: 14px;
+            }
+
+            /* Etiquetas generales */
+            QLabel {
+                color: #334155;
+                background-color: transparent;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 22px;
+            }
+
+            /* Título de la card con la línea debajo que pediste */
+            QLabel#card_title {
+                color: #0f172a;
+                font-size: 20px;
+                font-weight: bold;
+                background: transparent;
+                border: none;
+                border-bottom: 2px solid #77787D;
+                padding-bottom: 8px;
+                margin-bottom: 8px;
+            }
+
+            /* Valores grandes con colores específicos */
+            QLabel#val_large {
+                color: #ef4444;
+                font-family: 'Consolas', monospace;
+                font-size: 52px;
+                font-weight: bold;
+            }
+            QLabel#val_large_yellow {
+                color: #eab308;
+                font-family: 'Consolas', monospace;
+                font-size: 52px;
+                font-weight: bold;
+            }
+            QLabel#val_large_green {
+                color: #15301E;
+                font-family: 'Consolas', monospace;
+                font-size: 52px;
+                font-weight: bold;
+            }
+            QLabel#val_large_cyan {
+                color: #0369a1;
+                font-family: 'Consolas', monospace;
+                font-size: 52px;
+                font-weight: bold;
+            }
+    
+            QPushButton {
+                padding: 4px 10px;
+            }
+        """)
+
+        self.window.screen_stack.setAutoFillBackground(True)
+        stack_palette = self.window.screen_stack.palette()
+        stack_palette.setColor(self.window.screen_stack.backgroundRole(), QColor("#FCFCFC"))
+        self.window.screen_stack.setPalette(stack_palette)
+        self.window._main_screen = MainScreen()
+        self.window.screen_stack.addWidget(self.window._main_screen)
+        self.window.main_layout.addWidget(self.window.screen_stack, 1, 1, 1, 4)
+        # ==============================================2===========================================
+        # ============================ Header (1920 × 177) ========================================
+        # ==========================================================================================
+        header_container = QWidget()
+        self.window.header_container = header_container
+        header_container.setFixedHeight(150)
+        header_container.setStyleSheet("background: #EBEBEB;")
+
+        header_layout = QHBoxLayout(header_container)
+        header_layout.setContentsMargins(8, 2, 8, 2)
+        header_layout.setSpacing(8)
+
+        # logo 1
+        logo1 = LogoButton(
+            icon_path=resource_path("resources/images/logo_ciateq__.png"),
+            close_callback=self.window._show_exit_confirmation,
+            screen_stack=self.window.screen_stack,
+            parent=self.window,
+        )
+        logo1.setObjectName("header_logo_left")
+
+        self.window._orig_pixmap_logo1 = QPixmap(resource_path("resources/images/logo_ciateq__.png")).scaled(
+            180, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation
+        )
+
+        self.window.logo1 = logo1
+        header_layout.addWidget(logo1)
+        header_layout.addStretch(1)
+
+        self.window.status_label = QLabel("RECONECTANDO")
+        self.window.status_label.setObjectName("header_status_label")
+        self.window.status_label.setStyleSheet(self.window._build_header_label_style("#2bbd37"))
+
+        self.window.current_process_status = QLabel("PROCESO: --")
+        self.window.treatment_mode_selected = ClickableTreatmentLabel("HD")
+        self.window.treatment_mode_selected.set_callback(self.window._on_treatment_mode_label_click)
+        self.window.remaining_time_display = QLabel(
+            "<div style='text-align:center;'>"
+            "<span style='font-size:25px;'>T. RESTANTE</span><br>"
+            "<span style='font-size:32px;'>00:00:00</span>"
+            "</div>"
+        )
+        self.window.date_time_label = QLabel("25/12/2025 \n 14:37:22")
+
+        self.window.current_process_status.setObjectName("header_process_label")
+        self.window.treatment_mode_selected.setObjectName("header_treatment_label")
+        self.window.remaining_time_display.setObjectName("header_remaining_label")
+        self.window.date_time_label.setObjectName("header_datetime_label")
+
+        self.window.current_process_status.setStyleSheet(
+            self.window._build_header_label_style("#2bbd37", is_process=True)
+        )
+        self.window.treatment_mode_selected.setStyleSheet(
+            self.window._build_header_label_style("#06298a", is_process=False)
+        )
+        self.window.remaining_time_display.setStyleSheet(
+            self.window._build_header_label_style("#06298a", is_process=False)
+        )
+        self.window.date_time_label.setStyleSheet(
+            self.window._build_header_label_style("#06298a", is_process=False)
+        )
+
+        header_pieces = [
+            ("header_frame_status", self.window.status_label, 260),
+            ("header_frame_process", self.window.current_process_status, 300),
+            ("header_frame_treatment", self.window.treatment_mode_selected, 250),
+            ("header_frame_remaining", self.window.remaining_time_display, 280),
+            ("header_frame_datetime", self.window.date_time_label, 280),
+        ]
+        self.window.header_piece_frames = []
+        for frame_name, lbl, piece_width in header_pieces:
+            piece_frame = QFrame()
+            piece_frame.setObjectName(frame_name)
+            piece_frame.setFixedSize(piece_width, 120)
+            piece_frame.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            piece_frame.setStyleSheet("QFrame { background: transparent; border: none; }")
+            piece_layout = QVBoxLayout(piece_frame)
+            piece_layout.setContentsMargins(0, 0, 0, 0)
+            piece_layout.setSpacing(0)
+            lbl.setFixedSize(piece_width, 120)
+            lbl.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+            lbl.setAlignment(Qt.AlignCenter)
+            piece_layout.addWidget(lbl)
+            self.window.header_piece_frames.append(piece_frame)
+            header_layout.addWidget(piece_frame)
+
+        # header_layout.addStretch()
+
+        # Logo 2
+        logo2 = QLabel()
+        logo2.setObjectName("header_logo_right")
+        logo2.setAlignment(Qt.AlignCenter)
+        self.window._orig_pixmap_logo2 = QPixmap(resource_path("resources/images/Logo_secihti_.png")).scaled(
+            180, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation
+        )
+        logo2.setPixmap(self.window._orig_pixmap_logo2)
+        self.window.logo2 = logo2
+        header_layout.addStretch(1)
+        header_layout.addWidget(logo2)
+
+        self.window.main_layout.addWidget(header_container, 0, 0, 1, 6)
+
+        self.window._get_side_indicators().setup_ui()
+
+        # ── Bottom navigation bar ────────────────────────
+        self.window.nav_bar = QWidget()
+        self.window.nav_bar.setFixedSize(1560, 150)
+        self.window.nav_bar.setStyleSheet("background: #FCFCFC;")
+
+        nav_layout = QHBoxLayout(self.window.nav_bar)
+        nav_layout.setContentsMargins(40, 20, 40, 20)
+        nav_layout.setSpacing(10)
+
+        # Contenedor central para mantener los botones centrados
+        central_nav_widget = QWidget()
+        central_nav_layout = QHBoxLayout(central_nav_widget)
+        central_nav_layout.setContentsMargins(0, 0, 0, 0)
+        central_nav_layout.setSpacing(10)
+
+        self.window.navigation_buttons = {}
+
+        nav_items = [
+            ("Inicio", "#06298a", self.window.show_home_screen),
+            ("Resumen\nTerapia", "#06298a", self.window.show_dialysis_screen),
+            ("Iniciar\nTratamiento", "#39ec21", self.window.start_treatment),
+            ("Limpieza", "#06298a", self.window.show_cleaning_screen),
+            ("Servicio", "#06298a", self.window.show_options_screen),
+            ("Alarmas", "#06298a", self.window.show_alarms_screen),
+            ("Historial", "#06298a", self.window.show_history_screen),
+        ]
+
+        for text, color, callback in nav_items:
+            btn = QPushButton(text)
+            btn.setFixedSize(200, 110)
+            btn.clicked.connect(callback)
+            central_nav_layout.addWidget(btn)
+            self.window.navigation_buttons[text] = btn
+
+        # Agregar stretches a los lados para centrar el contenedor
+        nav_layout.addStretch()
+        nav_layout.addWidget(central_nav_widget)
+        nav_layout.addStretch()
+
+        self.window.main_layout.addWidget(self.window.nav_bar, 2, 1, 1, 4)
+        self.window.screen_stack.currentChanged.connect(self.window._apply_home_chrome)
+        self.window._apply_home_chrome()
