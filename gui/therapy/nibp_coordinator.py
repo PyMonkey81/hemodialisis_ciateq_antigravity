@@ -180,3 +180,17 @@ class NibpCoordinator:
     def _on_nibp_reset_requested(self):
         """Reset manual del módulo NIBP solicitado por el usuario."""
         self.window.nibp.software_reset()
+
+    def _on_spo2_updated_for_tracker(self, data: dict):
+        if not isinstance(data, dict):
+            return
+        val = data.get("spo2")
+        if val is not None:
+            try:
+                ival = int(val)
+                if 50 <= ival <= 100:
+                    self.window._last_spo2_value = ival
+                    if hasattr(self.window, "session_tracker"):
+                        self.window.session_tracker.update_spo2(ival)
+            except (TypeError, ValueError):
+                pass

@@ -1848,18 +1848,7 @@ class HemodialysisHMI(QMainWindow):
         return self._get_nibp_coordinator()._on_nibp_measurement_ready_for_history(sys_mmhg, dia_mmhg, map_mmhg, hr_bpm)
 
     def _on_spo2_updated_for_tracker(self, data: dict):
-        if not isinstance(data, dict):
-            return
-        val = data.get("spo2")
-        if val is not None:
-            try:
-                ival = int(val)
-                if 50 <= ival <= 100:
-                    self._last_spo2_value = ival
-                    if hasattr(self, "session_tracker"):
-                        self.session_tracker.update_spo2(ival)
-            except (TypeError, ValueError):
-                pass
+        return self._get_nibp_coordinator()._on_spo2_updated_for_tracker(data)
 
     def _on_nibp_settings_applied(self, config: dict):
         return self._get_nibp_coordinator()._on_nibp_settings_applied(config)
