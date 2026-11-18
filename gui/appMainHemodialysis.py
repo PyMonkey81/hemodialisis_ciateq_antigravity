@@ -135,6 +135,7 @@ from gui.session.operator_alerts import OperatorAlerts
 from gui.session.hardware_state_sync import HardwareStateSync
 from gui.session.telemetry_inlet import TelemetryInlet, LOCAL_SETPOINT_TAGS
 from gui.session.screen_router import ScreenRouter
+from gui.session.session_shutdown import SessionShutdown
 from gui.shell.main_shell import MainShell
 from gui.shell.side_indicators import SideIndicators
 from gui.therapy.profile_coordinator import ProfileCoordinator
@@ -1865,84 +1866,15 @@ class HemodialysisHMI(QMainWindow):
             logger.error(f"[ERROR] shutdown() during __del__ failed: {e}")
 
 
-    def shutdown(self):        
-        """Detención de hilos de comunicación de hardware con logs corregidos."""
-        if getattr(self, "_shutdown_done", False) or getattr(self, "_shutting_down", False):
-            return
+    def _get_session_shutdown(self) -> SessionShutdown:
+        shutdown_handler = getattr(self, "_session_shutdown", None)
+        if shutdown_handler is None:
+            shutdown_handler = SessionShutdown(self)
+            self._session_shutdown = shutdown_handler
+        return shutdown_handler
 
-        self._shutting_down = True
-        logger.info("[INFO] Iniciando secuencia de apagado controlado de periféricos.")
-        timer = getattr(self, 'master_timer', None)
-        if timer is not None:
-            try:
-                if timer.isActive():
-                    timer.stop()
-                    logger.info("Timer Maestro detenido correctamente")
-            except RuntimeError:
-                logger.info("Timer Maestro ya destruido por Qt; se omite stop().")
-
-        # SOLO GUARDAR 
-        timer_manager = getattr(self, 'timer_manager', None)
-        if timer_manager is not None:
-            try:
-                timer_manager._save_power_on_hours()
-                timer_manager._save_operation_hours()
-                timer_manager._save_cleaning_hours()
-            except Exception as e:
-                logger.warning(f"[WARN] No se pudieron guardar horas del TimerManager durante shutdown: {e}")
-
-        # Stop alarm system
-        if hasattr(self, 'alarm_system') and self.alarm_system:
-            try:
-                self.alarm_system.stop()
-            except Exception as e:
-                logger.error(f"[ERROR] Failed to stop alarm system cleanly: {e}")
-            self.alarm_system = None
-
-        # Stop serial communication
-        if hasattr(self, 'serial_comm') and self.serial_comm:
-            try:
-                self.serial_comm.stop()
-            except Exception as e:
-                logger.error(f"[ERROR] Failed to stop serial communication: {e}")
-            self.serial_comm = None
-
-        if hasattr(self, 'nibp') and self.nibp:
-            try:
-                self.nibp.stop()
-            except Exception as e:
-                logger.error(f"[ERROR] Failed to stop NIBP communication: {e}")
-            self.nibp = None
-
-        if hasattr(self, 'led_bar') and self.led_bar:
-            try:
-                self.led_bar.send_state(self.led_bar.CMD_OFF, silence_buzzer=True)
-                # time.sleep(0.1)
-                self.led_bar.stop()
-            except Exception as e:
-                logger.error(f"Error stopping LED bar: {e}")
-
-        if hasattr(self, 'bioz_urea_controller') and self.bioz_urea_controller:
-            try:
-                self.bioz_urea_controller.stop()
-            except Exception as e:
-                logger.error(f"Error deteniendo el controlador de BioZ/Urea: {e}")
-    
-        if hasattr(self, 'pattern_sensor') and self.pattern_sensor:
-            try:
-                self.pattern_sensor.stop()
-            except Exception as e:
-                logger.error(f"Error deteniendo sensor patrón: {e}")
-
-        if hasattr(self, 'mega_cond_sensor') and self.mega_cond_sensor:
-            try:
-                self.mega_cond_sensor.stop()
-            except Exception as e:
-                logger.error(f"Error deteniendo sensor Mega: {e}")
-                
-        logger.info("[INFO] Secuencia de apagado completo finalizada.")
-        self._shutdown_done = True
-        self._shutting_down = False
+    def shutdown(self):
+        return self._get_session_shutdown().shutdown()
 
     # ====================== MÉTODOS DE LOGGING ======================
 
