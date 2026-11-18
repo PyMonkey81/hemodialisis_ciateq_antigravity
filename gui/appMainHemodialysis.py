@@ -1168,17 +1168,7 @@ class HemodialysisHMI(QMainWindow):
         return self._get_cleaning_session().resume_cleaning_timer()
 
     def handleGlobalValueChange(self, tag: str, value: float):
-       
-        self.current_values[tag] = value  # Actualiza el valor global
-        logger.debug("[GLOBAL] Valor actualizado: %s = %s", tag, value)
-
-        # Sincroniza cambios locales (pantallas de configuración) con alarmas.
-        if self.alarm_system:
-            self.alarm_system.update_value_by_tag(tag, value)
-
-        current_widget = self.screen_stack.currentWidget()
-        if hasattr(current_widget, "update_values"):
-            current_widget.update_values(self.current_values)
+        return self._get_active_alarms().handleGlobalValueChange(tag, value)
 
     def _sync_alarm_values_from_current_state(self):
         return self._get_active_alarms()._sync_alarm_values_from_current_state()
@@ -1217,21 +1207,7 @@ class HemodialysisHMI(QMainWindow):
         return self._get_main_shell().update_remaining_time_header(remaining_str)
 
     def update_alarm_system_monitor_config(self):
-        """
-        Llamado al cambiar la configuración de monitoreo en la pantalla de servicio.
-        """
-        logger.info("Actualizando configuración del sistema de alarmas desde HMI (Recarga Solicitada).")        
-        # 1. Limpieza forzada de la interfaz
-        self.active_alarms.clear()
-        if hasattr(self, 'alarms_screen') and self.alarms_screen:
-            self.alarms_screen.reset_ui_state()
-            
-        # 2. Recargar motor de alarmas
-        self.alarm_system.reload_configuration()
-        
-        # 3. Refrescar interfaz visual
-        self.refresh_alarms_label()
-        self.update_led_bar_state()
+        return self._get_active_alarms().update_alarm_system_monitor_config()
 
     
     def _get_active_alarms(self) -> ActiveAlarms:

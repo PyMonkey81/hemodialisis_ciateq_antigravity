@@ -1,6 +1,40 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 class ActiveAlarms:
     def __init__(self, window):
         self.window = window
+
+    def handleGlobalValueChange(self, tag: str, value: float):
+        self.window.current_values[tag] = value  # Actualiza el valor global
+        logger.debug("[GLOBAL] Valor actualizado: %s = %s", tag, value)
+
+        # Sincroniza cambios locales (pantallas de configuración) con alarmas.
+        if self.window.alarm_system:
+            self.window.alarm_system.update_value_by_tag(tag, value)
+
+        current_widget = self.window.screen_stack.currentWidget()
+        if hasattr(current_widget, "update_values"):
+            current_widget.update_values(self.window.current_values)
+
+    def update_alarm_system_monitor_config(self):
+        """
+        Llamado al cambiar la configuración de monitoreo en la pantalla de servicio.
+        """
+        logger.info("Actualizando configuración del sistema de alarmas desde HMI (Recarga Solicitada).")
+        # 1. Limpieza forzada de la interfaz
+        self.window.active_alarms.clear()
+        if hasattr(self.window, 'alarms_screen') and self.window.alarms_screen:
+            self.window.alarms_screen.reset_ui_state()
+
+        # 2. Recargar motor de alarmas
+        self.window.alarm_system.reload_configuration()
+
+        # 3. Refrescar interfaz visual
+        self.window.refresh_alarms_label()
+        self.window.update_led_bar_state()
 
     def handle_alarm(self, idx, active, value, name, level, limits):
         found_idx = -1  # buscar si la alarma ya está en la lista de alarmas activas
