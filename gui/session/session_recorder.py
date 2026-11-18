@@ -364,3 +364,45 @@ class SessionRecorder:
 
     def on_second(self):
         self._check_and_handle_unclean_close()
+
+    def build_current_clinical_report(
+        self,
+        completion_status: str = "En curso / Vista previa",
+        start_time_str: str = None,
+        end_time_str: str = None,
+        override_elapsed_s: float = None,
+    ) -> dict:
+        """Construye el diccionario completo del reporte clínico de la sesión actual."""
+        elapsed_s = (
+            override_elapsed_s
+            if override_elapsed_s is not None
+            else (
+                float(self.window.treatment_controller.get_elapsed_seconds())
+                if hasattr(self.window, "treatment_controller")
+                else 0.0
+            )
+        )
+        uf_rem_l = self.window.dialysis_screen._uf_removed_liters() if hasattr(self.window, "dialysis_screen") else 0.0
+        ktv_hist = getattr(self.window.KTVScreen, "ktv_records", []) if hasattr(self.window, "KTVScreen") else []
+
+        uf_prof_name = "Lineal (Sin perfil)"
+        if hasattr(self.window, "is_uf_profile_active") and self.window.is_uf_profile_active():
+            uf_prof_name = f"Perfil {self.window.uf_profile.profile_type.value}"
+
+        na_prof_name = "Constante (Sin perfil)"
+        if hasattr(self.window, "is_conductivity_profile_active") and self.window.is_conductivity_profile_active():
+            na_prof_name = f"Perfil {self.window.conductivity_profile.profile_type.value}"
+
+        return TherapyReportGenerator.build_session_report(
+            current_values=self.window.current_values,
+            tracker=getattr(self.window, "session_tracker", None),
+            nibp_history=getattr(self.window, "nibp_pressure_history", None),
+            ktv_history=ktv_hist,
+            elapsed_seconds=elapsed_s,
+            uf_removed_liters=uf_rem_l,
+            uf_profile_name=uf_prof_name,
+            na_profile_name=na_prof_name,
+            completion_status=completion_status,
+            start_time_str=start_time_str,
+            end_time_str=end_time_str,
+        )

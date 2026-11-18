@@ -2125,35 +2125,11 @@ class HemodialysisHMI(QMainWindow):
         end_time_str: str = None,
         override_elapsed_s: float = None,
     ) -> dict:
-        """Construye el diccionario completo del reporte clínico de la sesión actual."""
-        elapsed_s = (
-            override_elapsed_s
-            if override_elapsed_s is not None
-            else (float(self.treatment_controller.get_elapsed_seconds()) if hasattr(self, "treatment_controller") else 0.0)
-        )
-        uf_rem_l = self.dialysis_screen._uf_removed_liters() if hasattr(self, "dialysis_screen") else 0.0
-        ktv_hist = getattr(self.KTVScreen, "ktv_records", []) if hasattr(self, "KTVScreen") else []
-
-        uf_prof_name = "Lineal (Sin perfil)"
-        if hasattr(self, "is_uf_profile_active") and self.is_uf_profile_active():
-            uf_prof_name = f"Perfil {self.uf_profile.profile_type.value}"
-
-        na_prof_name = "Constante (Sin perfil)"
-        if hasattr(self, "is_conductivity_profile_active") and self.is_conductivity_profile_active():
-            na_prof_name = f"Perfil {self.conductivity_profile.profile_type.value}"
-
-        return TherapyReportGenerator.build_session_report(
-            current_values=self.current_values,
-            tracker=getattr(self, "session_tracker", None),
-            nibp_history=getattr(self, "nibp_pressure_history", None),
-            ktv_history=ktv_hist,
-            elapsed_seconds=elapsed_s,
-            uf_removed_liters=uf_rem_l,
-            uf_profile_name=uf_prof_name,
-            na_profile_name=na_prof_name,
+        return self._get_session_recorder().build_current_clinical_report(
             completion_status=completion_status,
             start_time_str=start_time_str,
             end_time_str=end_time_str,
+            override_elapsed_s=override_elapsed_s,
         )
 
 
