@@ -133,7 +133,7 @@ from gui.service.theme_config_screen import ThemeConfigScreen
 from gui.session.session_recorder import SessionRecorder
 from gui.session.operator_alerts import OperatorAlerts
 from gui.session.hardware_state_sync import HardwareStateSync
-from gui.session.telemetry_inlet import TelemetryInlet, LOCAL_SETPOINT_TAGS
+from connection.telemetry_inlet import TelemetryInlet, LOCAL_SETPOINT_TAGS
 from gui.session.screen_router import ScreenRouter
 from gui.session.session_shutdown import SessionShutdown
 from gui.session.priming_session import PrimingSession
