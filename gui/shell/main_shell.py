@@ -14,10 +14,38 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from core.nibp_pressure_history import NibpPressureHistory
 from core.state_manager import TreatmentPhase
+from core.therapy_session_tracker import TherapySessionTracker
 from core.variables_map import VARIABLES
+from gui.components.real_time_variables import RealTimeVariablesMonitor
+from gui.configuration.alarm_screen_config import AlarmScreenConfig
+from gui.configuration.alarm_screen_service_config import AlarmScreenServiceConfig
+from gui.configuration.cleanning_config_screen import CleanningConfigScreen
+from gui.service.calibration_screen import CalibrationScreen
+from gui.service.cleaning_screen import CleaningScreen
+from gui.service.comm_port_screen import CommPortScreen
+from gui.service.history_screen import HistoryScreen
+from gui.service.maintenance_screen import MaintenanceScreen
+from gui.service.manual_mode_screen import ManualModeScreen
+from gui.service.network_config_screen import NetworkConfigScreen
+from gui.service.options_screen import OptionsScreen
+from gui.service.test_panel_screen import TestPanelScreen
+from gui.service.theme_config_screen import ThemeConfigScreen
 from gui.theme_manager import ThemeManager
+from gui.therapy.alarms_screen import AlarmsScreen
+from gui.therapy.conductivity_profile_screen import ConductivityProfileScreen
+from gui.therapy.dialysis_screenV2 import DialysisScreen
+from gui.therapy.heparin_config_screenV2 import HeparinConfigScreen
+from gui.therapy.ktv_screen import KTVScreen
 from gui.therapy.main_screen import MainScreen
+from gui.therapy.nibp_config_screen import NibpConfigScreen
+from gui.therapy.nibp_history_screen import NibpChartScreen, NibpHistoryScreen
+from gui.therapy.nibp_limits_screen import NibpLimitsScreen
+from gui.therapy.patient_config_screen import PatientConfigScreen
+from gui.therapy.therapy_config_screenV2 import TherapyConfigScreen
+from gui.therapy.treatment_mode_screen import TreatmentModeScreen
+from gui.therapy.uf_profile_screen import UFProfileScreen
 from utilities.platform_runtime import safe_float, safe_int
 
 
@@ -1163,3 +1191,193 @@ class MainShell:
         self.window.left_content.show()
         self.window.right_content.show()
         self.window._highlight_active_nav_button("Resumen\nTerapia")
+
+    def build_screens(self):
+        # ====================== PANTALLAS ======================
+        self.window.alarms_screen = AlarmsScreen(
+            parent=self.window,
+            values_dict=self.window.current_values,
+            alarm_system=self.window.alarm_system,
+        )
+        self.window.alarms_screen.request_boolean_change.connect(
+            self.window._write_boolean_command
+        )  # Conexión: conecta la señal de pantalla con el método de escritura serial en main
+
+        self.window.real_time_var = RealTimeVariablesMonitor(
+            parent=self.window,
+            values_dict=self.window.current_values,
+            alarm_system=self.window.alarm_system,
+        )
+
+        # Pantalla de configuración para Operador
+        self.window.alarm_config_limits_screen = AlarmScreenConfig(
+            write_setpoint_callback=self.window._emit_pressure_alarm_limits,
+            config_manager=self.window.config_manager,
+            parent=self.window,
+        )
+
+        # Pantalla de configuración para Servicio Técnico
+        self.window.alarm_service_screen_config = AlarmScreenServiceConfig(
+            config_manager=self.window.config_manager,
+            parent=self.window,
+        )
+        # # Therapy & service screens
+        self.window.dialysis_screen = DialysisScreen(parent=self.window, values_dict=self.window.current_values)
+        self.window.dialysis_screen.request_boolean_change.connect(self.window._write_boolean_command)
+
+        self.window.treatment_mode_screen = TreatmentModeScreen(
+            parent=self.window, values_dict=self.window.current_values
+        )
+        self.window.treatment_mode_screen.request_setpoint_change.connect(
+            self.window._write_setpoint
+        )  # Conexión: conecta la señal de pantalla con el método de escritura serial en main
+
+        self.window.cleaning_screen = CleaningScreen(parent=self.window, values_dict=self.window.current_values)
+        self.window.cleaning_screen.request_setpoint_change.connect(self.window._write_setpoint)
+        self.window.cleaning_screen.request_boolean_change.connect(self.window._write_boolean_command)
+        self.window.cleaning_screen.cleaning_active_changed.connect(self.window._handle_cleaning_status_change)
+
+        self.window.cleaning_screen.cleaning_started_counting.connect(self.window._set_cleaning_start_time)
+
+        self.window.cleaning_screen.cleaning_started_counting.connect(
+            self.window.timer_manager.on_cleaning_started_counting
+        )
+        self.window.cleaning_screen.cleaning_stopped_counting.connect(
+            self.window.timer_manager.on_cleaning_stopped_counting
+        )
+        self.window.options_screen = OptionsScreen(parent=self.window)
+
+        # # Service sub-screens
+        self.window.manual_mode_screen = ManualModeScreen(
+            parent=self.window, values_dict=self.window.current_values
+        )
+        self.window.manual_mode_screen.request_setpoint_change.connect(self.window._write_setpoint)
+        self.window.manual_mode_screen.request_boolean_change.connect(self.window._write_boolean_command)
+
+        self.window.test_panel_screen = TestPanelScreen(
+            parent=self.window, values_dict=self.window.current_values
+        )
+        self.window.test_panel_screen.request_setpoint_change.connect(
+            self.window._write_setpoint
+        )  # Conexión: conecta la señal de pantalla con el método de escritura serial en main
+
+        self.window.calibration_screen = CalibrationScreen(
+            parent=self.window, values_dict=self.window.current_values
+        )
+        self.window.calibration_screen.request_setpoint_change.connect(self.window._write_setpoint)
+        self.window.calibration_screen.request_boolean_change.connect(self.window._write_boolean_command)
+
+        self.window.network_config_screen = NetworkConfigScreen(parent=self.window)
+
+        self.window.comm_port_screen = CommPortScreen(parent=self.window)
+        self.window.comm_port_screen.config_changed.connect(self.window.handle_comm_config_change)
+        self.window.nibp.connected_changed.connect(self.window.comm_port_screen.update_nibp_status)
+        self.window.nibp.error_message.connect(self.window.comm_port_screen.update_nibp_error)
+
+        self.window.nibp_screen = NibpConfigScreen(parent=self.window)
+        self.window.nibp_screen.settings_applied.connect(self.window._on_nibp_settings_applied)
+        self.window.nibp_screen.measure_now_requested.connect(self.window._on_nibp_measure_requested)
+        self.window.nibp_screen.reset_requested.connect(self.window._on_nibp_reset_requested)
+        self.window.nibp_screen.spo2_on_requested.connect(self.window.nibp.spo2_on)
+        self.window.nibp_screen.spo2_off_requested.connect(self.window.nibp.spo2_off)
+        self.window.nibp.connected_changed.connect(self.window.nibp_screen.update_connection)
+        self.window.nibp.error_message.connect(self.window.nibp_screen.update_error)
+        self.window.nibp.error_cleared.connect(self.window.nibp_screen.clear_error)
+        self.window.nibp.measurement_ready.connect(self.window.nibp_screen.update_measurement)
+        self.window.nibp.cuff_pressure.connect(self.window.nibp_screen.update_cuff)
+        self.window.nibp.spo2_updated.connect(self.window.nibp_screen.update_spo2)
+        self.window.nibp.measurement_ready.connect(self.window.dialysis_screen.update_nibp_measurement)
+        self.window.nibp.spo2_updated.connect(self.window.dialysis_screen.update_spo2)
+
+        # Conexiones para el historial de presión arterial
+        self.window.nibp_screen.measure_now_requested.connect(self.window._on_nibp_measure_requested_for_history)
+        self.window.nibp_screen.history_requested.connect(self.window.show_nibp_history_screen)
+        self.window.nibp_screen.limits_requested.connect(self.window.show_nibp_limits_screen)
+        self.window.nibp.measurement_ready.connect(self.window._on_nibp_measurement_ready_for_history)
+
+        self.window.maintenance_screen = MaintenanceScreen(parent=self.window)  # PANTALLA NUEVA DE MANTENIMIENTO
+
+        self.window._cleanning_config_screen = CleanningConfigScreen(parent=self.window)
+
+        # # Therapy sub-screens
+        self.window.patient_config_screen = PatientConfigScreen(parent=self.window)
+
+        self.window.therapy_config_screen = TherapyConfigScreen(
+            parent=self.window, values_dict=self.window.current_values
+        )  # intanciar pasando los valores actuales (values_dict)
+        self.window.therapy_config_screen.request_setpoint_change.connect(
+            self.window._write_setpoint
+        )  # Conexión: conecta la señal de pantalla con el método de escritura serial en main
+        self.window.therapy_config_screen.request_boolean_change.connect(self.window._write_boolean_command)
+        self.window.therapy_config_screen.valueChanged.connect(
+            self.window.handleGlobalValueChange
+        )  # Actualizar UI localmente
+
+        self.window.conductivity_profile_screen = ConductivityProfileScreen(
+            parent=self.window, values_dict=self.window.current_values
+        )
+        self.window.uf_profile_screen = UFProfileScreen(parent=self.window, values_dict=self.window.current_values)
+
+        self.window.heparin_config_screen = HeparinConfigScreen(
+            parent=self.window, values_dict=self.window.current_values
+        )
+        self.window.heparin_config_screen.request_setpoint_change.connect(self.window._write_setpoint)
+        self.window.heparin_config_screen.request_boolean_change.connect(self.window._write_boolean_command)
+        self.window.heparin_config_screen.valueChanged.connect(self.window.handleGlobalValueChange)
+        self.window.heparin_config_screen.heparin_enabled_changed.connect(self.window.set_heparin_infusion_enabled)
+
+        self.window.history_screen = HistoryScreen(parent=self.window)
+
+        self.window.KTVScreen = KTVScreen(
+            parent=self.window, values_dict=self.window.current_values
+        )  # Pantalla de cálculo de Kt/V en tiempo real, con gráficos y todo el rollo.
+
+        # === HISTORIAL DE PRESIÓN ARTERIAL NIBP Y RASTREADOR DE SESIÓN CLÍNICA ===
+        self.window.nibp_pressure_history = NibpPressureHistory()
+        self.window.nibp_history_screen = NibpHistoryScreen(
+            parent=self.window, history=self.window.nibp_pressure_history
+        )
+        self.window.nibp_chart_screen = NibpChartScreen(
+            parent=self.window, history=self.window.nibp_pressure_history
+        )
+        self.window.nibp_limits_screen = NibpLimitsScreen(
+            parent=self.window, history=self.window.nibp_pressure_history
+        )
+        self.window._nibp_measure_is_manual = False  # Flag para marcar si la próxima medición es manual
+        self.window._last_spo2_value = None
+        self.window.session_tracker = TherapySessionTracker()
+        self.window.nibp.spo2_updated.connect(self.window._on_spo2_updated_for_tracker)
+        self.window.theme_config_screen = ThemeConfigScreen(parent=self.window)
+
+        # Add all screens to stacked widget (order matters)
+        self.window.screen_stack.addWidget(self.window._main_screen)                 # 0 - Home
+        self.window.screen_stack.addWidget(self.window.dialysis_screen)              # 1   funciona
+        self.window.screen_stack.addWidget(self.window.treatment_mode_screen)        # 2 funciona
+        self.window.screen_stack.addWidget(self.window.cleaning_screen)              # 3
+        self.window.screen_stack.addWidget(self.window.options_screen)               # 4
+        self.window.screen_stack.addWidget(self.window.alarms_screen)                # 5
+        self.window.screen_stack.addWidget(self.window.manual_mode_screen)           # 6
+        self.window.screen_stack.addWidget(self.window.test_panel_screen)            # 7
+        self.window.screen_stack.addWidget(self.window.calibration_screen)           # 8
+        self.window.screen_stack.addWidget(self.window.network_config_screen)        # 9
+        self.window.screen_stack.addWidget(self.window.real_time_var)                # 10
+        self.window.screen_stack.addWidget(self.window.patient_config_screen)        # 11
+        self.window.screen_stack.addWidget(self.window.therapy_config_screen)        # 12
+        self.window.screen_stack.addWidget(self.window.heparin_config_screen)        # 13
+        self.window.screen_stack.addWidget(self.window.conductivity_profile_screen)  # 14
+        self.window.screen_stack.addWidget(self.window.uf_profile_screen)            # 14b
+        self.window.screen_stack.addWidget(self.window.comm_port_screen)             # 15
+        self.window.screen_stack.addWidget(self.window.maintenance_screen)           # 16
+        self.window.screen_stack.addWidget(self.window.alarm_config_limits_screen)   # 17
+        self.window.screen_stack.addWidget(self.window.alarm_service_screen_config)  # 18
+        self.window.screen_stack.addWidget(self.window._cleanning_config_screen)     # 19
+        self.window.screen_stack.addWidget(self.window.history_screen)               # 20
+        self.window.screen_stack.addWidget(self.window.KTVScreen)                    # 21
+        self.window.screen_stack.addWidget(self.window.nibp_screen)                  # 22
+        self.window.screen_stack.addWidget(self.window.nibp_history_screen)          # 23
+        self.window.screen_stack.addWidget(self.window.nibp_chart_screen)            # 23b
+        self.window.screen_stack.addWidget(self.window.nibp_limits_screen)           # 23c
+        self.window.screen_stack.addWidget(self.window.theme_config_screen)          # 24
+
+        self.window.calibration_screen.valueChanged.connect(self.window.handleGlobalValueChange)
+        self.window.manual_mode_screen.valueChanged.connect(self.window.handleGlobalValueChange)
