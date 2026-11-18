@@ -138,6 +138,7 @@ from gui.session.screen_router import ScreenRouter
 from gui.session.session_shutdown import SessionShutdown
 from gui.session.priming_flow import PrimingFlow
 from gui.session.comm_binding import CommBinding
+from gui.session.cleaning_session import CleaningSession
 from gui.shell.main_shell import MainShell
 from gui.shell.side_indicators import SideIndicators
 from gui.therapy.profile_coordinator import ProfileCoordinator
@@ -1556,43 +1557,24 @@ class HemodialysisHMI(QMainWindow):
                 logger.info("Manteniendo pantalla de servicio tras desconexión (permitiendo configuración).")
 
 
-    def _handle_cleaning_status_change(self, is_cleaning_active: bool):
-        logger.info(f"[CLEANING] Señal recibida → Activo: {is_cleaning_active}")
+    def _get_cleaning_session(self) -> CleaningSession:
+        session = getattr(self, "_cleaning_session", None)
+        if session is None:
+            session = CleaningSession(self)
+            self._cleaning_session = session
+        return session
 
-        if is_cleaning_active:
-            self.state.set_phase(TreatmentPhase.CLEANING, "Inicio de limpieza")
-            # La hora de inicio de historial debe fijarse en el primer tramo ACTIVO real
-            # (cuando CleaningScreen emite cleaning_started_counting al entrar a estado 6).
-            self.cleaning_start_time = None
-            self._start_cleaning_logger()
-        else:
-            self.state.set_phase(TreatmentPhase.IDLE, "Fin de limpieza")
-            self._stop_cleaning_logger()
-            # self.cleaning_start_time = None # Esto se reinicia al finalizar, lo cual es correcto.
-                                           # Sin embargo, lo mantendremos para el registro en el historial
-                                           # y luego lo estableceremos a None en el método de registro.
+    def _handle_cleaning_status_change(self, is_cleaning_active: bool):
+        return self._get_cleaning_session()._handle_cleaning_status_change(is_cleaning_active)
 
     def _set_cleaning_start_time(self):
-        """Se llama exactamente cuando el cronómetro entra al estado 6"""
-        if self.cleaning_start_time is None:
-            self.cleaning_start_time = QDateTime.currentDateTime()
-            logger.info("Hora de inicio de limpieza (primer tramo activo) registrada para el historial.")
-        else:
-            logger.debug(
-                "Se ignoró una nueva marca de inicio de limpieza para conservar la hora original de la sesión."
-            )
-
-
+        return self._get_cleaning_session()._set_cleaning_start_time()
 
     def pause_cleaning_timer(self):
-        """Llamado desde CleaningScreen"""
-        if hasattr(self, 'timer_manager'):
-            self.timer_manager.pause_cleaning_timer()
+        return self._get_cleaning_session().pause_cleaning_timer()
 
     def resume_cleaning_timer(self):
-        """Llamado desde CleaningScreen"""
-        if hasattr(self, 'timer_manager'):
-            self.timer_manager.resume_cleaning_timer()
+        return self._get_cleaning_session().resume_cleaning_timer()
 
     def handleGlobalValueChange(self, tag: str, value: float):
        
