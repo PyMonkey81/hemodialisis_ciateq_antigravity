@@ -1,6 +1,7 @@
 import json
 import logging
 
+from connection.serial_communication import SerialCommunication
 from core.variables_map import TAG_TO_ADDRESS, VARIABLES
 from logic.calculos import (
     convertir_ciclos_a_flujo,
@@ -41,6 +42,11 @@ HEPARIN_DOSE_FIRMWARE_TAGS = {
 class FirmwareGateway:
     def __init__(self, window):
         self.window = window
+
+    def start_link(self):
+        self.window.serial_comm = SerialCommunication()
+        self.window.serial_comm.data_received.connect(self.window.update_value)
+        self.window._is_connected_prev_state = False  # Rastrea estado de conexción
 
     def _write_setpoint(self, tag: str, value: float):
         if not self.window.serial_comm or not self.window.serial_comm.is_connected:

@@ -525,10 +525,7 @@ class HemodialysisHMI(QMainWindow):
         self._therapy_config_applied_to_firmware = False
         self._load_therapy_config_json()
 
-        self.serial_comm = SerialCommunication()
-        self.serial_comm.data_received.connect(self.update_value)
-        self._is_connected_prev_state = False # Rastrea estado de conexción
-
+        self._get_firmware_gateway().start_link()
         self._get_nibp_coordinator().start_module()
         self._get_telemetry_inlet().start_bioz()
         self._get_telemetry_inlet().start_sensors()
