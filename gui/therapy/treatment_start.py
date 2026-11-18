@@ -311,3 +311,81 @@ class TreatmentStart:
             self.window._update_therapy_time_displays()
             self.window._refresh_navigation_bar()
             self.window._reset_filter_fill_flags()
+
+    def _on_state_changed(self, phase: TreatmentPhase, reason: str):
+        """Callback principal de cambio de estado"""
+        logger.info(f"Estado global cambiado: {phase.name} | {reason}")
+        logger.debug("Fase actual: %s", phase.name)
+
+        if phase == TreatmentPhase.RUNNING:
+            # Recortar una sola vez el tiempo de heparina al entrar a RUNNING
+            if not getattr(self.window, '_heparin_running_clamped', False):
+                self.window._heparin_running_clamped = True
+                self.window._validate_and_clamp_heparin_auto_stop_time()
+
+        # Guardar el estado actual para la próxima comparación
+        self.window._prev_treatment_phase = phase
+
+        self.window._update_buttons_state()
+        self.window._refresh_navigation_bar()
+        self.window.screen_state_manager.update_all_screens(phase)  # MODIFICADO: Esto llamará a KTVScreen.update_state
+        self.window.ktv_controller.update_app_state(phase)
+        self.window._apply_nibp_auto_spo2_for_phase(phase)
+        if phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+            # Solo al terminar la sesión (IDLE/READY/etc.), NUNCA en PAUSED: el reloj de
+            # terapia se congela en pausa, no reinicia, así que el índice tampoco debe hacerlo.
+            self.window._nibp_auto_last_interval_index = -1
+            self.window._heparin_running_clamped = False
+
+    def _on_treatment_started(self, start_time):
+        logger.info("Tratamiento INICIADO")
+        self.window.is_treatment_running = True
+        self.window.therapy_start_time = start_time
+        self.window._heparin_auto_stop_latched = False
+        if hasattr(self.window, "session_tracker"):
+            self.window.session_tracker.start_session(self.window.current_values)
+        # Iniciar logger, bioz, etc. (ya lo tenés en start_treatment)
+        self.window.ktv_controller.reset_on_treatment_start()  # Reiniciar estado del KtvController
+        self.window.KTVScreen.reset_screen_data()  # Limpiar la pantalla KTV para el nuevo tratamiento
+
+    def _on_treatment_paused(self):
+        logger.info("Tratamiento PAUSADO")
+        self.window.is_treatment_running = False
+        self.window.ktv_controller.pause_measurement()  # Pausar cualquier medición de Kt/V en curso
+
+    def _on_treatment_resumed(self):
+        logger.info("Tratamiento REANUDADO")
+        self.window.is_treatment_running = True
+        self.window.ktv_controller.resume_measurement()  # Reanudar medición de Kt/V
+
+    def _on_treatment_finished(self):
+        logger.info("Tratamiento FINALIZADO")
+        self.window.is_treatment_running = False
+        self.window.therapy_start_time = None
+        self.window._heparin_auto_stop_latched = False
+        self.window._heparin_running_clamped = False
+        # Cerrar el último tramo de Kt/V antes de guardar el reporte.
+        # El proyectado no sustituye al entregado.
+        self.window.ktv_controller.finalize_delivered_dose()
+        # 0. Capturar snapshot final y registrar sesión con reporte clínico antes de limpiar KTVScreen
+        try:
+            if hasattr(self.window, "session_tracker") and self.window.session_tracker.active:
+                uf_rem_l = (
+                    self.window.dialysis_screen._uf_removed_liters()
+                    if hasattr(self.window, "dialysis_screen")
+                    else 0.0
+                )
+                self.window.session_tracker.finish_session(
+                    self.window.current_values,
+                    elapsed_s=float(self.window.treatment_controller.get_elapsed_seconds()),
+                    uf_removed_liters=uf_rem_l,
+                )
+            self.window.register_treatment_session()
+        except Exception as e:
+            logger.error(f"Error generando reporte clínico al finalizar tratamiento: {e}")
+        # 1. Guardar reporte Kt/V PRIMERO, antes de abortar (abort → reset_screen_data limpia ktv_records)
+        self.window.KTVScreen.save_final_report()
+        # 2. Abortar medición en curso (puede disparar reset_screen_data, ya sin datos)
+        self.window.ktv_controller.abort("Tratamiento finalizado")
+        # 3. Limpiar pantalla KTV para próxima sesión conservando frecuencia configurada
+        self.window.KTVScreen.reset_screen_data(preserve_frequency=True)
