@@ -818,13 +818,10 @@ class HemodialysisHMI(QMainWindow):
 
 
     def _on_cleaning_started(self):
-        logger.info("Limpieza INICIADA")
-        self.is_cleaning_in_progress = True
-        self.ktv_controller.abort("Limpieza iniciada") # Abortar Kt/V si limpieza empieza
+        return self._get_cleaning_session()._on_cleaning_started()
 
     def _on_cleaning_finished(self):
-        logger.info("Limpieza FINALIZADA")
-        self.is_cleaning_in_progress = False
+        return self._get_cleaning_session()._on_cleaning_finished()
 
     def _on_state_error(self, message: str):
         logger.error(f"Error de estado: {message}")

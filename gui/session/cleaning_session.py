@@ -11,6 +11,15 @@ class CleaningSession:
     def __init__(self, window):
         self.window = window
 
+    def _on_cleaning_started(self):
+        logger.info("Limpieza INICIADA")
+        self.window.is_cleaning_in_progress = True
+        self.window.ktv_controller.abort("Limpieza iniciada")  # Abortar Kt/V si limpieza empieza
+
+    def _on_cleaning_finished(self):
+        logger.info("Limpieza FINALIZADA")
+        self.window.is_cleaning_in_progress = False
+
     def _handle_cleaning_status_change(self, is_cleaning_active: bool):
         logger.info(f"[CLEANING] Señal recibida → Activo: {is_cleaning_active}")
 
