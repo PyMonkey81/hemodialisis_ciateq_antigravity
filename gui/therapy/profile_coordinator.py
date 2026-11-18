@@ -7,6 +7,7 @@ from logic.conductivity_profile import (
     ConductivityProfile,
     ProfileType,
     calculate_target_conductivity,
+    load_profile,
     save_profile,
     step_index_by_seconds,
     validate_profile,
@@ -14,6 +15,7 @@ from logic.conductivity_profile import (
 from logic.uf_profile import (
     UFProfile,
     calculate_target_uf,
+    load_profile as load_uf_profile,
     save_profile as save_uf_profile,
     validate_profile as validate_uf_profile,
 )
@@ -24,6 +26,23 @@ logger = logging.getLogger(__name__)
 class ProfileCoordinator:
     def __init__(self, window):
         self.window = window
+
+    def load_profiles(self):
+        self.window._original_conductivity_setpoint = None  # Para almacenar el setpoint original de conductividad antes de cualquier ajuste por terapia
+        self.window.conductivity_profile: ConductivityProfile = load_profile()
+        self.window._last_profile_target = None
+        self.window._last_profile_written = None  # último SP enviado por el perfil
+        self.window._last_profile_step_index = None
+        self.window._last_profile_write_ts = 0  # epoch seconds
+        self.window._last_profile_step_ts_s = 0  # t_terapia_s del último cambio de escalón
+        self.window._last_profile_log_second = -1
+
+        self.window.uf_profile: UFProfile = load_uf_profile()
+        self.window._last_uf_profile_target = None
+        self.window._last_uf_profile_written = None
+        self.window._last_uf_profile_step_index = None
+        self.window._last_uf_profile_write_ts = 0
+        self.window._last_uf_profile_step_ts_s = 0
 
     def can_configure_conductivity_profile(self, allow_disable: bool = False) -> tuple[bool, str]:
         phase = self.window.state.current_phase

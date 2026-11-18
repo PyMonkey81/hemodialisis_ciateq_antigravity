@@ -474,22 +474,7 @@ class HemodialysisHMI(QMainWindow):
         self.is_cleaning_in_progress = False
 
         self._current_elapsed_therapy_min = 0.0 # Variable para cálculo de Kt/V acumulado en tiempo real        
-        self._original_conductivity_setpoint = None # Para almacenar el setpoint original de conductividad antes de cualquier ajuste por terapia    
-        self.conductivity_profile: ConductivityProfile = load_profile()
-        self._last_profile_target = None
-        self._last_profile_written = None      # último SP enviado por el perfil
-        self._last_profile_step_index = None
-        self._last_profile_write_ts = 0         # epoch seconds
-        self._last_profile_step_ts_s = 0        # t_terapia_s del último cambio de escalón
-        self._last_profile_log_second = -1
-
-        self.uf_profile: UFProfile = load_uf_profile()
-        self._last_uf_profile_target = None
-        self._last_uf_profile_written = None
-        self._last_uf_profile_step_index = None
-        self._last_uf_profile_write_ts = 0
-        self._last_uf_profile_step_ts_s = 0
-        
+        self._get_profile_coordinator().load_profiles()
         self._get_master_clock().prepare_clock()
         self._get_heparin_coordinator().arm_session()
         self.setup_ui()
