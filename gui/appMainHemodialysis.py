@@ -556,17 +556,7 @@ class HemodialysisHMI(QMainWindow):
             show_message_callback=self.show_operator_message # Callback para mostrar mensajes
         )
 
-        # Sensor de conductividad patrón
-        self.pattern_sensor = PatternConductivity()
-        self.pattern_sensor.data_received.connect(self.on_pattern_data)
-        self.pattern_sensor.start()
-
-
-        # Sensor de conductividad vía Arduino Mega
-        self.mega_cond_sensor = MegaConductivitySensor()
-        self.mega_cond_sensor.data_received.connect(self.on_mega_cond_data)
-        self.mega_cond_sensor.start_reading()
-     
+        self._get_telemetry_inlet().start_sensors()
         self._get_active_alarms().start_monitoring_stack()
         self._get_main_shell().build_screens()
         self._get_main_shell().start_shown()

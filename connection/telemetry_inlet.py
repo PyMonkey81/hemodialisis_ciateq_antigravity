@@ -4,6 +4,8 @@ from collections import deque
 
 from PySide6.QtCore import QDateTime, QTimer
 
+from connection.conductivity_sensor_comm import PatternConductivity
+from connection.mega_conductivity_sensor import MegaConductivitySensor
 from core.state_manager import TreatmentPhase
 from core.variables_map import VARIABLES
 from gui.theme_manager import ThemeManager
@@ -24,6 +26,17 @@ LOCAL_SETPOINT_TAGS = {
 class TelemetryInlet:
     def __init__(self, window):
         self.window = window
+
+    def start_sensors(self):
+        # Sensor de conductividad patrón
+        self.window.pattern_sensor = PatternConductivity()
+        self.window.pattern_sensor.data_received.connect(self.window.on_pattern_data)
+        self.window.pattern_sensor.start()
+
+        # Sensor de conductividad vía Arduino Mega
+        self.window.mega_cond_sensor = MegaConductivitySensor()
+        self.window.mega_cond_sensor.data_received.connect(self.window.on_mega_cond_data)
+        self.window.mega_cond_sensor.start_reading()
 
     def update_value(self, tag: str, value: float):
         # Estos setpoints son locales de UI y no deben ser pisados por telemetría.
