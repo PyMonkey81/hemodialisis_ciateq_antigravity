@@ -137,6 +137,7 @@ from gui.session.telemetry_inlet import TelemetryInlet, LOCAL_SETPOINT_TAGS
 from gui.session.screen_router import ScreenRouter
 from gui.session.session_shutdown import SessionShutdown
 from gui.session.priming_flow import PrimingFlow
+from gui.session.comm_binding import CommBinding
 from gui.shell.main_shell import MainShell
 from gui.shell.side_indicators import SideIndicators
 from gui.therapy.profile_coordinator import ProfileCoordinator
@@ -1953,26 +1954,17 @@ class HemodialysisHMI(QMainWindow):
     def on_mega_cond_data(self, tag: str, value: float):
         return self._get_telemetry_inlet().on_mega_cond_data(tag, value)
 
+    def _get_comm_binding(self) -> CommBinding:
+        binding = getattr(self, "_comm_binding", None)
+        if binding is None:
+            binding = CommBinding(self)
+            self._comm_binding = binding
+        return binding
+
     def handle_comm_config_change(self, sensor_id, port, is_enabled, simulation_enabled=False):
-        if sensor_id == "MAIN_CONTROL":
-            self.serial_comm.update_config(port, is_enabled, simulation_enabled)
-            logger.info("Controlador Principal: Puerto=%s, Habilitado=%s, Simulación=%s", port, is_enabled, simulation_enabled)
-            
-        elif sensor_id == "CONDUCTIVITY":
-            self.pattern_sensor.update_config(port, is_enabled)
-            logger.info(f"Sensor Conductividad: Puerto={port}, Habilitado={is_enabled}")
-        elif sensor_id == "MEGA_CONDUCTIVITY":
-            self.mega_cond_sensor.update_config(port, is_enabled)
-            logger.info(f"Sensor Conductividad MEGA: Puerto={port}, Habilitado={is_enabled}")
-        elif sensor_id == "BIOZ":
-            self.bioz_urea_controller.update_config(port, is_enabled)
-            logger.info(f"Sensor BioZ: Puerto={port}, Habilitado={is_enabled}")
-        elif sensor_id == "LED_CONTROLLER":
-            self.led_bar.update_config(port, is_enabled)
-            logger.info(f"LED Controller: Puerto={port}, Habilitado={is_enabled}")
-        elif sensor_id == "NIBP":
-            self.nibp.update_config(port, is_enabled)
-            logger.info(f"[NIBP] Baumanómetro PAR NIBP2020 UP: Puerto={port}, Habilitado={is_enabled}")
+        return self._get_comm_binding().handle_comm_config_change(
+            sensor_id, port, is_enabled, simulation_enabled=simulation_enabled
+        )
 
     def _load_nibp_config_and_apply(self):
         return self._get_nibp_coordinator()._load_nibp_config_and_apply()
