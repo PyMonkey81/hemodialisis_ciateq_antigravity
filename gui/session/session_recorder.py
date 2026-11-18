@@ -19,6 +19,28 @@ class SessionRecorder:
     def __init__(self, window):
         self.window = window
 
+    def load_ledgers(self):
+        # ====================== HISTORIAL DE TRATAMIENTOS Y LIMPIEZA ======================
+        self.window.treatment_history = []  # Se cargará desde JSON
+        self.window.cleaning_history = []
+
+        self.window.current_treatment_start = None  # Para registrar cuando inicia un tratamiento
+
+        # ====================== VARIABLES DE HORAS ======================
+        self.window.total_operation_hours = 0.0  # Tratamiento activo
+        self.window.power_on_hours = 0.0  # Máquina encendida
+        self.window.cleaning_hours = 0.0  # Tiempo en limpieza
+
+        # Timers de conteo
+        self.window.operation_start_time = None
+        self.window.cleaning_start_time = None
+        self.window.last_resume_time = None
+
+        self.window.is_treatment_running = False
+        self.window.is_cleaning_in_progress = False
+
+        self.window._current_elapsed_therapy_min = 0.0  # Variable para cálculo de Kt/V acumulado en tiempo real
+
     def prepare_session(self):
         self.window._load_histories()
         self.window.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)

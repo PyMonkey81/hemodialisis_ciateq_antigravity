@@ -454,26 +454,7 @@ class HemodialysisHMI(QMainWindow):
         self._timer_lock = False  # ← NUEVO: protección contra reentrancia
 
 
-        # ====================== HISTORIAL DE TRATAMIENTOS Y LIMPIEZA ======================
-        self.treatment_history = []   # Se cargará desde JSON
-        self.cleaning_history = []
-        
-        self.current_treatment_start = None   # Para registrar cuando inicia un tratamiento
-
-        # ====================== VARIABLES DE HORAS ======================
-        self.total_operation_hours = 0.0   # Tratamiento activo
-        self.power_on_hours = 0.0          # Máquina encendida
-        self.cleaning_hours = 0.0          # Tiempo en limpieza
-
-        # Timers de conteo
-        self.operation_start_time = None
-        self.cleaning_start_time = None
-        self.last_resume_time = None
-        
-        self.is_treatment_running = False
-        self.is_cleaning_in_progress = False
-
-        self._current_elapsed_therapy_min = 0.0 # Variable para cálculo de Kt/V acumulado en tiempo real        
+        self._get_session_recorder().load_ledgers()
         self._get_profile_coordinator().load_profiles()
         self._get_master_clock().prepare_clock()
         self._get_heparin_coordinator().arm_session()
