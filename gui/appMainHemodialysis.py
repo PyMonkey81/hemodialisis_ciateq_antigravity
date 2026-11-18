@@ -139,6 +139,7 @@ from gui.session.session_shutdown import SessionShutdown
 from gui.session.priming_flow import PrimingFlow
 from gui.session.comm_binding import CommBinding
 from gui.session.cleaning_session import CleaningSession
+from gui.session.connection_presence import ConnectionPresence
 from gui.shell.main_shell import MainShell
 from gui.shell.side_indicators import SideIndicators
 from gui.therapy.profile_coordinator import ProfileCoordinator
@@ -1505,56 +1506,15 @@ class HemodialysisHMI(QMainWindow):
         """Aplica estilos predefinidos a los botones"""
         return self._get_main_shell()._set_button_style(button, style_type)
 
+    def _get_connection_presence(self) -> ConnectionPresence:
+        presence = getattr(self, "_connection_presence", None)
+        if presence is None:
+            presence = ConnectionPresence(self)
+            self._connection_presence = presence
+        return presence
+
     def _set_ui_connected_state(self, is_connected: bool):
-        """
-        Manages the overall UI state based on connection status.
-        Protege al usuario si está en pantallas de configuración.
-        """
-        # --- NUEVA LÓGICA DE PROTECCIÓN ---
-        current_widget = self.screen_stack.currentWidget()
-        # Definimos las pantallas donde NO queremos que el sistema nos saque automáticamente
-        service_screens = [self.comm_port_screen, self.options_screen, self.maintenance_screen, self.network_config_screen, self.theme_config_screen]
-        is_in_service_area = current_widget in service_screens
-        # ----------------------------------
-
-        if is_connected:
-            logger.info("Enabling UI elements for connected state.")
-
-            # Reaplica configuración persistida al reconectar firmware.
-            self._apply_therapy_config_to_firmware(force=True)
-            
-            if hasattr(self, 'alarm_system') and self.alarm_system:
-                self.alarm_system.reset()
-            self.active_alarms.clear()
-            
-            if hasattr(self, 'alarms_screen') and self.alarms_screen:
-                self.alarms_screen.reset_ui_state() 
-            
-            self.refresh_treatment_selected()
-            self._update_treatment_mode_label_state()
-
-            # Solo mandamos al Home si NO estamos en área de servicio
-            if not is_in_service_area:
-                self.show_home_screen() 
-            else:
-                logger.info("Manteniendo pantalla de servicio tras conexión.")
-
-        else: # ESTADO DESCONECTADO
-            logger.warning("Disabling UI elements for disconnected state.")
-            
-            if hasattr(self, 'alarm_system') and self.alarm_system:
-                self.alarm_system.reset() 
-            self.active_alarms.clear() 
-            
-            if hasattr(self, 'alarms_screen') and self.alarms_screen:
-                self.alarms_screen.reset_ui_state() 
-            
-            self._update_treatment_mode_label_state()
-
-            if not is_in_service_area:
-                self.show_home_screen()
-            else:
-                logger.info("Manteniendo pantalla de servicio tras desconexión (permitiendo configuración).")
+        return self._get_connection_presence()._set_ui_connected_state(is_connected)
 
 
     def _get_cleaning_session(self) -> CleaningSession:
