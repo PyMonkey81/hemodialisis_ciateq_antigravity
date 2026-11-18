@@ -1473,35 +1473,7 @@ class HemodialysisHMI(QMainWindow):
 
     def _write_setpoint(self, tag: str, value: float):
         if tag in LOCAL_SETPOINT_TAGS:
-            self.current_values[tag] = float(value)
-            self._persist_therapy_config_tag(tag, float(value))
-            
-            # Detectar cambio de tiempo de terapia y actualizar displays
-            if tag in ("heparineTherapyHours", "heparineTherapyMinutes"):
-                hours = int(self.current_values.get("heparineTherapyHours", 0))
-                minutes = int(self.current_values.get("heparineTherapyMinutes", 0))
-                total_min = (hours * 60) + minutes
-                
-                # Si no está RUNNING, puede cambiar el total de terapia
-                if self.state.current_phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
-                    self.treatment_controller.total_therapy_seconds = total_min * 60
-                
-                # Actualizar displays inmediatamente
-                self._update_therapy_time_displays()
-                
-                # Validar y acotar el tiempo de heparina si es necesario (excepto en limpieza)
-                is_cleaning = (
-                    getattr(getattr(self, "state", None), "current_phase", None) == TreatmentPhase.CLEANING
-                    or safe_int(self.current_values.get("treatmentModeSelection", 0), 0) == 3
-                )
-                if not is_cleaning:
-                    self._validate_and_clamp_heparin_auto_stop_time()
-                
-                logger.info(f"[THERAPY-TIME] set_min={total_min} remaining={hours:02d}:{minutes:02d}:00 source=config")
-            
-            logger.info(f"SETPOINT [LOCAL]: {tag} = {value}")
-            return
-
+            return self._get_heparin_coordinator().write_local_setpoint(tag, value)
         return self._get_firmware_gateway()._write_setpoint(tag, value)
 
     def _build_therapy_config_payload(self) -> dict:

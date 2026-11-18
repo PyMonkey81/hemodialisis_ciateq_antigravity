@@ -230,3 +230,33 @@ class HeparinCoordinator:
     def on_second(self):
         self._update_heparin_auto_stop_timer()
         self._update_heparin_infusion_enable_guard()
+
+    def write_local_setpoint(self, tag: str, value: float):
+        self.window.current_values[tag] = float(value)
+        self.window._persist_therapy_config_tag(tag, float(value))
+
+        # Detectar cambio de tiempo de terapia y actualizar displays
+        if tag in ("heparineTherapyHours", "heparineTherapyMinutes"):
+            hours = int(self.window.current_values.get("heparineTherapyHours", 0))
+            minutes = int(self.window.current_values.get("heparineTherapyMinutes", 0))
+            total_min = (hours * 60) + minutes
+
+            # Si no está RUNNING, puede cambiar el total de terapia
+            if self.window.state.current_phase not in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED):
+                self.window.treatment_controller.total_therapy_seconds = total_min * 60
+
+            # Actualizar displays inmediatamente
+            self.window._update_therapy_time_displays()
+
+            # Validar y acotar el tiempo de heparina si es necesario (excepto en limpieza)
+            is_cleaning = (
+                getattr(getattr(self.window, "state", None), "current_phase", None) == TreatmentPhase.CLEANING
+                or safe_int(self.window.current_values.get("treatmentModeSelection", 0), 0) == 3
+            )
+            if not is_cleaning:
+                self.window._validate_and_clamp_heparin_auto_stop_time()
+
+            logger.info(f"[THERAPY-TIME] set_min={total_min} remaining={hours:02d}:{minutes:02d}:00 source=config")
+
+        logger.info(f"SETPOINT [LOCAL]: {tag} = {value}")
+        return
