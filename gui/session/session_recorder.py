@@ -4,6 +4,9 @@ import os
 from pathlib import Path
 
 from PySide6.QtCore import QDateTime
+from PySide6.QtWidgets import QSizePolicy
+
+from core.variables_map import VARIABLES
 
 from utilities.csv_logger import CsvLogger
 from utilities.platform_runtime import get_runtime_data_path, safe_int
@@ -15,6 +18,29 @@ logger = logging.getLogger(__name__)
 class SessionRecorder:
     def __init__(self, window):
         self.window = window
+
+    def prepare_session(self):
+        self.window._load_histories()
+        self.window.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        # Serial communication
+        self.window.current_values.clear()
+        for group_key, vars_group in VARIABLES.items():
+            if isinstance(vars_group, dict):
+                for var_id, info in vars_group.items():
+                    if "tag" in info:
+                        self.window.current_values[info["tag"]] = 0.0  # Inicializar todos a 0.0
+
+        # Tags locales (no se escriben al controlador)
+        self.window.current_values.setdefault("heparineTherapyHours", 0.0)
+        self.window.current_values.setdefault("heparineTherapyMinutes", 0.0)
+        self.window.current_values.setdefault(
+            "heparineInfusionEnabled", 1.0
+        )  # Default: comportamiento actual (habilitada)
+
+        self.window._therapy_config_loaded = False
+        self.window._therapy_config_applied_to_firmware = False
+        self.window._load_therapy_config_json()
 
     # ====================== MÉTODOS DE LOGGING ======================
 

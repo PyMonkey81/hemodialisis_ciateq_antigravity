@@ -501,29 +501,7 @@ class HemodialysisHMI(QMainWindow):
         self._heparin_running_clamped = False
         self._heparin_infusion_forced_stop_latched = False
         self.setup_ui()
-        
-
-        self._load_histories()     
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-
-        
-
-        # Serial communication
-        self.current_values.clear()
-        for group_key, vars_group in VARIABLES.items():
-            if isinstance(vars_group, dict):
-                for var_id, info in vars_group.items():
-                    if "tag" in info:
-                        self.current_values[info["tag"]] = 0.0 # Inicializar todos a 0.0
-
-        # Tags locales (no se escriben al controlador)
-        self.current_values.setdefault("heparineTherapyHours", 0.0)
-        self.current_values.setdefault("heparineTherapyMinutes", 0.0)
-        self.current_values.setdefault("heparineInfusionEnabled", 1.0)  # Default: comportamiento actual (habilitada)
-
-        self._therapy_config_loaded = False
-        self._therapy_config_applied_to_firmware = False
-        self._load_therapy_config_json()
+        self._get_session_recorder().prepare_session()
 
         self._get_firmware_gateway().start_link()
         self._get_nibp_coordinator().start_module()
