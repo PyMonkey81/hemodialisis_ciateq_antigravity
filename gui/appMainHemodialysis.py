@@ -567,28 +567,7 @@ class HemodialysisHMI(QMainWindow):
         self.mega_cond_sensor.data_received.connect(self.on_mega_cond_data)
         self.mega_cond_sensor.start_reading()
      
-        # ====================== CONFIGURACIÓN DE ALARMAS (Nueva Arquitectura) ======================
-        
-        self.config_manager = AlarmConfigManager()          # Gestor central con QSettings
-        
-        # Sistema de alarmas (solo monitorea lo que el técnico habilite)
-        self.alarm_system = AlarmSystem(
-            config_manager=self.config_manager
-        )      
-
-
-        self.alarm_system.alarm_changed.connect(self.handle_alarm)
-        self.alarm_system.new_event.connect(self.log_event)
-        self.alarm_system.start_monitoring()
-        self.active_alarms: List[Tuple[str, float, str]] = [] # La lista activa que usa el header label
-        self.buzzer_silenced_by_user = False   
-        self._operator_alert_active = False
-        self._operator_alert_cmd = None
-        self._operator_dialog_open = False
-        self._last_status_prompt = None
-
-        self.led_bar = LedBarController()     
-        self.led_bar.start()
+        self._get_active_alarms().start_monitoring_stack()
         self._get_main_shell().build_screens()
         self._get_main_shell().start_shown()
 

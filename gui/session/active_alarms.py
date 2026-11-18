@@ -1,4 +1,9 @@
 import logging
+from typing import List, Tuple
+
+from connection.led_bar_controller import LedBarController
+from core.alarm_config_manager import AlarmConfigManager
+from core.alarms import AlarmSystem
 
 logger = logging.getLogger(__name__)
 
@@ -6,6 +11,28 @@ logger = logging.getLogger(__name__)
 class ActiveAlarms:
     def __init__(self, window):
         self.window = window
+
+    def start_monitoring_stack(self):
+        # ====================== CONFIGURACIÓN DE ALARMAS (Nueva Arquitectura) ======================
+        self.window.config_manager = AlarmConfigManager()  # Gestor central con QSettings
+
+        # Sistema de alarmas (solo monitorea lo que el técnico habilite)
+        self.window.alarm_system = AlarmSystem(
+            config_manager=self.window.config_manager
+        )
+
+        self.window.alarm_system.alarm_changed.connect(self.window.handle_alarm)
+        self.window.alarm_system.new_event.connect(self.window.log_event)
+        self.window.alarm_system.start_monitoring()
+        self.window.active_alarms: List[Tuple[str, float, str]] = []  # La lista activa que usa el header label
+        self.window.buzzer_silenced_by_user = False
+        self.window._operator_alert_active = False
+        self.window._operator_alert_cmd = None
+        self.window._operator_dialog_open = False
+        self.window._last_status_prompt = None
+
+        self.window.led_bar = LedBarController()
+        self.window.led_bar.start()
 
     def handleGlobalValueChange(self, tag: str, value: float):
         self.window.current_values[tag] = value  # Actualiza el valor global
