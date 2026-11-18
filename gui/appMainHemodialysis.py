@@ -1500,16 +1500,7 @@ class HemodialysisHMI(QMainWindow):
             current_widget.update_values(self.current_values)
 
     def _sync_alarm_values_from_current_state(self):
-        """
-        Empuja periódicamente al AlarmSystem los valores actuales para todos los
-        tags de alarma habilitados. Esto desacopla el monitoreo del ritmo serial.
-        """
-        if not self.alarm_system:
-            return
-
-        for tag in self.alarm_system.tags:
-            if tag in self.current_values:
-                self.alarm_system.update_value_by_tag(tag, self.current_values.get(tag, 0.0))
+        return self._get_active_alarms()._sync_alarm_values_from_current_state()
 
     def update_date_time(self):
         return self._get_main_shell().update_date_time()

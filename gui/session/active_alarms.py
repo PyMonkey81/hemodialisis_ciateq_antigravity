@@ -37,3 +37,15 @@ class ActiveAlarms:
 
         self.window.refresh_alarms_label()
         self.window.update_led_bar_state()
+
+    def _sync_alarm_values_from_current_state(self):
+        """
+        Empuja periódicamente al AlarmSystem los valores actuales para todos los
+        tags de alarma habilitados. Esto desacopla el monitoreo del ritmo serial.
+        """
+        if not self.window.alarm_system:
+            return
+
+        for tag in self.window.alarm_system.tags:
+            if tag in self.window.current_values:
+                self.window.alarm_system.update_value_by_tag(tag, self.window.current_values.get(tag, 0.0))
