@@ -1,11 +1,25 @@
 import logging
 
+from PySide6.QtWidgets import QApplication
+
+from gui.components.floating_confirm import FloatingConfirmDialog
+
 logger = logging.getLogger(__name__)
 
 
-class SessionShutdown:
+class AppShutdown:
     def __init__(self, window):
         self.window = window
+
+    def on_del(self):
+        logger.error("[INFO] Destructor called   stopping threads...")
+        try:
+            self.window.shutdown()
+        except RuntimeError:
+            # En destruccion de Qt, algunos objetos C++ ya no existen.
+            pass
+        except Exception as e:
+            logger.error(f"[ERROR] shutdown() during __del__ failed: {e}")
 
     def shutdown(self):
         """Detención de hilos de comunicación de hardware con logs corregidos."""
@@ -85,3 +99,21 @@ class SessionShutdown:
         logger.info("[INFO] Secuencia de apagado completo finalizada.")
         self.window._shutdown_done = True
         self.window._shutting_down = False
+
+    def _show_exit_confirmation(self):
+        """Muestra diálogo de confirmación para salir de la aplicación."""
+        dialog = FloatingConfirmDialog(self.window)
+        mensaje = "¿Desea salir de la aplicación?"
+        reply = dialog.show_confirm(mensaje, accept_text="Sí", cancel_text="No")
+        if reply:
+            self.window.closeEvent(None)
+
+    def closeEvent(self, event):
+        self.window.end_dialysis_session()  # Cierra los loggers
+        logger.error("[INFO] closeEvent → performing shutdown...")
+        self.window.shutdown()  # shutdown ya guarda las horas
+        self.window.unclean_close.mark_clean()
+        # time.sleep(1.0)
+        if event:
+            event.accept()
+        QApplication.quit()

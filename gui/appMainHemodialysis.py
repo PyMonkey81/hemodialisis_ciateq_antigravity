@@ -134,7 +134,7 @@ from gui.session.session_recorder import SessionRecorder
 from gui.session.operator_alerts import OperatorAlerts
 from gui.session.hardware_state_sync import HardwareStateSync
 from connection.telemetry_inlet import TelemetryInlet, LOCAL_SETPOINT_TAGS
-from gui.session.session_shutdown import SessionShutdown
+from gui.session.app_shutdown import AppShutdown
 from gui.session.priming_session import PrimingSession
 from gui.session.comm_binding import CommBinding
 from gui.session.cleaning_session import CleaningSession
@@ -1326,25 +1326,18 @@ class HemodialysisHMI(QMainWindow):
         logger.error(f"[EVENT] {timestamp} → {event}")
 
     def __del__(self):
-        logger.error("[INFO] Destructor called  stopping threads...")
-        try:
-            self.shutdown()
-        except RuntimeError:
-            # En destruccion de Qt, algunos objetos C++ ya no existen.
-            pass
-        except Exception as e:
-            logger.error(f"[ERROR] shutdown() during __del__ failed: {e}")
+        return self._get_app_shutdown().on_del()
 
 
-    def _get_session_shutdown(self) -> SessionShutdown:
-        shutdown_handler = getattr(self, "_session_shutdown", None)
+    def _get_app_shutdown(self) -> AppShutdown:
+        shutdown_handler = getattr(self, "_app_shutdown", None)
         if shutdown_handler is None:
-            shutdown_handler = SessionShutdown(self)
-            self._session_shutdown = shutdown_handler
+            shutdown_handler = AppShutdown(self)
+            self._app_shutdown = shutdown_handler
         return shutdown_handler
 
     def shutdown(self):
-        return self._get_session_shutdown().shutdown()
+        return self._get_app_shutdown().shutdown()
 
     # ====================== MÉTODOS DE LOGGING ======================
 
@@ -1554,22 +1547,10 @@ class HemodialysisHMI(QMainWindow):
         
 
     def _show_exit_confirmation(self):
-        """Muestra diálogo de confirmación para salir de la aplicación."""
-        dialog = FloatingConfirmDialog(self)
-        mensaje = "¿Desea salir de la aplicación?"
-        reply = dialog.show_confirm(mensaje, accept_text="Sí", cancel_text="No")
-        if reply:
-            self.closeEvent(None)
+        return self._get_app_shutdown()._show_exit_confirmation()
 
-    def closeEvent(self, event):        
-        self.end_dialysis_session() # Cierra los loggers
-        logger.error("[INFO] closeEvent → performing shutdown...")
-        self.shutdown() # shutdown ya guarda las horas
-        self.unclean_close.mark_clean()
-        # time.sleep(1.0) 
-        if event:
-            event.accept()
-        QApplication.quit()
+    def closeEvent(self, event):
+        return self._get_app_shutdown().closeEvent(event)
 
 
 
