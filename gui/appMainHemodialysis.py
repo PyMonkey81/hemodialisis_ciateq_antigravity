@@ -136,7 +136,7 @@ from gui.session.hardware_state_sync import HardwareStateSync
 from gui.session.telemetry_inlet import TelemetryInlet, LOCAL_SETPOINT_TAGS
 from gui.session.screen_router import ScreenRouter
 from gui.session.session_shutdown import SessionShutdown
-from gui.session.priming_flow import PrimingFlow
+from gui.session.priming_session import PrimingSession
 from gui.session.comm_binding import CommBinding
 from gui.session.cleaning_session import CleaningSession
 from gui.session.connection_presence import ConnectionPresence
@@ -975,18 +975,18 @@ class HemodialysisHMI(QMainWindow):
     def _get_heparin_flow_ml_per_h(self) -> float:
         return self._get_heparin_coordinator()._get_heparin_flow_ml_per_h()
     
-    def _get_priming_flow(self) -> PrimingFlow:
-        flow = getattr(self, "_priming_flow", None)
-        if flow is None:
-            flow = PrimingFlow(self)
-            self._priming_flow = flow
-        return flow
+    def _get_priming_session(self) -> PrimingSession:
+        session = getattr(self, "_priming_session", None)
+        if session is None:
+            session = PrimingSession(self)
+            self._priming_session = session
+        return session
 
     def start_priming(self):
-        return self._get_priming_flow().start_priming()
+        return self._get_priming_session().start_priming()
 
     def stop_priming(self):
-        return self._get_priming_flow().stop_priming()
+        return self._get_priming_session().stop_priming()
 
         
 

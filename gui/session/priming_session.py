@@ -6,7 +6,7 @@ from utilities.platform_runtime import get_runtime_data_path
 logger = logging.getLogger(__name__)
 
 
-class PrimingFlow:
+class PrimingSession:
     def __init__(self, window):
         self.window = window
 
