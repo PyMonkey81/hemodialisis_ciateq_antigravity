@@ -136,6 +136,7 @@ from gui.session.hardware_state_sync import HardwareStateSync
 from gui.session.telemetry_inlet import TelemetryInlet, LOCAL_SETPOINT_TAGS
 from gui.session.screen_router import ScreenRouter
 from gui.session.session_shutdown import SessionShutdown
+from gui.session.priming_flow import PrimingFlow
 from gui.shell.main_shell import MainShell
 from gui.shell.side_indicators import SideIndicators
 from gui.therapy.profile_coordinator import ProfileCoordinator
@@ -1201,76 +1202,18 @@ class HemodialysisHMI(QMainWindow):
     def _get_heparin_flow_ml_per_h(self) -> float:
         return self._get_heparin_coordinator()._get_heparin_flow_ml_per_h()
     
+    def _get_priming_flow(self) -> PrimingFlow:
+        flow = getattr(self, "_priming_flow", None)
+        if flow is None:
+            flow = PrimingFlow(self)
+            self._priming_flow = flow
+        return flow
+
     def start_priming(self):
-        """
-        Inicia el proceso de cebado (priming / enjuague).
-        - Verifica conexión serial
-        - Cierra logger anterior si existe
-        - Inicia nuevo logging CSV
-        - Envía comandos booleanos al controlador
-        - Muestra feedback al usuario
-        """
-        # 1. Verificar conexión serial
-        if not self.serial_comm or not self.serial_comm.is_connected: 
-            
-            self.show_warning_message("No hay conexión serial.\nCebado no iniciado.", 3000)
-            logger.warning("Intento de iniciar cebado sin conexión serial")
-            return
-
-        # 2. Cerrar logger anterior si ya existe (evita duplicados/corrupción)
-        if self.csv_logger:
-            logger.info("Cerrando logger anterior antes de nuevo cebado")
-            self.csv_logger.close()
-            self.csv_logger = None
-
-        # 3. Definir directorio de logs (puedes cambiar la ruta si quieres)
-        LOG_DIRECTORY = str(get_runtime_data_path("logs", "hemodialysis_cebado"))  # Se crea automáticamente si no existe
-
-        # 4. Crear e iniciar el nuevo logger CSV
-        try:
-            self.csv_logger = CsvLogger(
-                log_directory=LOG_DIRECTORY,
-                parameter_key_map=self.parameter_mapping
-            )
-            logger.info("Logger CSV iniciado correctamente para cebado")
-        except Exception as e:
-            logger.error(f"Error al crear logger CSV para cebado: {e}")
-            
-            
-            self.show_error_message(f"Error crítico:\nNo se pudo iniciar el registro de datos:\n{str(e)}", 4000)
-            return
-
-        # 5. Enviar comandos al controlador
-        try:
-            self._write_boolean_command("dialyStartDialysisButt", True)
-            self._write_boolean_command("dialyStopDialysisButt",False)
-           
-            logger.info("Comandos de cebado enviados: Start=True, Stop=False")
-        except Exception as e:
-            logger.error(f"Error enviando comandos de cebado: {e}") 
-            self.show_error_message(f"Error al enviar comandos de cebado:\n{str(e)}", 4000)
-
-
-        self.show_success_message("Cebado iniciado", 3000)
-
-        self.show_dialysis_screen()
+        return self._get_priming_flow().start_priming()
 
     def stop_priming(self):
-        try:
-            self._write_boolean_command("dialyStopDialysisButt",True)
-            self._write_boolean_command("dialyStartDialysisButt", False)              
-           
-            logger.info("Comandos de cebado enviados: Start=True, Stop=False")
-            self.show_info_message("Cebado detenido...", 3000)
-        except Exception as e:
-            logger.error(f"Error enviando comandos de cebado: {e}")
-            self.show_warning_message("Cebado detenido, pero hubo problema al enviar comandos al controlador.", 4000)
-
-        # Cerrar logger de cebado al detener
-        if self.csv_logger:
-            self.csv_logger.close()
-            self.csv_logger = None
-            logger.info("Logger de cebado cerrado al detener cebado")
+        return self._get_priming_flow().stop_priming()
 
         
 
