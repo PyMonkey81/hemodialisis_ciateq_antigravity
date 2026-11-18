@@ -140,6 +140,7 @@ from gui.session.priming_flow import PrimingFlow
 from gui.session.comm_binding import CommBinding
 from gui.session.cleaning_session import CleaningSession
 from gui.session.connection_presence import ConnectionPresence
+from gui.session.active_alarms import ActiveAlarms
 from gui.shell.main_shell import MainShell
 from gui.shell.side_indicators import SideIndicators
 from gui.therapy.profile_coordinator import ProfileCoordinator
@@ -1612,35 +1613,15 @@ class HemodialysisHMI(QMainWindow):
         self.update_led_bar_state()
 
     
+    def _get_active_alarms(self) -> ActiveAlarms:
+        alarms = getattr(self, "_active_alarms_handler", None)
+        if alarms is None:
+            alarms = ActiveAlarms(self)
+            self._active_alarms_handler = alarms
+        return alarms
+
     def handle_alarm(self, idx, active, value, name, level, limits):
-        found_idx = -1 # buscar si la alarma ya está en la lista de alarmas activas
-        for i, (alarm_name, _, _) in enumerate(self.active_alarms):
-            if alarm_name == name:
-                found_idx = i
-                break
-
-        if active:
-            if found_idx == -1:
-                # Es una alarma NUEVA que se acaba de activar -> añadir
-                self.active_alarms.append((name, value, level))
-                self.buzzer_silenced_by_user = False # Resetear silencio por NUEVA alarma
-                if hasattr(self, "session_tracker"):
-                    el_s = float(self.treatment_controller.get_elapsed_seconds()) if hasattr(self, "treatment_controller") else 0.0
-                    self.session_tracker.record_alarm(f"{name} ({value:.1f})", elapsed_s=el_s, severity=level)
-            else:
-                # La alarma ya estaba activa, solo actualizar su estado (valor/nivel)
-                self.active_alarms[found_idx] = (name, value, level)
-        else:
-            if found_idx != -1:
-                # La alarma se normalizó -> eliminar de la lista de activas
-                self.active_alarms.pop(found_idx)
-        
-        # Si no quedan alarmas activas, resetear el silencio del buzzer
-        if not self.active_alarms:
-            self.buzzer_silenced_by_user = False
-
-        self.refresh_alarms_label()
-        self.update_led_bar_state()
+        return self._get_active_alarms().handle_alarm(idx, active, value, name, level, limits)
 
     # ────────────────────────────────────────────────
     #              LED Bar Logic

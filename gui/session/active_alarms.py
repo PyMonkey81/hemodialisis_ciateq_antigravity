@@ -1,0 +1,39 @@
+class ActiveAlarms:
+    def __init__(self, window):
+        self.window = window
+
+    def handle_alarm(self, idx, active, value, name, level, limits):
+        found_idx = -1  # buscar si la alarma ya está en la lista de alarmas activas
+        for i, (alarm_name, _, _) in enumerate(self.window.active_alarms):
+            if alarm_name == name:
+                found_idx = i
+                break
+
+        if active:
+            if found_idx == -1:
+                # Es una alarma NUEVA que se acaba de activar -> añadir
+                self.window.active_alarms.append((name, value, level))
+                self.window.buzzer_silenced_by_user = False  # Resetear silencio por NUEVA alarma
+                if hasattr(self.window, "session_tracker"):
+                    el_s = (
+                        float(self.window.treatment_controller.get_elapsed_seconds())
+                        if hasattr(self.window, "treatment_controller")
+                        else 0.0
+                    )
+                    self.window.session_tracker.record_alarm(
+                        f"{name} ({value:.1f})", elapsed_s=el_s, severity=level
+                    )
+            else:
+                # La alarma ya estaba activa, solo actualizar su estado (valor/nivel)
+                self.window.active_alarms[found_idx] = (name, value, level)
+        else:
+            if found_idx != -1:
+                # La alarma se normalizó -> eliminar de la lista de activas
+                self.window.active_alarms.pop(found_idx)
+
+        # Si no quedan alarmas activas, resetear el silencio del buzzer
+        if not self.window.active_alarms:
+            self.window.buzzer_silenced_by_user = False
+
+        self.window.refresh_alarms_label()
+        self.window.update_led_bar_state()
