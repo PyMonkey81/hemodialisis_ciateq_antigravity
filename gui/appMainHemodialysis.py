@@ -590,40 +590,7 @@ class HemodialysisHMI(QMainWindow):
         self.led_bar = LedBarController()     
         self.led_bar.start()
         self._get_main_shell().build_screens()
-
-        # self.master_timer.timeout.connect(self.KTVScreen.on_master_tick)
-        self.ktv_controller.ktv_calculated.connect(self.KTVScreen.update_values) # MODIFICADO: Para actualizar la UI de la pantalla KTV con los resultados
-        self.ktv_controller.schedule_info_updated.connect(self.KTVScreen.update_schedule_display) # MODIFICADO: Para actualizar la etiqueta de próxima medición
-        self.ktv_controller.measurement_aborted.connect(
-            lambda _reason: self.KTVScreen.reset_screen_data(preserve_frequency=True)
-        ) # Limpiar UI si se aborta medición sin perder frecuencia seleccionada
-
-        self.master_timer.timeout.connect(lambda: self.KTVScreen.update_patient_data(self.current_values))
-
-        self.comm_port_screen.emit_current_configurations() # carga la configuracion de las puertos COM  
-        
-        # Iniciar el Timer Maestro (único)
-        self.master_timer.start()
-        logger.info("Timer Maestro iniciado correctamente (intervalo 500ms)")
-        QTimer.singleShot(800, self._sync_state_with_hardware) # delay para sincronizar el estado de la maquina con la interfaz
-        # Header update timers
-        self.refresh_alarms_label()
-        self.refresh_treatment_selected()
-        self._update_treatment_mode_label_state()
-        
-        self.serial_comm.connect_port()
-        self.serial_comm.start_reading()
-        self._set_ui_connected_state(False)
-        self.screen_stack.setCurrentIndex(self.INDEX_HOME)
-        self.right_content.hide()
-        self.left_content.hide()
-        self.left_container.setStyleSheet("background: transparent")
-        self.right_container.setStyleSheet("background: transparent")
-        try:
-            ThemeManager.instance().theme_changed.connect(self._apply_main_shell_theme)
-            self._apply_main_shell_theme(ThemeManager.instance().current_theme_name)
-        except Exception as e:
-            logger.warning(f"No se pudo conectar ThemeManager al shell principal: {e}")
+        self._get_main_shell().start_shown()
 
     
     def _on_state_changed(self, phase: TreatmentPhase, reason: str):

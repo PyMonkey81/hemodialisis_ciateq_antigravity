@@ -1,6 +1,7 @@
+import logging
 from datetime import datetime
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor, QPixmap
 from PySide6.QtWidgets import (
     QFrame,
@@ -47,6 +48,8 @@ from gui.therapy.therapy_config_screenV2 import TherapyConfigScreen
 from gui.therapy.treatment_mode_screen import TreatmentModeScreen
 from gui.therapy.uf_profile_screen import UFProfileScreen
 from utilities.platform_runtime import safe_float, safe_int
+
+logger = logging.getLogger(__name__)
 
 
 class MainShell:
@@ -1381,3 +1384,46 @@ class MainShell:
 
         self.window.calibration_screen.valueChanged.connect(self.window.handleGlobalValueChange)
         self.window.manual_mode_screen.valueChanged.connect(self.window.handleGlobalValueChange)
+
+    def start_shown(self):
+        # self.master_timer.timeout.connect(self.KTVScreen.on_master_tick)
+        self.window.ktv_controller.ktv_calculated.connect(
+            self.window.KTVScreen.update_values
+        )  # MODIFICADO: Para actualizar la UI de la pantalla KTV con los resultados
+        self.window.ktv_controller.schedule_info_updated.connect(
+            self.window.KTVScreen.update_schedule_display
+        )  # MODIFICADO: Para actualizar la etiqueta de próxima medición
+        self.window.ktv_controller.measurement_aborted.connect(
+            lambda _reason: self.window.KTVScreen.reset_screen_data(preserve_frequency=True)
+        )  # Limpiar UI si se aborta medición sin perder frecuencia seleccionada
+
+        self.window.master_timer.timeout.connect(
+            lambda: self.window.KTVScreen.update_patient_data(self.window.current_values)
+        )
+
+        self.window.comm_port_screen.emit_current_configurations()  # carga la configuracion de las puertos COM
+
+        # Iniciar el Timer Maestro (único)
+        self.window.master_timer.start()
+        logger.info("Timer Maestro iniciado correctamente (intervalo 500ms)")
+        QTimer.singleShot(
+            800, self.window._sync_state_with_hardware
+        )  # delay para sincronizar el estado de la maquina con la interfaz
+        # Header update timers
+        self.window.refresh_alarms_label()
+        self.window.refresh_treatment_selected()
+        self.window._update_treatment_mode_label_state()
+
+        self.window.serial_comm.connect_port()
+        self.window.serial_comm.start_reading()
+        self.window._set_ui_connected_state(False)
+        self.window.screen_stack.setCurrentIndex(self.window.INDEX_HOME)
+        self.window.right_content.hide()
+        self.window.left_content.hide()
+        self.window.left_container.setStyleSheet("background: transparent")
+        self.window.right_container.setStyleSheet("background: transparent")
+        try:
+            ThemeManager.instance().theme_changed.connect(self.window._apply_main_shell_theme)
+            self.window._apply_main_shell_theme(ThemeManager.instance().current_theme_name)
+        except Exception as e:
+            logger.warning(f"No se pudo conectar ThemeManager al shell principal: {e}")
