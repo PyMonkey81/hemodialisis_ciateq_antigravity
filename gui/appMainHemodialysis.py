@@ -134,6 +134,7 @@ from gui.session.session_recorder import SessionRecorder
 from gui.session.operator_alerts import OperatorAlerts
 from gui.session.hardware_state_sync import HardwareStateSync
 from gui.session.telemetry_inlet import TelemetryInlet, LOCAL_SETPOINT_TAGS
+from gui.session.screen_router import ScreenRouter
 from gui.shell.main_shell import MainShell
 from gui.shell.side_indicators import SideIndicators
 from gui.therapy.profile_coordinator import ProfileCoordinator
@@ -1286,241 +1287,100 @@ class HemodialysisHMI(QMainWindow):
             logger.info("Sesión detenida - logger cerrado")
         
 
-    def show_home_screen(self):
-        self.screen_stack.setCurrentIndex(self.INDEX_HOME)        
-        self.right_content.hide()
-        self.left_content.hide()
-        self._highlight_active_nav_button("Inicio")
+    def _get_screen_router(self) -> ScreenRouter:
+        router = getattr(self, "screen_router", None)
+        if router is None:
+            router = ScreenRouter(self)
+            self.screen_router = router
+        return router
 
+    def show_home_screen(self):
+        return self._get_screen_router().show_home_screen()
 
     def show_dialysis_screen(self):
-        self.screen_stack.setCurrentWidget(self.dialysis_screen)
-        if hasattr(self.dialysis_screen, "update_values"):
-            self.dialysis_screen.update_values(self.current_values)
-        self.left_content.show()
-        self.right_content.show()
-        self.navigation_buttons["Inicio"].setEnabled(True)        
-        self.navigation_buttons["Inicio"].setStyleSheet(self.BTN_ENABLED_DEFAULT_STYLE) # NUEVO: usa el estilo de clase
-        self._highlight_active_nav_button("Resumen\nTerapia")
+        return self._get_screen_router().show_dialysis_screen()
 
     def show_treatment_mode_screen(self):
-        self.screen_stack.setCurrentWidget(self.treatment_mode_screen)
-        self.left_content.show()
-        self.right_content.show()
+        return self._get_screen_router().show_treatment_mode_screen()
 
     def show_cleaning_screen(self):
-        self.screen_stack.setCurrentWidget(self.cleaning_screen)
-        if hasattr(self.cleaning_screen, "update_values"):
-            self.cleaning_screen.update_values(self.current_values)
-        if hasattr(self.cleaning_screen, "reset_cleaning_mode_selection"):
-            self.cleaning_screen.reset_cleaning_mode_selection(reset_display=True)
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Limpieza")
+        return self._get_screen_router().show_cleaning_screen()
 
     def show_options_screen(self):
-        self.screen_stack.setCurrentWidget(self.options_screen)
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Servicio")
+        return self._get_screen_router().show_options_screen()
 
     def show_theme_config_screen(self):
-        self.screen_stack.setCurrentWidget(self.theme_config_screen)
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Servicio")
+        return self._get_screen_router().show_theme_config_screen()
 
     def _apply_main_shell_theme(self, _theme_name: str = ""):
         """Actualiza dinámicamente los colores del contenedor principal, header, barra de navegación y tarjetas."""
         return self._get_main_shell()._apply_main_shell_theme(_theme_name)
 
     def show_alarms_screen(self):
-        self.screen_stack.setCurrentWidget(self.alarms_screen)
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Alarmas")
+        return self._get_screen_router().show_alarms_screen()
 
     def show_manual_mode_screen(self):
-        self.screen_stack.setCurrentWidget(self.manual_mode_screen)
-        if hasattr(self.manual_mode_screen, "update_values"):
-            self.manual_mode_screen.update_values(self.current_values)
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Servicio")
+        return self._get_screen_router().show_manual_mode_screen()
 
     def show_test_panel_screen(self):
-        self.screen_stack.setCurrentWidget(self.test_panel_screen)
-        if hasattr(self.test_panel_screen, "update_values"):
-            self.test_panel_screen.update_values(self.current_values)
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Servicio")
+        return self._get_screen_router().show_test_panel_screen()
 
     def show_calibration_screen(self):
-        self.screen_stack.setCurrentWidget(self.calibration_screen)
-        if hasattr(self.calibration_screen, "update_values"):
-            self.calibration_screen.update_values(self.current_values)
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Servicio")
+        return self._get_screen_router().show_calibration_screen()
 
     def show_network_config_screen(self):
-        self.screen_stack.setCurrentWidget(self.network_config_screen)
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Servicio")
+        return self._get_screen_router().show_network_config_screen()
 
     def show_real_time_var_screen(self):
-        self.screen_stack.setCurrentWidget(self.real_time_var)
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Servicio")
+        return self._get_screen_router().show_real_time_var_screen()
 
     def show_patient_config_screen(self):
-        self.screen_stack.setCurrentWidget(self.patient_config_screen)
-        if hasattr(self.patient_config_screen, "update_values"):
-            self.patient_config_screen.update_values(self.current_values)
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Resumen\nTerapia")
+        return self._get_screen_router().show_patient_config_screen()
 
     def show_therapy_config_screen(self):
-        self.screen_stack.setCurrentWidget(self.therapy_config_screen)
-        if hasattr(self.therapy_config_screen, "update_values"):
-            self.therapy_config_screen.update_values(self.current_values)
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Resumen\nTerapia")
+        return self._get_screen_router().show_therapy_config_screen()
 
     def show_conductivity_profile_screen(self):
-        can_open, msg = self.can_configure_conductivity_profile()
-        if not can_open:
-            self.show_warning_message(msg, 4500)
-            return
-
-        self.screen_stack.setCurrentWidget(self.conductivity_profile_screen)
-        if hasattr(self.conductivity_profile_screen, "update_values"):
-            self.conductivity_profile_screen.update_values(self.current_values)
-        if hasattr(self.conductivity_profile_screen, "refresh_from_parent"):
-            self.conductivity_profile_screen.refresh_from_parent()
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Resumen\nTerapia")
+        return self._get_screen_router().show_conductivity_profile_screen()
 
     def show_uf_profile_screen(self):
-        can_open, msg = self.can_configure_uf_profile()
-        if not can_open:
-            self.show_warning_message(msg, 4500)
-            return
-
-        self.screen_stack.setCurrentWidget(self.uf_profile_screen)
-        if hasattr(self.uf_profile_screen, "update_values"):
-            self.uf_profile_screen.update_values(self.current_values)
-        if hasattr(self.uf_profile_screen, "refresh_from_parent"):
-            self.uf_profile_screen.refresh_from_parent()
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Resumen\nTerapia")
+        return self._get_screen_router().show_uf_profile_screen()
 
     def show_heparin_config_screen(self):
-        self.screen_stack.setCurrentWidget(self.heparin_config_screen)
-        if hasattr(self.heparin_config_screen, "update_values"):
-            self.heparin_config_screen.update_values(self.current_values)
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Resumen\nTerapia")
-    
+        return self._get_screen_router().show_heparin_config_screen()
+
     def show_config_comm_screen(self):
-        self.screen_stack.setCurrentWidget(self.comm_port_screen)
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Servicio")
+        return self._get_screen_router().show_config_comm_screen()
 
     def show_maintenance_screen(self):
-        """Muestra la pantalla de mantenimiento y actualiza inmediatamente los valores"""
-        self.screen_stack.setCurrentWidget(self.maintenance_screen)
-        self.left_content.show()
-        self.right_content.show()
-        # self._update_maintenance_screen_immediately()    
-        self.timer_manager._update_maintenance_screen()    
-        self._highlight_active_nav_button("Servicio")
+        return self._get_screen_router().show_maintenance_screen()
 
     def show_alarm_config_limits_screen(self):
-        self.screen_stack.setCurrentWidget(self.alarm_config_limits_screen)
-        self.alarm_config_limits_screen.refresh_ui() 
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Alarmas")
+        return self._get_screen_router().show_alarm_config_limits_screen()
 
     def show_alarm_service_screen_config(self):
-        self.screen_stack.setCurrentWidget(self.alarm_service_screen_config)
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Servicio")
-    
+        return self._get_screen_router().show_alarm_service_screen_config()
+
     def show_cleanning_config_screen(self):
-        self.screen_stack.setCurrentWidget(self._cleanning_config_screen)
-        self.left_content.show()
-        self.right_content.show()
-        if hasattr(self._cleanning_config_screen, '_load_config_for_display'):
-            self._cleanning_config_screen._load_config_for_display()    
-            self._highlight_active_nav_button("Servicio")
+        return self._get_screen_router().show_cleanning_config_screen()
 
     def show_history_screen(self):
-        self.screen_stack.setCurrentWidget(self.history_screen)
-        self.history_screen.refresh_data()
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Historial")
+        return self._get_screen_router().show_history_screen()
 
     def show_ktv_screen(self):
-        self.screen_stack.setCurrentWidget(self.KTVScreen)
-        # La actualización de valores en KTVScreen ahora es más granular
-        # No se llama update_values aquí directamente para todos los current_values.
-        # KTVScreen ya se actualiza a través del master_timer y las señales del ktv_controller.
-        self.KTVScreen.update_patient_data(self.current_values) # Función auxiliar para datos del paciente
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Resumen\nTerapia")
+        return self._get_screen_router().show_ktv_screen()
 
     def show_nibp_screen(self):
-        # TEMPORAL: acceso desde el card de signos vitales de dialysis_screen.
-        # Al abrir módulo: set_adult_mode() (cmd 24)
-        self.nibp.set_adult_mode()
-        self.screen_stack.setCurrentWidget(self.nibp_screen)
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Resumen\nTerapia")
+        return self._get_screen_router().show_nibp_screen()
 
     def show_nibp_history_screen(self):
-        """Muestra la pantalla de Tomas del historial de presión arterial (sin borrar el historial)."""
-        hours = safe_int(self.current_values.get("heparineTherapyHours", 0), 0)
-        minutes = safe_int(self.current_values.get("heparineTherapyMinutes", 0), 0)
-        self.nibp_history_screen.set_programmed_duration(hours, minutes)
-        self.nibp_history_screen.update_from_history()
-        self.screen_stack.setCurrentWidget(self.nibp_history_screen)
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Resumen\nTerapia")
+        return self._get_screen_router().show_nibp_history_screen()
 
     def show_nibp_chart_screen(self):
-        """Muestra la pantalla de Gráfica de presión arterial (sin borrar el historial)."""
-        hours = safe_int(self.current_values.get("heparineTherapyHours", 0), 0)
-        minutes = safe_int(self.current_values.get("heparineTherapyMinutes", 0), 0)
-        self.nibp_chart_screen.set_programmed_duration(hours, minutes)
-        self.nibp_chart_screen.update_from_history()
-        self.screen_stack.setCurrentWidget(self.nibp_chart_screen)
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Resumen\nTerapia")
+        return self._get_screen_router().show_nibp_chart_screen()
 
     def show_nibp_limits_screen(self):
-        """Muestra la pantalla de Límites de presión arterial."""
-        self.nibp_limits_screen.load_limits_from_config()
-        self.screen_stack.setCurrentWidget(self.nibp_limits_screen)
-        self.left_content.show()
-        self.right_content.show()
-        self._highlight_active_nav_button("Resumen\nTerapia")
+        return self._get_screen_router().show_nibp_limits_screen()
 
     def get_therapy_duration_minutes(self) -> int:
         hours = safe_int(self.current_values.get("heparineTherapyHours", 0), 0)
