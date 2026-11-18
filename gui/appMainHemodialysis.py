@@ -936,19 +936,10 @@ class HemodialysisHMI(QMainWindow):
         return self._get_treatment_start()._show_filter_fill_dialog_main()
 
     def pause_treatment(self):
-        """Delegado al TreatmentController"""
-        success = self.treatment_controller.pause_treatment()
-        if success:
-            self._update_therapy_time_displays()
-            self._refresh_navigation_bar()
+        return self._get_treatment_start().pause_treatment()
 
     def stop_treatment(self):
-        """Delegado al TreatmentController"""
-        success = self.treatment_controller.stop_treatment()
-        if success:
-            self._update_therapy_time_displays()
-            self._refresh_navigation_bar()
-            self._reset_filter_fill_flags()
+        return self._get_treatment_start().stop_treatment()
 
     def _update_therapy_time_displays(self):
         """Actualiza displays de tiempo (delegado)"""

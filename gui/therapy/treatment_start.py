@@ -296,3 +296,18 @@ class TreatmentStart:
         current_text = self.window.current_process_status.text()
         if current_text != desired_text:
             self.window.current_process_status.setText(desired_text)
+
+    def pause_treatment(self):
+        """Delegado al TreatmentController"""
+        success = self.window.treatment_controller.pause_treatment()
+        if success:
+            self.window._update_therapy_time_displays()
+            self.window._refresh_navigation_bar()
+
+    def stop_treatment(self):
+        """Delegado al TreatmentController"""
+        success = self.window.treatment_controller.stop_treatment()
+        if success:
+            self.window._update_therapy_time_displays()
+            self.window._refresh_navigation_bar()
+            self.window._reset_filter_fill_flags()
