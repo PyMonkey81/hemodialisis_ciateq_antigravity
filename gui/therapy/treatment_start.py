@@ -4,6 +4,7 @@ from PySide6.QtCore import QDateTime, QTimer
 from core.state_manager import TreatmentPhase
 from gui.components.floating_confirm import FloatingConfirmDialog
 from logic.start_checklist import missing_start_items
+from utilities.platform_runtime import safe_int
 
 logger = logging.getLogger(__name__)
 
@@ -389,3 +390,21 @@ class TreatmentStart:
         self.window.ktv_controller.abort("Tratamiento finalizado")
         # 3. Limpiar pantalla KTV para próxima sesión conservando frecuencia configurada
         self.window.KTVScreen.reset_screen_data(preserve_frequency=True)
+
+    def _on_state_error(self, message: str):
+        logger.error(f"Error de estado: {message}")
+        self.window.show_error_message(message, 4000)
+        self.window.ktv_controller.abort(f"Error de estado: {message}")  # Abortar Ktv por error global
+
+    def get_therapy_duration_minutes(self) -> int:
+        hours = safe_int(self.window.current_values.get("heparineTherapyHours", 0), 0)
+        minutes = safe_int(self.window.current_values.get("heparineTherapyMinutes", 0), 0)
+        return max(0, (hours * 60) + minutes)
+
+    def get_remaining_therapy_minutes(self) -> float:
+        total_seconds = self.window.get_therapy_duration_minutes() * 60
+        if total_seconds <= 0:
+            return 0.0
+
+        elapsed_seconds = int(self.window.treatment_controller.get_elapsed_seconds())
+        return max(0.0, (total_seconds - elapsed_seconds) / 60.0)

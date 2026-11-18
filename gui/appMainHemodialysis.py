@@ -824,9 +824,7 @@ class HemodialysisHMI(QMainWindow):
         return self._get_cleaning_session()._on_cleaning_finished()
 
     def _on_state_error(self, message: str):
-        logger.error(f"Error de estado: {message}")
-        self.show_error_message(message, 4000)
-        self.ktv_controller.abort(f"Error de estado: {message}") # Abortar Ktv por error global
+        return self._get_treatment_start()._on_state_error(message)
 
     def _get_hardware_state_sync(self) -> HardwareStateSync:
         syncer = getattr(self, "hardware_state_sync", None)
@@ -1013,17 +1011,10 @@ class HemodialysisHMI(QMainWindow):
         return self._get_main_shell().show_nibp_limits_screen()
 
     def get_therapy_duration_minutes(self) -> int:
-        hours = safe_int(self.current_values.get("heparineTherapyHours", 0), 0)
-        minutes = safe_int(self.current_values.get("heparineTherapyMinutes", 0), 0)
-        return max(0, (hours * 60) + minutes)
+        return self._get_treatment_start().get_therapy_duration_minutes()
 
     def get_remaining_therapy_minutes(self) -> float:
-        total_seconds = self.get_therapy_duration_minutes() * 60
-        if total_seconds <= 0:
-            return 0.0
-
-        elapsed_seconds = int(self.treatment_controller.get_elapsed_seconds())
-        return max(0.0, (total_seconds - elapsed_seconds) / 60.0)
+        return self._get_treatment_start().get_remaining_therapy_minutes()
 
     def _get_profile_coordinator(self) -> ProfileCoordinator:
         coordinator = getattr(self, "_profile_coordinator", None)
@@ -1269,31 +1260,10 @@ class HemodialysisHMI(QMainWindow):
         return self._get_operator_alerts().show_error_message(text, timeout_ms)
     
     def show_catalog_message(self, clave: str, **campos):
-        """
-        Muestra un aviso del catálogo de operador usando FloatingConfirmDialog.
-        
-        Si el aviso no es permitido en la fase actual, no muestra nada.
-        Si se muestra, espera a que el operador acepte (sin timeout).
-        
-        Args:
-            clave: Clave del aviso (ej: "HEP_TIEMPO_LIMITADO")
-            **campos: Campos para formatear el texto (ej: horas=2, minutos=30)
-        """
-        from core.operator_messages import resolver
-        
-        aviso = resolver(clave, self.state.current_phase, **campos)
-        if aviso is None:
-            return
-        
-        texto = aviso["texto"]
-        QTimer.singleShot(0, lambda: self._show_catalog_dialog(texto))
-    
+        return self._get_operator_alerts().show_catalog_message(clave, **campos)
+
     def _show_catalog_dialog(self, texto: str):
-        """Abre el diálogo de aviso del catálogo (llamado desde QTimer cuando _timer_lock está liberado)"""
-        dialog = FloatingConfirmDialog(self)
-        dialog.btn_cancel.hide()
-        dialog.btn_accept.setText("Aceptar")
-        dialog.show_confirm(texto, accept_text="Aceptar", cancel_text="")
+        return self._get_operator_alerts()._show_catalog_dialog(texto)
 
     def update_connection_status(self):
         return self._get_connection_presence().update_connection_status()

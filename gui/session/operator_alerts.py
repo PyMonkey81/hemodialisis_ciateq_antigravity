@@ -1,6 +1,7 @@
 import logging
 from PySide6.QtCore import QDateTime, QTimer
 
+from gui.components.floating_confirm import FloatingConfirmDialog
 from gui.components.floating_message import FloatingMessage
 
 logger = logging.getLogger(__name__)
@@ -177,3 +178,30 @@ class OperatorAlerts:
     def show_error_message(self, text: str, timeout_ms: int = 5000):
         if self._can_show_operator_toast(text, "error"):
             self._get_or_create_floating_msg().show_error_message(text, timeout_ms)
+
+    def show_catalog_message(self, clave: str, **campos):
+        """
+        Muestra un aviso del catálogo de operador usando FloatingConfirmDialog.
+        
+        Si el aviso no es permitido en la fase actual, no muestra nada.
+        Si se muestra, espera a que el operador acepte (sin timeout).
+        
+        Args:
+            clave: Clave del aviso (ej: "HEP_TIEMPO_LIMITADO")
+            **campos: Campos para formatear el texto (ej: horas=2, minutos=30)
+        """
+        from core.operator_messages import resolver
+
+        aviso = resolver(clave, self.window.state.current_phase, **campos)
+        if aviso is None:
+            return
+
+        texto = aviso["texto"]
+        QTimer.singleShot(0, lambda: self.window._show_catalog_dialog(texto))
+
+    def _show_catalog_dialog(self, texto: str):
+        """Abre el diálogo de aviso del catálogo (llamado desde QTimer cuando _timer_lock está liberado)"""
+        dialog = FloatingConfirmDialog(self.window)
+        dialog.btn_cancel.hide()
+        dialog.btn_accept.setText("Aceptar")
+        dialog.show_confirm(texto, accept_text="Aceptar", cancel_text="")
