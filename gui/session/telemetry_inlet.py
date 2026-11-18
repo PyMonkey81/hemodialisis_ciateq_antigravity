@@ -5,6 +5,7 @@ from collections import deque
 from PySide6.QtCore import QDateTime, QTimer
 
 from core.state_manager import TreatmentPhase
+from core.variables_map import VARIABLES
 from gui.theme_manager import ThemeManager
 from logic.calculos import (
     convertir_ciclos_a_flujo,
@@ -286,3 +287,37 @@ class TelemetryInlet:
         if getattr(self.window, "temp_readings", None):
             return self.window.dialyTempIFProcessData_avg
         return self.window.current_values.get("dialyTempIFProcessData", 0.0)
+
+    def on_pattern_data(self, tag: str, value: float):
+        """Mapeo directo de alta velocidad de los datos del sensor patrón hacia el diccionario global"""
+        mapping = {
+            "patternCondSensor": (0x09, 0x02),
+            "patternTempSensor": (0x09, 0x01),
+            "patternCondRaw": (0x09, 0x00),
+        }
+
+        if tag in mapping:
+            g, id_ = mapping[tag]
+            VARIABLES[g][id_]["value"] = value
+
+        self.window.current_values[tag] = value
+        current_widget = self.window.screen_stack.currentWidget()
+        if hasattr(current_widget, "update_values"):
+            current_widget.update_values(self.window.current_values)
+
+    def on_mega_cond_data(self, tag: str, value: float):
+        """Recibe datos del sensor de conductividad vía Arduino Mega."""
+        mapping = {
+            "megaCondSensor": (0x0C, 0x00),
+            "megaTempSensor": (0x0C, 0x01),
+        }
+
+        if tag in mapping:
+            g, id_ = mapping[tag]
+            VARIABLES[g][id_]["value"] = value
+
+        self.window.current_values[tag] = value
+
+        current_widget = self.window.screen_stack.currentWidget()
+        if hasattr(current_widget, "update_values"):
+            current_widget.update_values(self.window.current_values)

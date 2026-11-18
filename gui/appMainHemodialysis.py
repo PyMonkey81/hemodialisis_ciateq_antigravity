@@ -1945,41 +1945,13 @@ class HemodialysisHMI(QMainWindow):
     #===============================FIN ESCRITURA A HARDWARE===============================
 
 
-    def on_pattern_data(self, tag: str, value: float):        
-        """Mapeo directo de alta velocidad de los datos del sensor patrón hacia el diccionario global"""
-        mapping = {
-            "patternCondSensor": (0x09, 0x02),
-            "patternTempSensor": (0x09, 0x01),
-            "patternCondRaw": (0x09, 0x00)
-        }
-        
-        if tag in mapping:
-            g, id_ = mapping[tag]
-            VARIABLES[g][id_]["value"] = value            
-
-        self.current_values[tag] = value  
-        current_widget = self.screen_stack.currentWidget()
-        if hasattr(current_widget, "update_values"):
-            current_widget.update_values(self.current_values)
+    def on_pattern_data(self, tag: str, value: float):
+        return self._get_telemetry_inlet().on_pattern_data(tag, value)
 
     # Código de prueba para el sensor de Conductividad (MegaCond), si esta conectada la tarjeta mega y no el patron, 
     # asigna los valores a VARIABLES[0x0C] y a current_values
     def on_mega_cond_data(self, tag: str, value: float):
-        """Recibe datos del sensor de conductividad vía Arduino Mega."""
-        mapping = {
-            "megaCondSensor": (0x0C, 0x00),
-            "megaTempSensor": (0x0C, 0x01),
-        }
-
-        if tag in mapping:
-            g, id_ = mapping[tag]
-            VARIABLES[g][id_]["value"] = value
-
-        self.current_values[tag] = value
-
-        current_widget = self.screen_stack.currentWidget()
-        if hasattr(current_widget, "update_values"):
-            current_widget.update_values(self.current_values)
+        return self._get_telemetry_inlet().on_mega_cond_data(tag, value)
 
     def handle_comm_config_change(self, sensor_id, port, is_enabled, simulation_enabled=False):
         if sensor_id == "MAIN_CONTROL":
