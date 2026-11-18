@@ -63,3 +63,24 @@ class ConnectionPresence:
                 self.window.show_home_screen()
             else:
                 logger.info("Manteniendo pantalla de servicio tras desconexión (permitiendo configuración).")
+
+    def update_connection_status(self):
+        """
+        Actualiza el estado de la conexión en la UI y maneja la habilitación/deshabilitación
+        de elementos según el estado de la conexión.
+        """
+        current_is_connected = self.window.serial_comm and self.window.serial_comm.is_connected
+        if current_is_connected != self.window._is_connected_prev_state:
+            self.window._sync_state_with_hardware()
+            self.window._set_ui_connected_state(current_is_connected)
+            if current_is_connected:
+                self.window._connection_just_established_ticks = 3
+                self.window._write_pressure_limits_on_connection()
+
+        self.window._is_connected_prev_state = current_is_connected
+        current_widget = self.window.screen_stack.currentWidget()
+        if hasattr(current_widget, "update_values"):
+            current_widget.update_values(self.window.current_values)
+
+        self.window.refresh_alarms_label()
+        self.window.update_led_bar_state()

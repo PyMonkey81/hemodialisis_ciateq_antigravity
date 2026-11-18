@@ -1320,25 +1320,7 @@ class HemodialysisHMI(QMainWindow):
         dialog.show_confirm(texto, accept_text="Aceptar", cancel_text="")
 
     def update_connection_status(self):
-        """
-        Actualiza el estado de la conexión en la UI y maneja la habilitación/deshabilitación
-        de elementos según el estado de la conexión.
-        """
-        current_is_connected = self.serial_comm and self.serial_comm.is_connected
-        if current_is_connected != self._is_connected_prev_state:
-            self._sync_state_with_hardware()
-            self._set_ui_connected_state(current_is_connected)
-            if current_is_connected:
-                self._connection_just_established_ticks = 3
-                self._write_pressure_limits_on_connection()
-         
-        self._is_connected_prev_state = current_is_connected
-        current_widget = self.screen_stack.currentWidget()
-        if hasattr(current_widget, "update_values"):
-            current_widget.update_values(self.current_values)
-        
-        self.refresh_alarms_label()
-        self.update_led_bar_state()
+        return self._get_connection_presence().update_connection_status()
 
     def log_event(self, event, value, timestamp):
         logger.error(f"[EVENT] {timestamp} → {event}")
