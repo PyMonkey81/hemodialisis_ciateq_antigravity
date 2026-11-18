@@ -4,6 +4,7 @@ from collections import deque
 
 from PySide6.QtCore import QDateTime, QTimer
 
+from connection.bioz_urea_controller import BiozUreaController
 from connection.conductivity_sensor_comm import PatternConductivity
 from connection.mega_conductivity_sensor import MegaConductivitySensor
 from core.state_manager import TreatmentPhase
@@ -26,6 +27,23 @@ LOCAL_SETPOINT_TAGS = {
 class TelemetryInlet:
     def __init__(self, window):
         self.window = window
+
+    def start_bioz(self):
+        # lectura de sensores de bioimpedancia
+        self.window.bioz_urea_controller = BiozUreaController()
+        self.window.bioz_urea_controller.data_received.connect(self.window.update_value)
+        self.window.bioz_urea_controller.start()
+
+        # --- Inyección de dependencias al KtvController ---
+        self.window.ktv_controller.set_dependencies(
+            main_window=self.window,  # Referencia a sí mismo para usar sus métodos (show_operator_message, _write_setpoint, etc.)
+            bioz_urea_controller=self.window.bioz_urea_controller,  # Referencia al controlador BioZ/Urea
+            current_values_accessor=lambda: self.window.current_values,  # Función para obtener los current_values actualizados
+            get_elapsed_therapy_minutes_accessor=lambda: self.window.treatment_controller.get_elapsed_therapy_minutes(),  # Función para obtener minutos de terapia
+            write_setpoint_callback=self.window._write_setpoint,  # Callback para escribir setpoints
+            write_bioz_command_callback=self.window.bioz_urea_controller.send_command,  # Callback para enviar comandos BioZ
+            show_message_callback=self.window.show_operator_message,  # Callback para mostrar mensajes
+        )
 
     def start_sensors(self):
         # Sensor de conductividad patrón

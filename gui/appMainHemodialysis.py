@@ -540,22 +540,7 @@ class HemodialysisHMI(QMainWindow):
         self._prev_treatment_phase = None  # Para detectar transición de no-PAUSED a RUNNING
         self._load_nibp_config_and_apply()
 
-        # lectura de sensores de bioimpedancia
-        self.bioz_urea_controller = BiozUreaController()
-        self.bioz_urea_controller.data_received.connect(self.update_value) 
-        self.bioz_urea_controller.start()
-
-        # --- Inyección de dependencias al KtvController ---
-        self.ktv_controller.set_dependencies(
-            main_window=self, # Referencia a sí mismo para usar sus métodos (show_operator_message, _write_setpoint, etc.)
-            bioz_urea_controller=self.bioz_urea_controller, # Referencia al controlador BioZ/Urea
-            current_values_accessor=lambda: self.current_values, # Función para obtener los current_values actualizados
-            get_elapsed_therapy_minutes_accessor=lambda: self.treatment_controller.get_elapsed_therapy_minutes(), # Función para obtener minutos de terapia
-            write_setpoint_callback=self._write_setpoint, # Callback para escribir setpoints
-            write_bioz_command_callback=self.bioz_urea_controller.send_command, # Callback para enviar comandos BioZ
-            show_message_callback=self.show_operator_message # Callback para mostrar mensajes
-        )
-
+        self._get_telemetry_inlet().start_bioz()
         self._get_telemetry_inlet().start_sensors()
         self._get_active_alarms().start_monitoring_stack()
         self._get_main_shell().build_screens()
