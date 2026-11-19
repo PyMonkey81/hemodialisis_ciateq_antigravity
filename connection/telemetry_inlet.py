@@ -125,17 +125,34 @@ class TelemetryInlet:
                 status_code = safe_int(self.window.current_values.get("primingProcessStatus", 0), 0)
                 treatment_mode = safe_int(value, 0)
                 if hasattr(self.window, "hardware_mapper") and self.window.hardware_mapper is not None:
-                    new_phase = self.window.hardware_mapper.get_phase(status_code, treatment_mode)
-                    display_text = self.window.hardware_mapper.get_display_text(status_code, treatment_mode)
-                    if hasattr(self.window, "current_process_status") and self.window.current_process_status is not None:
-                        self.window.current_process_status.setText(display_text)
-                    if (
-                        hasattr(self.window, "state")
-                        and self.window.state is not None
-                        and new_phase != self.window.state.current_phase
-                    ):
-                        self.window.state.set_phase(new_phase, f"Hardware → {display_text}")
-                        self.window._refresh_navigation_bar()
+                    if hasattr(self.window.hardware_mapper, "get_gemma_state") and hasattr(self.window.state, "set_gemma_state"):
+                        new_gemma, new_phase, display_text = self.window.hardware_mapper.get_gemma_state(status_code, treatment_mode)
+                        if hasattr(self.window, "current_process_status") and self.window.current_process_status is not None:
+                            self.window.current_process_status.setText(display_text)
+                        if (
+                            hasattr(self.window, "state")
+                            and self.window.state is not None
+                            and (new_gemma != self.window.state.current_gemma_state or new_phase != self.window.state.current_phase)
+                        ):
+                            self.window.state.set_gemma_state(
+                                new_gemma,
+                                reason=f"Hardware → {display_text}",
+                                substate=display_text,
+                                phase_override=new_phase,
+                            )
+                            self.window._refresh_navigation_bar()
+                    else:
+                        new_phase = self.window.hardware_mapper.get_phase(status_code, treatment_mode)
+                        display_text = self.window.hardware_mapper.get_display_text(status_code, treatment_mode)
+                        if hasattr(self.window, "current_process_status") and self.window.current_process_status is not None:
+                            self.window.current_process_status.setText(display_text)
+                        if (
+                            hasattr(self.window, "state")
+                            and self.window.state is not None
+                            and new_phase != self.window.state.current_phase
+                        ):
+                            self.window.state.set_phase(new_phase, f"Hardware → {display_text}")
+                            self.window._refresh_navigation_bar()
             except Exception as e:
                 logger.warning(f"Error sincronizando estado al cambiar modo de tratamiento: {e}")
 
@@ -178,20 +195,43 @@ class TelemetryInlet:
 
                 treatment_mode = int(self.window.current_values.get("treatmentModeSelection", 0))
 
-                # === NUEVA LÓGICA ===
-                new_phase = self.window.hardware_mapper.get_phase(status_code, treatment_mode)
-                display_text = self.window.hardware_mapper.get_display_text(status_code, treatment_mode)
+                # === NUEVA LÓGICA GEMMA ===
+                if hasattr(self.window.hardware_mapper, "get_gemma_state") and hasattr(self.window.state, "set_gemma_state"):
+                    new_gemma, new_phase, display_text = self.window.hardware_mapper.get_gemma_state(status_code, treatment_mode)
+                else:
+                    new_gemma = None
+                    new_phase = self.window.hardware_mapper.get_phase(status_code, treatment_mode)
+                    display_text = self.window.hardware_mapper.get_display_text(status_code, treatment_mode)
+
+                # Si terapia se pausó por timeout y estado es 15 (PAUSED), mostrar "TERAPIA FINALIZADA"
+                if (
+                    status_code == 15
+                    and hasattr(self.window, 'treatment_controller')
+                    and self.window.treatment_controller is not None
+                    and getattr(self.window.treatment_controller, 'therapy_finished_by_time', False)
+                ):
+                    display_text = "TERAPIA\nFINALIZADA"
+                    logger.info("Mostrando 'TERAPIA FINALIZADA' porque fue pausada por timeout")
 
                 self.window.current_process_status.setText(display_text)
                 self.window._update_header_during_filter_fill()
 
                 old_phase = self.window.state.current_phase  # ← Guardamos siempre el estado anterior
+                old_gemma = getattr(self.window.state, "current_gemma_state", None)
 
                 # Cambiar fase + acciones solo si realmente cambió
-                if new_phase != old_phase:
+                if new_phase != old_phase or (new_gemma is not None and new_gemma != old_gemma):
                     if not (old_phase == TreatmentPhase.CLEANING and new_phase != TreatmentPhase.CLEANING):
                         reason = f"Hardware → {display_text}"
-                        self.window.state.set_phase(new_phase, reason)
+                        if new_gemma is not None and hasattr(self.window.state, "set_gemma_state"):
+                            self.window.state.set_gemma_state(
+                                new_gemma,
+                                reason=reason,
+                                substate=display_text,
+                                phase_override=new_phase,
+                            )
+                        else:
+                            self.window.state.set_phase(new_phase, reason)
                         if hasattr(self.window, "screen_state_manager") and self.window.screen_state_manager is not None:
                             self.window.screen_state_manager.update_all_screens(new_phase)
 
@@ -226,16 +266,25 @@ class TelemetryInlet:
                     TreatmentPhase.PREPARING,
                 ):
                     logger.info("Hardware confirmó fin de tratamiento → Registrando historial")
-                    if hasattr(self.window, 'register_treatment_session'):
-                        self.window.register_treatment_session()
-                        logger.debug("Historial de tratamiento registrado")
-
-                    # Cerrar logger
-                    if hasattr(self.window, 'treatment_logger') and self.window.treatment_logger:
-                        self.window.treatment_logger.close()
-                        self.window.treatment_logger = None
 
                     treatment_controller = getattr(self.window, 'treatment_controller', None)
+                    records_already_closed = bool(
+                        treatment_controller and getattr(treatment_controller, 'therapy_records_closed', False)
+                    )
+
+                    if not records_already_closed:
+                        if hasattr(self.window, 'register_treatment_session'):
+                            self.window.register_treatment_session()
+                            logger.debug("Historial de tratamiento registrado")
+                    else:
+                        logger.debug("Saltando registro: registros ya cerrados por timeout")
+
+                    # Cerrar logger solo si no fue ya cerrado por timeout
+                    if not records_already_closed:
+                        if hasattr(self.window, 'treatment_logger') and self.window.treatment_logger:
+                            self.window.treatment_logger.close()
+                            self.window.treatment_logger = None
+
                     if treatment_controller is not None:
                         treatment_controller.stop_therapy_timer()
                         logger.debug("Timer de terapia detenido tras transición a IDLE")

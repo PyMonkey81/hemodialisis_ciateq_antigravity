@@ -576,11 +576,11 @@ class DialysisScreen(QWidget):
             buttons_layout.setColumnStretch(i, 1)
 
         self.action_buttons = {}
+        self.stop_treatment_callback = getattr(self.parent_window, "stop_treatment", lambda: None)
 
         button_config = [
             ("INICIAR", "#16a34a", getattr(self.parent_window, "start_treatment", lambda: None)),
             ("PAUSAR", "#f59e0b", getattr(self.parent_window, "pause_treatment", lambda: None)),
-            ("DETENER", "#dc2626", getattr(self.parent_window, "stop_treatment", lambda: None)),
             ("APLICAR\nBOLO", "nav", self.apply_bolus_clicked),
             ("MENÚ\nTERAPIA", "nav", self.show_therapy_config),
             ("MENÚ\nPACIENTE", "nav", self.show_patient_config),

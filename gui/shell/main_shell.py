@@ -19,6 +19,7 @@ from core.nibp_pressure_history import NibpPressureHistory
 from core.state_manager import TreatmentPhase
 from core.therapy_session_tracker import TherapySessionTracker
 from core.variables_map import VARIABLES
+from gui.components.floating_confirm import FloatingConfirmDialog
 from gui.components.real_time_variables import RealTimeVariablesMonitor
 from gui.configuration.alarm_screen_config import AlarmScreenConfig
 from gui.configuration.alarm_screen_service_config import AlarmScreenServiceConfig
@@ -127,6 +128,11 @@ class MainShell:
         nav_btn_bg = t.get("nav_btn_bg", "#06298a")
         nav_btn_active = t.get("nav_btn_active", "#3b82f6")
         nav_btn_disabled = t.get("nav_btn_disabled", "#334155")
+        self.window.BTN_ENABLED_END_THERAPY_STYLE = (
+            "QPushButton { background: #DD2911; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; "
+            "font-weight: bold; font-size: 30px; border-radius: 10px; }"
+            "QPushButton:pressed { background: #a01d08; }"
+        )
         header_pill = t.get("header_pill_bg", "#06298a")
 
         is_mono = bool(t.get("monochrome", False))
@@ -479,22 +485,30 @@ class MainShell:
             elif text == "Iniciar\nTratamiento":
                 enabled = phase in (TreatmentPhase.READY, TreatmentPhase.PAUSED)
 
+            elif text == "Finalizar\nTerapia":
+                enabled = phase in (
+                    TreatmentPhase.PREPARING,
+                    TreatmentPhase.READY,
+                    TreatmentPhase.RUNNING,
+                    TreatmentPhase.PAUSED,
+                )
+
             # ==================== RESTRICCIONES POR ESTADO ====================
             if phase == TreatmentPhase.CLEANING:
                 enabled = text in ["Limpieza", "Alarmas", "Historial", "Servicio"]
 
             elif phase == TreatmentPhase.RUNNING:
-                enabled = text in ["Diálisis", "Resumen\nTerapia", "Alarmas", "Historial"]
+                enabled = text in ["Diálisis", "Resumen\nTerapia", "Alarmas", "Historial", "Finalizar\nTerapia"]
 
             elif phase == TreatmentPhase.PAUSED:
                 enabled = text in ["Diálisis", "Resumen\nTerapia", "Iniciar\nTratamiento", "Servicio",
-                             "Alarmas", "Historial"]
+                             "Alarmas", "Historial", "Finalizar\nTerapia"]
                 if text == "Iniciar\nTratamiento":
                     enabled = self.window._can_start_treatment()
 
             elif phase == TreatmentPhase.READY:
                 enabled = text in ["Diálisis", "Resumen\nTerapia", "Iniciar\nTratamiento", "Servicio",
-                             "Alarmas", "Historial"]
+                             "Alarmas", "Historial", "Finalizar\nTerapia"]
                 if text == "Iniciar\nTratamiento":
                     # enabled = temp_ok and cond_ok
                     enabled = self.window._can_start_treatment()
@@ -506,7 +520,7 @@ class MainShell:
                 status = int(self.window.current_values.get("primingProcessStatus", 0))
                 if self.window.hardware_mapper.is_preparing(status):
                     # Durante cebado normal
-                    enabled = text in ["Diálisis", "Resumen\nTerapia", "Alarmas", "Historial", "Servicio"]
+                    enabled = text in ["Diálisis", "Resumen\nTerapia", "Alarmas", "Historial", "Servicio", "Finalizar\nTerapia"]
                 else:
                     # Cuando se detiene el priming
                     enabled = True
@@ -529,7 +543,8 @@ class MainShell:
                         btn.setStyleSheet(self.window.BTN_ENABLED_START_TREATMENT_STYLE)
                     else:
                         btn.setStyleSheet(self.window.BTN_ENABLED_START_TREATMENT_STYLE)
-
+                elif text == "Finalizar\nTerapia":
+                    btn.setStyleSheet(self.window.BTN_ENABLED_END_THERAPY_STYLE)
                 elif text == current_nav_text:
                     btn.setStyleSheet(self.window.BTN_ACTIVE_STYLE)
                 else:
@@ -580,6 +595,42 @@ class MainShell:
             button.setStyleSheet(self.window.BTN_ACTIVE_STYLE)
         else:
             button.setStyleSheet(self.window.BTN_ENABLED_DEFAULT_STYLE)
+
+    def _confirm_end_therapy(self):
+        """
+        Muestra dos diálogos de confirmación secuencial para finalizar terapia y cebado.
+
+        1. Primer diálogo: "¿Desea terminar la terapia?"
+        2. Segundo diálogo (solo si acepta el primero): "¿Está seguro que quiere finalizar?"
+
+        Solo si acepta ambos, llama a treatment_controller.end_therapy().
+        """
+        dialog1 = FloatingConfirmDialog(self.window)
+        confirmed_1 = dialog1.show_confirm(
+            text="¿Desea terminar la terapia?",
+            accept_text="Aceptar",
+            cancel_text="Cancelar",
+        )
+        if not confirmed_1:
+            logger.info("Usuario canceló primer diálogo de fin de terapia")
+            return
+
+        dialog2 = FloatingConfirmDialog(self.window)
+        confirmed_2 = dialog2.show_confirm(
+            text="¿Está seguro que quiere finalizar?",
+            accept_text="Aceptar",
+            cancel_text="Cancelar",
+        )
+        if not confirmed_2:
+            logger.info("Usuario canceló segundo diálogo de fin de terapia")
+            return
+
+        logger.info("Usuario confirmó fin de terapia (ambos diálogos)")
+        success = self.window.treatment_controller.end_therapy()
+        if success:
+            self.window._update_therapy_time_displays()
+            self.window._refresh_navigation_bar()
+            self.window._reset_filter_fill_flags()
 
     def update_date_time(self):
         self.window.date_time_label.setText(datetime.now().strftime("%d/%m/%Y \n %H:%M:%S"))
@@ -942,6 +993,7 @@ class MainShell:
             ("Inicio", "#06298a", self.window.show_home_screen),
             ("Resumen\nTerapia", "#06298a", self.window.show_dialysis_screen),
             ("Iniciar\nTratamiento", "#39ec21", self.window.start_treatment),
+            ("Finalizar\nTerapia", "#DD2911", self.window._confirm_end_therapy),
             ("Limpieza", "#06298a", self.window.show_cleaning_screen),
             ("Servicio", "#06298a", self.window.show_options_screen),
             ("Alarmas", "#06298a", self.window.show_alarms_screen),
@@ -950,7 +1002,7 @@ class MainShell:
 
         for text, color, callback in nav_items:
             btn = QPushButton(text)
-            btn.setFixedSize(200, 110)
+            btn.setFixedSize(173, 110)
             btn.clicked.connect(callback)
             central_nav_layout.addWidget(btn)
             self.window.navigation_buttons[text] = btn

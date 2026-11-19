@@ -292,6 +292,10 @@ class HemodialysisHMI(QMainWindow):
         QPushButton { background: #39ec21; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; border-radius: 8px; font-weight: bold; font-size: 30px;}
         QPushButton:pressed { background: #1e40af; }
     """
+    BTN_ENABLED_END_THERAPY_STYLE = """
+        QPushButton { background: #DD2911; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; font-size: 30px; border-radius: 10px; }
+        QPushButton:pressed { background: #a01d08; }
+    """
     BTN_ENABLED_EXIT_STYLE = """
         QPushButton { background: #dc2626; color: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; font-weight: bold; font-size: 30px; border-radius: 10px; }
         QPushButton:pressed { background: #b91c1c; }
@@ -800,6 +804,9 @@ class HemodialysisHMI(QMainWindow):
 
     def _update_buttons_state(self):
         return self._get_main_shell()._update_buttons_state()
+
+    def _confirm_end_therapy(self):
+        return self._get_main_shell()._confirm_end_therapy()
 
     def _can_start_treatment(self) -> bool:
         return self._get_treatment_start()._can_start_treatment()
