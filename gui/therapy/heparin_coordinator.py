@@ -328,7 +328,88 @@ class HeparinCoordinator:
         self._update_heparin_auto_stop_timer()
         self._update_heparin_infusion_enable_guard()
 
+    def _validate_heparin_on_therapy_time_change(self, new_total_seconds: float) -> bool:
+        """
+        Valida un cambio de duración de terapia mientras está RUNNING o PAUSED.
+        Retorna True si es válido, False si debe rechazarse.
+        """
+        controller = getattr(self.window, "treatment_controller", None)
+        if getattr(controller, "therapy_records_closed", False):
+            msg = "La terapia ya está en bypass. No se puede modificar la duración."
+            self.window.show_warning_message(msg, 4000)
+            logger.warning("[THERAPY-TIME-CHANGE] Rechazado: therapy_records_closed activa")
+            return False
+
+        elapsed_sec = controller.get_elapsed_seconds() if controller else 0
+        if new_total_seconds <= elapsed_sec:
+            msg = "El tiempo debe ser mayor al ya transcurrido."
+            self.window.show_warning_message(msg, 4000)
+            logger.warning(
+                f"[THERAPY-TIME-CHANGE] Rechazado: nuevo total {new_total_seconds}s <= transcurrido {elapsed_sec}s"
+            )
+            return False
+
+        heparin_enabled = bool(self.window.current_values.get("heparineInfusionEnabled", 1.0))
+        if not heparin_enabled:
+            logger.info("[THERAPY-TIME-CHANGE] Infusión deshabilitada, sin validación heparina")
+            return True
+
+        try:
+            remaining_real_sec = new_total_seconds - elapsed_sec
+            remaining_real_min = remaining_real_sec / 60.0
+
+            hep_h = int(self.window.current_values.get("heparineAutoStopHours", 0) or 0)
+            hep_m = int(self.window.current_values.get("heparineAutoStopMinutes", 0) or 0)
+            hep_total_min = (hep_h * 60) + hep_m
+
+            max_hep_min = max(0, remaining_real_min - 30)
+
+            if hep_total_min > max_hep_min:
+                msg = (
+                    f"Tiempo de heparina ({hep_h:02d}:{hep_m:02d}) excede el máximo "
+                    f"permitido ({int(max_hep_min // 60):02d}:{int(max_hep_min % 60):02d}) "
+                    "para esta duración de terapia."
+                )
+                self.window.show_warning_message(msg, 5000)
+                logger.warning(
+                    f"[THERAPY-TIME-CHANGE] Rechazado: heparina {hep_total_min}min > máximo {max_hep_min}min"
+                )
+                return False
+
+            logger.info(
+                f"[THERAPY-TIME-CHANGE] Validación OK: heparina {hep_total_min}min <= máximo {max_hep_min}min"
+            )
+            return True
+        except Exception as e:
+            logger.error(f"[THERAPY-TIME-CHANGE] Error validando heparina: {e}", exc_info=True)
+            return False
+
     def write_local_setpoint(self, tag: str, value: float):
+        if tag in ("heparineTherapyHours", "heparineTherapyMinutes"):
+            in_running_or_paused = (
+                self.window.state.current_phase in (TreatmentPhase.RUNNING, TreatmentPhase.PAUSED)
+            )
+            if in_running_or_paused:
+                if tag == "heparineTherapyHours":
+                    new_h = int(value)
+                    new_m = int(self.window.current_values.get("heparineTherapyMinutes", 0) or 0)
+                else:
+                    new_h = int(self.window.current_values.get("heparineTherapyHours", 0) or 0)
+                    new_m = int(value)
+                new_total_seconds = (new_h * 60 + new_m) * 60
+
+                if not self._validate_heparin_on_therapy_time_change(new_total_seconds):
+                    return False
+
+                self.window.current_values[tag] = float(value)
+                self.window._persist_therapy_config_tag(tag, float(value))
+                self.window.treatment_controller.total_therapy_seconds = new_total_seconds
+                self.window._update_therapy_time_displays()
+                logger.info(
+                    f"[THERAPY-TIME] set_min={new_h * 60 + new_m} remaining={new_h:02d}:{new_m:02d}:00 source=running_or_paused"
+                )
+                return True
+
         self.window.current_values[tag] = float(value)
         self.window._persist_therapy_config_tag(tag, float(value))
 
