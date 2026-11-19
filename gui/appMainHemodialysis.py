@@ -591,6 +591,9 @@ class HemodialysisHMI(QMainWindow):
 
     def _validate_and_clamp_heparin_auto_stop_time(self):
         return self._get_heparin_coordinator()._validate_and_clamp_heparin_auto_stop_time()
+
+    def _apply_heparin_auto_trim_on_running(self):
+        return self._get_heparin_coordinator()._apply_heparin_auto_trim_on_running()
     
     def _get_heparin_flow_ml_per_h(self) -> float:
         return self._get_heparin_coordinator()._get_heparin_flow_ml_per_h()

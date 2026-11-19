@@ -39,6 +39,12 @@ class HeparinCoordinator:
         2. Tags de la pantalla (HeparinConfigScreen.current_values)
         3. Texto del widget (input_heparin_auto_stop)
         """
+        # Si la infusión de heparina está deshabilitada, no hacer nada
+        heparin_enabled = bool(self.window.current_values.get("heparineInfusionEnabled", 1.0))
+        if not heparin_enabled:
+            logger.info("[HEPARIN-VALIDATION] Infusión deshabilitada, omitiendo validación")
+            return
+
         try:
             # Obtener tiempos actuales guardados
             auto_h = int(self.window.current_values.get("heparineAutoStopHours", 0) or 0)
@@ -146,6 +152,86 @@ class HeparinCoordinator:
         except Exception as e:
             logger.error(f"Error validando tiempo de heparina: {e}", exc_info=True)
 
+    def _apply_heparin_auto_trim_on_running(self):
+        """
+        Al entrar a RUNNING, recorta UNA SOLA VEZ el tiempo de heparina si es necesario.
+        Si heparineInfusionEnabled es 0, no hace nada.
+        """
+        heparin_enabled = bool(self.window.current_values.get("heparineInfusionEnabled", 1.0))
+        if not heparin_enabled:
+            logger.info("[HEPARIN-TRIM-RUNNING] Infusión deshabilitada, omitiendo recorte")
+            return
+
+        try:
+            therapy_h = int(self.window.current_values.get("heparineTherapyHours", 0) or 0)
+            therapy_m = int(self.window.current_values.get("heparineTherapyMinutes", 0) or 0)
+            programmed_minutes = (therapy_h * 60) + therapy_m
+
+            auto_h = int(self.window.current_values.get("heparineAutoStopHours", 0) or 0)
+            auto_m = int(self.window.current_values.get("heparineAutoStopMinutes", 0) or 0)
+            auto_minutes = (auto_h * 60) + auto_m
+
+            max_heparin_minutes = max(0, programmed_minutes - 30)
+
+            if auto_minutes > max_heparin_minutes:
+                trimmed_h = max_heparin_minutes // 60
+                trimmed_m = max_heparin_minutes % 60
+
+                logger.info(
+                    f"[HEPARIN-TRIM-RUNNING] Terapia: {therapy_h:02d}:{therapy_m:02d} ({programmed_minutes} min) | "
+                    f"Heparina original: {auto_h:02d}:{auto_m:02d} ({auto_minutes} min) | "
+                    f"Máximo permitido: {trimmed_h:02d}:{trimmed_m:02d} ({max_heparin_minutes} min) | "
+                    f"Recortando..."
+                )
+
+                self.window.current_values["heparineAutoStopHours"] = float(trimmed_h)
+                self.window.current_values["heparineAutoStopMinutes"] = float(trimmed_m)
+
+                self.window._persist_therapy_config_tag("heparineAutoStopHours", float(trimmed_h))
+                self.window._persist_therapy_config_tag("heparineAutoStopMinutes", float(trimmed_m))
+
+                time_hours = trimmed_h + (trimmed_m / 60.0)
+                flow_ml_per_h = self._get_heparin_flow_ml_per_h()
+                dosage_ml = round(time_hours * flow_ml_per_h, 2)
+
+                self.window.current_values["heparineTherapyDosage"] = dosage_ml
+                self.window._persist_therapy_config_tag("heparineTherapyDosage", dosage_ml)
+
+                ignore_until = time.time() + 3.0
+                self.window.ignore_tags_until["heparineAutoStopHours"] = ignore_until
+                self.window.ignore_tags_until["heparineAutoStopMinutes"] = ignore_until
+                self.window.ignore_tags_until["heparineTherapyDosage"] = ignore_until
+                logger.info("[HEPARIN-TRIM-RUNNING] Bloqueando lecturas durante 3s")
+
+                logger.info("[HEPARIN-TRIM-RUNNING] Enviando valores recortados al firmware...")
+                self.window._write_setpoint("heparineAutoStopHours", float(trimmed_h))
+                self.window._write_setpoint("heparineAutoStopMinutes", float(trimmed_m))
+                self.window._write_setpoint("heparineTherapyDosage", dosage_ml)
+
+                if (
+                    hasattr(self.window, 'heparin_config_screen')
+                    and self.window.heparin_config_screen is not None
+                ):
+                    self.window.heparin_config_screen.input_heparin_auto_stop.setText(
+                        f"{trimmed_h:02d}:{trimmed_m:02d}"
+                    )
+                    self.window.heparin_config_screen.current_values["heparineAutoStopHours"] = float(trimmed_h)
+                    self.window.heparin_config_screen.current_values["heparineAutoStopMinutes"] = float(trimmed_m)
+                    self.window.heparin_config_screen.current_values["heparineTherapyDosage"] = dosage_ml
+
+                msg = (
+                    f"Heparina recortada a {trimmed_h:02d}:{trimmed_m:02d} al iniciar terapia. "
+                    "No se infunde en los últimos 30 minutos."
+                )
+                self.window.show_warning_message(msg, 5000)
+            else:
+                logger.info(
+                    f"[HEPARIN-TRIM-RUNNING] Heparina {auto_h:02d}:{auto_m:02d} ({auto_minutes} min) "
+                    f"está dentro del límite ({max_heparin_minutes} min). No se modifica."
+                )
+        except Exception as e:
+            logger.error(f"Error recortando tiempo de heparina al iniciar RUNNING: {e}", exc_info=True)
+
     def _get_heparin_flow_ml_per_h(self) -> float:
         """Obtiene el flujo de heparina en ml/h desde current_values."""
         try:
@@ -185,6 +271,12 @@ class HeparinCoordinator:
             return
 
         if phase != TreatmentPhase.RUNNING:
+            return
+
+        # Si la infusión de heparina está deshabilitada, no hacer nada
+        heparin_enabled = bool(self.window.current_values.get("heparineInfusionEnabled", 1.0))
+        if not heparin_enabled:
+            self.window._heparin_auto_stop_latched = False
             return
 
         auto_stop_seconds = self._coerce_heparin_auto_stop_seconds()
