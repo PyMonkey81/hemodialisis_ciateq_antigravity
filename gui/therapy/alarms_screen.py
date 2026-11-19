@@ -411,16 +411,17 @@ class AlarmsScreen(QWidget):
         """
         if not self.active_alarms:
             # QMessageBox.information(self, "Información", "No hay alarmas activas para reconocer.")
-            
-            self.show_info_message("No hay alarmas activas para reconocer.", 3000)
+            if self.parent_window and hasattr(self.parent_window, 'show_info_message'):
+                self.parent_window.show_info_message("No hay alarmas activas para reconocer.", 3000)
             return
 
         unacked_count = sum(1 for data in self.active_alarms.values() if not data['acked'])
         if unacked_count == 0:
             # QMessageBox.information(self, "Información", "Todas las alarmas activas ya están reconocidas.")
-            self.show_info_message("Todas las alarmas activas ya están reconocidas.", 3000)
+            if self.parent_window and hasattr(self.parent_window, 'show_info_message'):
+                self.parent_window.show_info_message("Todas las alarmas activas ya están reconocidas.", 3000)
             return
-        dialog = FloatingConfirmDialog(self)
+        dialog = FloatingConfirmDialog(self.window())
         message = f"¿Estás seguro de reconocer {unacked_count} alarma(s) activa(s) y silenciar?"
         reply = dialog.show_confirm(message, accept_text="Sí, Reconocer", cancel_text="Cancelar")
         
@@ -445,10 +446,11 @@ class AlarmsScreen(QWidget):
                 self._append_to_history("Operador reconoció alarmas activas y silenció buzzer", 
                                       None, "info", QTime.currentTime().toString("hh:mm:ss"))
                 
-               
-                self.show_info_message(f"{unacked_count} alarma(s) reconocida(s). Buzzer silenciado.", 4000)
-        else:            
-            self.show_info_message("Reconocimiento de alarmas cancelado.", 3000)
+                if self.parent_window and hasattr(self.parent_window, 'show_info_message'):
+                    self.parent_window.show_info_message(f"{unacked_count} alarma(s) reconocida(s). Buzzer silenciado.", 4000)
+        else:
+            if self.parent_window and hasattr(self.parent_window, 'show_info_message'):
+                self.parent_window.show_info_message("Reconocimiento de alarmas cancelado.", 3000)
 
     def show_floating_message(self, text: str, timeout_ms: int = 3800):
         """Método genérico (recomendado)"""

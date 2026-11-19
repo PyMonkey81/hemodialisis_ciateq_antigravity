@@ -150,6 +150,9 @@ VARIABLES: Dict[int, Dict[int, Dict[str, Any]]] = {
                 ("Sobrepresión Bomba Diálisis", "SOBREPRESIÓN DIALIZANTE", "rojo", "dialyDialyPumpOverPress"),    # 57
                 ("Sobrepresión Bomba Deaeración", "SOBREPRESIÓN DEAERACIÓN", "rojo", "dialyDeaerPumpOverPress"),    # 58
                 ("Activación de posición jeringa", "ACT POS JERINGA", "cian", "heparineSynringeAct"),    # 59
+                ("Presión Arterial en desconectada", "PA DESCON.", "rojo", "bloodArteryZeroPressAlarm"),    # 60
+                ("Presión Venosa en desconectada", "PV DESCON.", "rojo", "bloodVenousZeroPressAlarm"),    # 61
+                ("Conductividad fuera de limites", "COND FUERA LIM.", "rojo", "dialyConductivityAlarm"),    # 62
             ], start=0)}
     },
 

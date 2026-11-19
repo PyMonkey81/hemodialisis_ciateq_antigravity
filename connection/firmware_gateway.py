@@ -244,7 +244,8 @@ class FirmwareGateway:
 
     def _write_pressure_limits_on_connection(self):
         """Escribe límites de presión, agua y conductividad al conectar leyendo SOLO del cache.
-        Si una fila no está guardada, NO la escribe."""
+        Si una fila no está guardada, NO la escribe.
+        CALC_COND_BAND se elimina del caché si existe; solo se escribe dialyConductivityAlarm."""
         if not self.window.serial_comm or not self.window.serial_comm.is_connected:
             return
 
@@ -255,11 +256,22 @@ class FirmwareGateway:
                 logger.info("Cache vacío: no hay límites guardados para escribir al conectar")
                 return
 
+            if "CALC_COND_BAND" in cache:
+                del cache["CALC_COND_BAND"]
+                self.window.config_manager.save_config()
+                logger.info("CALC_COND_BAND removida del cache")
+
             art_min, art_max = self._unpack_cached_limits(cache, "bloodArteryPressureData")
             ven_min, ven_max = self._unpack_cached_limits(cache, "bloodVenousPressureData")
             ptm_min, ptm_max = self._unpack_cached_limits(cache, "CALC_PTM")
             water_min, water_max = self._unpack_cached_limits(cache, "dialyLineWaterPresData")
-            cond_min, cond_max = self._unpack_cached_limits(cache, "dialyCondVariableData")
+            cond_min, cond_max = (
+                self._unpack_cached_limits(cache, "dialyConductivityAlarm")
+                if "dialyConductivityAlarm" in cache
+                else (None, None)
+            )
+            if cond_min is None or cond_max is None:
+                cond_min, cond_max = None, None
             self._emit_pressure_alarm_limits(
                 art_min, art_max, ven_min, ven_max, ptm_min, ptm_max,
                 water_min, water_max, cond_min, cond_max

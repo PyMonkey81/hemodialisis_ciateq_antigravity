@@ -28,11 +28,11 @@ logger = logging.getLogger(__name__)
 crc16 = crcmod.mkCrcFun(0x18005, initCrc=0xFFFF, rev=True, xorOut=0x0000)
 
 # Fixed read commands
-READ_BOOLEAN_COMMAND    = bytes.fromhex("11 11 00 3C")
+READ_BOOLEAN_COMMAND    = bytes.fromhex("11 11 00 3F")
 READ_ANALOG_COMMAND     = bytes.fromhex("12 AA 00 47")
 
 # Expected response sizes (including 2-byte CRC)
-EXPECTED_BOOLEAN_RESPONSE_SIZE = 65   # 3 header + 60 data + 2 CRC
+EXPECTED_BOOLEAN_RESPONSE_SIZE = 68   # 3 header + 63 data + 2 CRC
 EXPECTED_ANALOG_RESPONSE_SIZE  = 573  # 3 header + 71×8 bytes + 2 CRC
 EXPECTED_WRITE_RESPONSE_SIZE   = 6    # 3 header + 1 response byte + 2 CRC
 
@@ -285,6 +285,7 @@ class SerialCommunication(QObject):
         self.reader_thread = threading.Thread(target=self._communication_loop, daemon=True)
         self.reader_thread.start()
         logger.info("[CONTROLADOR PPAL] Hilo de comunicación iniciado exitosamente.")
+        print(    "[CONTROLADOR PPAL] Hilo de comunicación iniciado exitosamenin")
 
     def _communication_loop(self):
         """Main communication loop: handles reads and queued write commands."""
@@ -393,9 +394,9 @@ class SerialCommunication(QObject):
     def _parse_read_payload(self, payload: bytes):
         """Parse incoming data and emit signals for each variable."""
         # ── Boolean values ───────────────────────────────────────
-        if payload.startswith(b'\x11\x11\x00') and len(payload) >= 63:
+        if payload.startswith(b'\x11\x11\x00') and len(payload) >= 66:
             if 0x01 in VARIABLES:
-                for i in range(60):
+                for i in range(63):
                     byte_value = payload[3 + i]
                     value = 1.0 if byte_value else 0.0
                     if i in VARIABLES[0x01]:
